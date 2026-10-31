@@ -91,7 +91,8 @@ final class DocumentStore: ObservableObject {
 
     // MARK: counts
 
-    static func wordCount(_ text: String) -> Int {
+    static func wordCount(_ full: String) -> Int {
+        let text = FrontMatter.body(of: full)
         var n = 0
         text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: [.byWords, .substringNotRequired]) { _, _, _, _ in n += 1 }
         return n

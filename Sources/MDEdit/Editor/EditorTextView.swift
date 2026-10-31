@@ -132,6 +132,8 @@ final class EditorTextView: NSTextView {
                 storage.addAttributes([.foregroundColor: Palette.quoteText], range: r)
                 trait(.italicFontMask, r)
             case .rule: storage.addAttribute(.foregroundColor, value: Palette.marker, range: r)
+            case .frontMatter:
+                storage.addAttribute(.foregroundColor, value: Palette.done, range: r)
             case .tableRow:
                 let ns = storage.string as NSString
                 for i in r.location..<NSMaxRange(r) where ns.character(at: i) == 0x7C {

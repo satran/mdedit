@@ -1,3 +1,14 @@
+---
+title: DORA, you have a naming problem
+tags: [regulation, devops, compliance]
+aliases:
+  - DORA
+  - Naming problem
+date: 2026-10-31
+published: false
+related: "[[Goals]]"
+source: https://dora.dev
+---
 # DORA, you have a naming problem
 
 Say “DORA” to a room of engineers and most of them will think of the four **DevOps metrics**. Say it to a room of compliance people and they will think of the *Digital Operational Resilience Act*.

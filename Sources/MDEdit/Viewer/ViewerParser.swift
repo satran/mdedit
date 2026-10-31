@@ -12,6 +12,17 @@ indirect enum VBlock {
     case rule
     case image(src: String, alt: String)
     case html(String)
+    case properties([VProperty])
+}
+
+struct VProperty {
+    enum Value {
+        case text(AttributedString)
+        case list([AttributedString])
+        case bool(Bool)
+    }
+    var key: String
+    var value: Value
 }
 
 struct VItem {
@@ -21,8 +32,19 @@ struct VItem {
 
 enum ViewerParser {
     static func parse(_ source: String) -> [VBlock] {
-        let doc = Document(parsing: source)
-        return blocks(doc.children)
+        var out: [VBlock] = []
+        var body = source
+        if let fm = FrontMatter.parse(source) {
+            out.append(.properties(fm.properties.map { p in
+                switch p.value {
+                case .text(let t): return VProperty(key: p.key, value: .text(linkified(t, intent: [])))
+                case .list(let l): return VProperty(key: p.key, value: .list(l.map { linkified($0, intent: []) }))
+                case .bool(let b): return VProperty(key: p.key, value: .bool(b))
+                }
+            }))
+            body = (source as NSString).substring(from: fm.end)
+        }
+        return out + blocks(Document(parsing: body).children)
     }
 
     private static func blocks(_ children: MarkupChildren) -> [VBlock] {

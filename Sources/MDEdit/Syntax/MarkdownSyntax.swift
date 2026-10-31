@@ -16,6 +16,7 @@ struct MDSpan: Equatable {
         case quote                 // text after "> "
         case rule
         case tableRow
+        case frontMatter           // a line of the YAML block at the top
     }
     var range: NSRange
     var kind: Kind
@@ -55,7 +56,9 @@ enum MarkdownSyntax {
         var lines: [MDLine] = []
         let ns = text as NSString
         var fence: String?
+        let fmEnd = FrontMatter.parse(text)?.end ?? 0
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byLines, .substringNotRequired]) { _, line, _, _ in
+            if line.location < fmEnd { spans.append(MDSpan(range: line, kind: .frontMatter)); return }
             let s = ns.substring(with: line).trimmingCharacters(in: .whitespaces)
             if let f = fence {
                 spans.append(MDSpan(range: line, kind: .codeBlock))

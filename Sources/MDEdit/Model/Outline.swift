@@ -13,7 +13,9 @@ enum Outline {
         var out: [OutlineHeading] = []
         var fenced = false
         let ns = text as NSString
+        let skip = FrontMatter.parse(text)?.end ?? 0
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byLines, .substringNotRequired]) { _, line, _, _ in
+            if line.location < skip { return }
             let s = ns.substring(with: line)
             let t = s.trimmingCharacters(in: .whitespaces)
             if t.hasPrefix("```") || t.hasPrefix("~~~") { fenced.toggle(); return }

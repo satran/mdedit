@@ -108,6 +108,8 @@ struct BlockView: View {
             ImageBlock(src: src, alt: alt, baseURL: baseURL, size: size)
         case .html(let raw):
             Text(raw).font(prefs.monoFont(size * 0.8)).foregroundStyle(Color(Palette.marker))
+        case .properties(let props):
+            PropertiesBlock(props: props, prefs: prefs)
         }
     }
 
@@ -204,5 +206,103 @@ struct ImageBlock: View {
         let path = src.removingPercentEncoding ?? src
         let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : URL(fileURLWithPath: path, relativeTo: baseURL)
         return NSImage(contentsOf: url)
+    }
+}
+
+/// The note's front matter as a table of properties, the way Obsidian shows them.
+struct PropertiesBlock: View {
+    let props: [VProperty]
+    @ObservedObject var prefs: Preferences
+
+    private static let dateKeys: Set<String> = ["date", "created", "updated", "modified", "due", "published"]
+
+    private func symbol(_ p: VProperty) -> String {
+        if case .bool = p.value { return "checkmark.square" }
+        let k = p.key.lowercased()
+        if k == "tags" || k == "tag" { return "tag" }
+        if k == "aliases" || k == "alias" { return "arrow.turn.down.right" }
+        if Self.dateKeys.contains(k) { return "calendar" }
+        if k == "url" || k == "link" || k == "source" { return "link" }
+        switch p.value {
+        case .list: return "list.bullet"
+        case .bool: return "checkmark.square"
+        case .text: return "text.alignleft"
+        }
+    }
+
+    var body: some View {
+        let size = CGFloat(prefs.viewerSize) * 0.78
+        VStack(spacing: 0) {
+            ForEach(Array(props.enumerated()), id: \.offset) { i, p in
+                if i > 0 { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
+                HStack(alignment: .firstTextBaseline, spacing: 14) {
+                    HStack(spacing: 7) {
+                        Image(systemName: symbol(p)).font(.system(size: size * 0.9)).frame(width: size * 1.2)
+                        Text(p.key).lineLimit(1)
+                    }
+                    .foregroundStyle(Color(Palette.muted))
+                    .frame(width: size * 10, alignment: .leading)
+                    value(p.value, size: size).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(prefs.viewerFont(size: size))
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(Palette.rule)))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityLabel("Properties")
+    }
+
+    @ViewBuilder private func value(_ v: VProperty.Value, size: CGFloat) -> some View {
+        switch v {
+        case .text(let t):
+            Text(link(t)).foregroundStyle(Color(Palette.text)).fixedSize(horizontal: false, vertical: true)
+        case .bool(let b):
+            Image(systemName: b ? "checkmark.square.fill" : "square")
+                .foregroundStyle(b ? Color(Palette.green) : Color(Palette.muted)).accessibilityLabel(b ? "Yes" : "No")
+        case .list(let items):
+            FlowLayout(spacing: 6) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, t in
+                    Text(link(t)).foregroundStyle(Color(Palette.text))
+                        .padding(.horizontal, 9).padding(.vertical, 2)
+                        .background(Capsule().fill(Color(Palette.chip)))
+                }
+            }
+        }
+    }
+
+    private func link(_ a: AttributedString) -> AttributedString {
+        var out = a
+        for run in a.runs where run.link != nil {
+            out[run.range].foregroundColor = Color(Palette.link)
+            out[run.range].underlineStyle = .single
+        }
+        return out
+    }
+}
+
+/// Lays its children out in rows, wrapping to the next row when one is full.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(subviews, width: proposal.width ?? .infinity).size
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (i, f) in arrange(subviews, width: bounds.width).frames.enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), proposal: ProposedViewSize(f.size))
+        }
+    }
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> (frames: [CGRect], size: CGSize) {
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0, used: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0, x + s.width > width { x = 0; y += row + spacing; row = 0 }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: s))
+            x += s.width + spacing; row = max(row, s.height); used = max(used, x - spacing)
+        }
+        return (frames, CGSize(width: used, height: y + row))
     }
 }

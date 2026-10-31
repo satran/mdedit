@@ -11,7 +11,9 @@ final class Exporter: NSObject, WKNavigationDelegate {
 
     /// A full HTML page for the note, set the way the viewer sets it. [[Wiki links]] become their plain text.
     nonisolated static func html(markdown: String, title: String, viewerFont: String = "Source Serif 4", size: Double = 18) -> String {
-        let body = HTMLFormatter.format(Document(parsing: plainWikiLinks(markdown)))
+        let fm = FrontMatter.parse(markdown)
+        let content = fm.map { (markdown as NSString).substring(from: $0.end) } ?? markdown
+        let body = (fm.map(propertiesHTML) ?? "") + HTMLFormatter.format(Document(parsing: plainWikiLinks(content)))
         let esc = title.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
         return """
         <!doctype html>
@@ -23,11 +25,27 @@ final class Exporter: NSObject, WKNavigationDelegate {
         code { font: 0.85em "IBM Plex Mono", ui-monospace, Menlo, monospace; background: #F2F4F7; border-radius: 4px; padding: 1px 5px; }
         pre { background: #F2F4F7; border-radius: 8px; padding: 12px; overflow-x: auto; } pre code { background: none; padding: 0; }
         table { border-collapse: collapse; } th, td { border: 1px solid #D7DCE2; padding: 6px 12px; } th { background: #F2F4F7; }
+        table.properties { font-size: 0.8em; width: 100%; } table.properties th { background: none; color: #686E76; font-weight: 400; text-align: left; width: 9em; }
+        .chip { background: #F2F4F7; border-radius: 999px; padding: 1px 9px; }
         a { color: #2F6FDB; } img { max-width: 100%; } hr { border: 0; border-top: 1px solid #D7DCE2; }
         </style></head><body>
         \(body)
         </body></html>
         """
+    }
+
+    nonisolated static func propertiesHTML(_ fm: FrontMatter) -> String {
+        func esc(_ s: String) -> String { s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;") }
+        let rows = fm.properties.map { p -> String in
+            let v: String
+            switch p.value {
+            case .text(let t): v = esc(plainWikiLinks(t))
+            case .bool(let b): v = b ? "&#9745;" : "&#9744;"
+            case .list(let l): v = l.map { "<span class=\"chip\">\(esc(plainWikiLinks($0)))</span>" }.joined(separator: " ")
+            }
+            return "<tr><th>\(esc(p.key))</th><td>\(v)</td></tr>"
+        }
+        return "<table class=\"properties\">\(rows.joined())</table>\n"
     }
 
     nonisolated static func plainWikiLinks(_ s: String) -> String {
