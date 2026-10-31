@@ -61,6 +61,7 @@ struct BlockView: View {
                 .font(prefs.viewerFont(size: s, weight: w))
                 .foregroundStyle(Color(Palette.strongText))
                 .lineSpacing(s * 0.15)
+                .modifier(LinkCursor(text: text, font: prefs.viewerNSFont(size: s, bold: true), size: s, lineSpacing: s * 0.15, prefs: prefs))
                 .padding(.top, first ? 0 : (level <= 2 ? size * 0.9 : size * 0.4))
                 .padding(.bottom, level == 1 ? size * 0.25 : 0)
                 .fixedSize(horizontal: false, vertical: true)
@@ -70,6 +71,7 @@ struct BlockView: View {
                 .font(prefs.viewerFont(size: size))
                 .foregroundStyle(ink)
                 .lineSpacing(size * 0.33)
+                .modifier(LinkCursor(text: text, font: prefs.viewerNSFont(size: size, bold: false), size: size, lineSpacing: size * 0.33, prefs: prefs))
                 .fixedSize(horizontal: false, vertical: true)
         case .quote(let inner):
             HStack(alignment: .top, spacing: 0) {
@@ -304,5 +306,61 @@ struct FlowLayout: Layout {
             x += s.width + spacing; row = max(row, s.height); used = max(used, x - spacing)
         }
         return (frames, CGSize(width: used, height: y + row))
+    }
+}
+
+
+/// Text that is selectable shows an I-beam everywhere, links included. This finds the link under the pointer by laying the
+/// same text out with TextKit, and asks for the pointing hand when the pointer is on one.
+struct LinkCursor: ViewModifier {
+    let text: AttributedString
+    let font: NSFont
+    let size: CGFloat
+    let lineSpacing: CGFloat
+    let prefs: Preferences
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        if text.runs.contains(where: { $0.link != nil }) {
+            content
+                .background(GeometryReader { g in
+                    Color.clear.onAppear { width = g.size.width }.onChange(of: g.size.width) { _, w in width = w }
+                })
+                .onContinuousHover { phase in
+                    if case .active(let p) = phase, overLink(p) {
+                        NSCursor.pointingHand.set()
+                        DispatchQueue.main.async { NSCursor.pointingHand.set() }
+                    }
+                }
+        } else {
+            content
+        }
+    }
+
+    private func overLink(_ p: CGPoint) -> Bool {
+        guard width > 0 else { return false }
+        let storage = NSTextStorage()
+        let para = NSMutableParagraphStyle(); para.lineSpacing = lineSpacing
+        for run in text.runs {
+            var f = font
+            let intent = run.inlinePresentationIntent ?? []
+            if intent.contains(.code) { f = prefs.editorNSFont(size: size * 0.85) }
+            if intent.contains(.stronglyEmphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask) }
+            if intent.contains(.emphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .italicFontMask) }
+            var attrs: [NSAttributedString.Key: Any] = [.font: f, .paragraphStyle: para]
+            if let url = run.link { attrs[.link] = url }
+            storage.append(NSAttributedString(string: String(text[run.range].characters), attributes: attrs))
+        }
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        layout.addTextContainer(container)
+        storage.addLayoutManager(layout)
+        layout.ensureLayout(for: container)
+        let glyph = layout.glyphIndex(for: p, in: container)
+        let rect = layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+        guard rect.insetBy(dx: -1, dy: -1).contains(p) else { return false }
+        let char = layout.characterIndexForGlyph(at: glyph)
+        return char < storage.length && storage.attribute(.link, at: char, effectiveRange: nil) != nil
     }
 }

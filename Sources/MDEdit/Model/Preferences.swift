@@ -48,6 +48,16 @@ final class Preferences: ObservableObject {
         return Fonts.nsFont(family: editorFont, size: s) ?? .monospacedSystemFont(ofSize: s, weight: .regular)
     }
 
+    /// The viewer's text font as AppKit sees it, to measure text the way SwiftUI sets it.
+    func viewerNSFont(size: CGFloat, bold: Bool) -> NSFont {
+        var f = Fonts.nsFont(family: viewerFont, size: size)
+        if f == nil {
+            let sys = NSFont.systemFont(ofSize: size)
+            f = ["SF Pro", "Inter"].contains(viewerFont) ? sys : (sys.fontDescriptor.withDesign(.serif).flatMap { NSFont(descriptor: $0, size: size) } ?? sys)
+        }
+        return bold ? NSFontManager.shared.convert(f!, toHaveTrait: .boldFontMask) : f!
+    }
+
     var viewerBase: Font { Self.viewerFont(viewerFont, size: viewerSize) }
 
     static func viewerFont(_ name: String, size: CGFloat) -> Font {
