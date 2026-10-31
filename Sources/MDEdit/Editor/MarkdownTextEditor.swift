@@ -16,6 +16,8 @@ struct MarkdownTextEditor: NSViewRepresentable {
     var bridge: EditorBridge?
     /// Return true when Esc was used up (leaving focus mode).
     var onEscape: (() -> Bool)?
+    /// Files dropped on the text become links; see `EditorTextView.dropText`.
+    var dropText: (([URL]) -> String)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -39,6 +41,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.onOpenWiki = onOpenWiki
         tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
         tv.typewriter = typewriter; tv.focusDim = focusDim
+        tv.dropText = dropText
         bridge?.textView = tv
 
         let scroll = NSScrollView()
@@ -68,6 +71,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.onOpenWiki = onOpenWiki
         tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
         tv.typewriter = typewriter; tv.focusDim = focusDim
+        tv.dropText = dropText
         bridge?.textView = tv
         if context.coordinator.linksVersion != linksVersion { context.coordinator.linksVersion = linksVersion; tv.restyle() }
         tv.style = style                                    // restyles itself when it changed

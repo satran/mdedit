@@ -16,6 +16,8 @@ final class EditorTextView: NSTextView {
     var onOpenWiki: ((String) -> Void)?
     var wikiResolves: (String) -> Bool = { _ in true }
     var wikiNames: () -> [String] = { [] }
+    /// Turns files dropped on the editor into Markdown (copying them in first); empty means nothing was done.
+    var dropText: (([URL]) -> String)?
     /// Keeps the line being written in the middle of the pane.
     var typewriter = false { didSet { if typewriter != oldValue { updateInsets(); if typewriter { centerCaret() } } } }
     /// Everything but the paragraph being written is dimmed.
@@ -320,6 +322,38 @@ final class EditorTextView: NSTextView {
         let label = text.isEmpty ? "text" : text
         insertText("[\(label)](https://)", replacementRange: r)
         setSelectedRange(NSRange(location: r.location + (label as NSString).length + 3, length: 8))
+    }
+
+    // MARK: dropped files
+
+    private func droppedFiles(_ info: NSDraggingInfo) -> [URL] {
+        (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dropText != nil && !droppedFiles(sender).isEmpty ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dropText != nil && !droppedFiles(sender).isEmpty ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let files = droppedFiles(sender)
+        guard let dropText, !files.isEmpty else { return super.performDragOperation(sender) }
+        var text = dropText(files)
+        guard !text.isEmpty else { return false }
+        let at = min(characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil)), (string as NSString).length)
+        // a picture is a paragraph of its own
+        if text.hasPrefix("![") {
+            let ns = string as NSString
+            if at > 0, ns.character(at: at - 1) != 10 { text = "\n\n" + text }
+            if at < ns.length, ns.character(at: at) != 10 { text += "\n\n" }
+        }
+        window?.makeFirstResponder(self)
+        setSelectedRange(NSRange(location: at, length: 0))
+        insertText(text, replacementRange: NSRange(location: at, length: 0))
+        return true
     }
 }
 

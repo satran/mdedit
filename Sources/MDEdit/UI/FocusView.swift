@@ -14,7 +14,8 @@ struct FocusView: View {
                                onOpenWiki: { ws.openWiki($0) },
                                wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
                                linksVersion: ws.treeVersion, typewriter: true, focusDim: true, bridge: ws.editor,
-                               onEscape: { ws.toggleFocus(); return true })
+                               onEscape: { ws.toggleFocus(); return true },
+                               dropText: { ws.linkText(forDropped: $0) })
                 .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.22)], startPoint: .top, endPoint: .bottom))
             VStack {
                 HStack {

@@ -87,11 +87,19 @@ struct DetailView: View {
                                style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth, headingSizes: prefs.headingSizes),
                                onOpenWiki: { ws.openWiki($0) },
                                wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
-                               linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor)
+                               linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor,
+                               dropText: { ws.linkText(forDropped: $0) })
         } else {
             ViewerContainer(text: document.text, baseURL: document.url?.deletingLastPathComponent(), prefs: prefs)
                 .environment(\.openURL, OpenURLAction { url in
                     if let t = WikiLink.target(from: url) { ws.openWiki(t); return .handled }
+                    if url.scheme == nil, let dir = document.url?.deletingLastPathComponent() {
+                        // a link to a file next to the note
+                        let target = URL(fileURLWithPath: url.path(percentEncoded: false), relativeTo: dir).standardizedFileURL
+                        if ws.isInside(target), BinderNode.documentExtensions.contains(target.pathExtension.lowercased()) { ws.select(target) }
+                        else { NSWorkspace.shared.open(target) }
+                        return .handled
+                    }
                     return .systemAction
                 })
         }

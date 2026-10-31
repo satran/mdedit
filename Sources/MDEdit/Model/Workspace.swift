@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 enum Mode: String { case write, view }
 
@@ -264,6 +265,61 @@ final class Workspace: ObservableObject {
         reload()
         selection = url
         renaming = url
+    }
+
+    // MARK: dropped files
+
+    func isInside(_ url: URL) -> Bool {
+        guard let rootURL else { return false }
+        return url.standardizedFileURL.path.hasPrefix(rootURL.standardizedFileURL.path + "/")
+    }
+
+    /// Copies a file or folder into `folder` under a name that is free; nil (with a message) when it fails.
+    @discardableResult
+    func copyIn(_ src: URL, to folder: URL) -> URL? {
+        let ext = src.pathExtension
+        let dest = Self.uniqueURL(in: folder, base: src.deletingPathExtension().lastPathComponent, ext: ext.isEmpty ? nil : ext)
+        do { try FileManager.default.copyItem(at: src, to: dest) } catch { message = error.localizedDescription; return nil }
+        return dest
+    }
+
+    /// Files dropped on the binder: ones from outside are copied in, ones already in the binder are moved.
+    func drop(_ urls: [URL], into folder: URL) {
+        for u in urls {
+            if isInside(u) { moveItem(u, into: folder) } else { copyIn(u, to: folder) }
+        }
+        expanded.insert(folder)
+        reload()
+    }
+
+    /// `rel/path` from a folder to a file, percent-encoded for a Markdown link.
+    static func relativePath(from folder: URL, to target: URL) -> String {
+        let f = folder.standardizedFileURL.pathComponents, t = target.standardizedFileURL.pathComponents
+        var i = 0
+        while i < f.count, i < t.count, f[i] == t[i] { i += 1 }
+        let parts = Array(repeating: "..", count: f.count - i) + t[i...]
+        return parts.map { part in
+            part == ".." ? part : (part.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? part)
+                .replacingOccurrences(of: "(", with: "%28").replacingOccurrences(of: ")", with: "%29")
+        }.joined(separator: "/")
+    }
+
+    /// Files dropped on the editor: copied next to the note (unless already in the binder), then the Markdown that points at them.
+    func linkText(forDropped urls: [URL]) -> String {
+        guard let note = document.url else { return "" }
+        let folder = note.deletingLastPathComponent()
+        var out: [String] = []
+        for u in urls {
+            var target = u
+            if !isInside(u) { guard let copied = copyIn(u, to: folder) else { continue }; target = copied }
+            let name = target.deletingPathExtension().lastPathComponent
+            let isImage = UTType(filenameExtension: target.pathExtension)?.conforms(to: .image) == true
+            if isImage { out.append("![\(name)](\(Self.relativePath(from: folder, to: target)))") }
+            else if BinderNode.documentExtensions.contains(target.pathExtension.lowercased()) { out.append("[[\(name)]]") }
+            else { out.append("[\(target.lastPathComponent)](\(Self.relativePath(from: folder, to: target)))") }
+        }
+        reload()
+        return out.joined(separator: "\n")
     }
 
     // MARK: rename, move, trash

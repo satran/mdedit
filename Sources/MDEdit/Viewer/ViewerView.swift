@@ -188,10 +188,12 @@ struct ImageBlock: View {
         Group {
             if src.hasPrefix("http://") || src.hasPrefix("https://"), let url = URL(string: src) {
                 AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFit() } else { placeholder }
+                    if let image = phase.image { image.resizable().scaledToFit().frame(maxWidth: .infinity) } else { placeholder }
                 }
             } else if let image = local() {
+                // as wide as the page, never larger than the picture itself, and centred
                 Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: image.size.width)
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 placeholder
             }

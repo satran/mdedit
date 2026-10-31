@@ -64,7 +64,7 @@ struct BinderView: View {
         .frame(maxHeight: .infinity)
         .dropDestination(for: URL.self) { urls, _ in
             guard let root = ws.rootURL else { return false }
-            for u in urls { ws.moveItem(u, into: root) }
+            ws.drop(urls, into: root)
             return true
         }
     }
@@ -151,8 +151,8 @@ struct BinderRowView: View {
         .simultaneousGesture(TapGesture().onEnded { if ws.renaming != node.url { ws.select(node.url) } })
         .draggable(node.url)
         .dropDestination(for: URL.self) { urls, _ in
-            guard node.isFolder else { return false }
-            for u in urls { ws.moveItem(u, into: node.url) }
+            // on a file, it goes into the folder that file is in
+            ws.drop(urls, into: node.isFolder ? node.url : node.url.deletingLastPathComponent())
             return true
         } isTargeted: { dropTarget = $0 && node.isFolder }
         .contextMenu {
