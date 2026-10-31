@@ -175,6 +175,8 @@ final class AppFeatureTests: XCTestCase {
         XCTAssertEqual(Set(keys).count, keys.count, "two commands share a shortcut: \(keys.sorted())")
         // shortcuts the system or text editing already owns
         for taken in ["⌘C", "⌘V", "⌘X", "⌘Z", "⌘A", "⌘Q", "⌘W", "⌘H", "⌘M", "⌘S", "⌘,"] { XCTAssertFalse(keys.contains(taken), taken) }
+        // the Format menu is part of the same list
+        for fmt in ["⌘B", "⌘I", "⌘K", "⌘E", "⇧⌘X", "⇧⌘H", "⌥⌘1", "⌥⌘6", "⌥⌘0", "⇧⌘8", "⇧⌘7", "⇧⌘T", "⇧⌘.", "⌥⌘K", "⌥⌘-"] { XCTAssertTrue(keys.contains(fmt), fmt) }
     }
 
     @MainActor func testRecentFoldersAppearInThePalette() throws {

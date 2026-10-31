@@ -2,7 +2,7 @@ import SwiftUI
 
 /// One thing the app can do. The menu bar and the command palette are both built from the same list.
 struct Cmd: Identifiable {
-    enum Place { case file, fileMore, view, paletteOnly }
+    enum Place { case file, fileMore, view, format, paletteOnly }
     let id: String
     let title: String
     var place: Place = .paletteOnly
@@ -68,6 +68,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "collapse", title: "Collapse All Folders", enabled: hasRoot) { ws?.collapseAll() },
         Cmd(id: "settings", title: "Open Settings…") { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) },
     ]
+    c += formatCommands(ws: ws)
     for item in recents.items {
         c.append(Cmd(id: "recent-" + item.path, title: "Open Recent: " + item.name) {
             if let url = recents.resolve(item) { openFolderElsewhere(url) }
@@ -87,6 +88,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .newItem) { items(all, .file) }
         CommandGroup(after: .newItem) { items(all, .fileMore) }
         CommandGroup(after: .sidebar) { items(all, .view) }
+        CommandMenu("Format") { items(all, .format) }
     }
 
     @ViewBuilder private func items(_ all: [Cmd], _ place: Cmd.Place) -> some View {
