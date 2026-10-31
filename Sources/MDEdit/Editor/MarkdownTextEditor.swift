@@ -7,6 +7,15 @@ struct MarkdownTextEditor: NSViewRepresentable {
     var documentID: URL?
     var style: EditorStyle
     var onOpenWiki: ((String) -> Void)?
+    var wikiResolves: (String) -> Bool = { _ in true }
+    var wikiNames: () -> [String] = { [] }
+    /// Changes when the notes do, so link styling is redone.
+    var linksVersion = 0
+    var typewriter = false
+    var focusDim = false
+    var bridge: EditorBridge?
+    /// Return true when Esc was used up (leaving focus mode).
+    var onEscape: (() -> Bool)?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -28,6 +37,9 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.textContainer?.lineFragmentPadding = 0
         tv.delegate = context.coordinator
         tv.onOpenWiki = onOpenWiki
+        tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
+        tv.typewriter = typewriter; tv.focusDim = focusDim
+        bridge?.textView = tv
 
         let scroll = NSScrollView()
         scroll.drawsBackground = false
@@ -54,6 +66,10 @@ struct MarkdownTextEditor: NSViewRepresentable {
         context.coordinator.parent = self
         guard let tv = scroll.documentView as? EditorTextView else { return }
         tv.onOpenWiki = onOpenWiki
+        tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
+        tv.typewriter = typewriter; tv.focusDim = focusDim
+        bridge?.textView = tv
+        if context.coordinator.linksVersion != linksVersion { context.coordinator.linksVersion = linksVersion; tv.restyle() }
         tv.style = style                                    // restyles itself when it changed
         let switched = context.coordinator.documentID != documentID
         if tv.string != text || switched {
@@ -73,6 +89,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MarkdownTextEditor
         var documentID: URL?
+        var linksVersion = 0
         init(_ p: MarkdownTextEditor) { parent = p }
 
         func textDidChange(_ n: Notification) {
@@ -80,11 +97,20 @@ struct MarkdownTextEditor: NSViewRepresentable {
             tv.restyle()
             parent.text = tv.string
             tv.needsDisplay = true
+            tv.offerNotesIfTypingLink()
+        }
+
+        func textViewDidChangeSelection(_ n: Notification) {
+            guard let tv = n.object as? EditorTextView, !tv.isRestyling else { return }
+            if tv.focusDim { tv.restyle() }
+            if tv.typewriter { DispatchQueue.main.async { tv.centerCaret() } }
         }
 
         func textView(_ tv: NSTextView, doCommandBy sel: Selector) -> Bool {
             switch sel {
-            case #selector(NSResponder.cancelOperation(_:)): tv.window?.makeFirstResponder(nil); return true
+            case #selector(NSResponder.cancelOperation(_:)):
+                if parent.onEscape?() == true { return true }
+                tv.window?.makeFirstResponder(nil); return true
             case #selector(NSResponder.insertNewline(_:)): return continueList(tv)
             case #selector(NSResponder.insertTab(_:)): return shift(tv, by: 2)
             case #selector(NSResponder.insertBacktab(_:)): return shift(tv, by: -2)
@@ -140,4 +166,9 @@ struct MarkdownTextEditor: NSViewRepresentable {
             return true
         }
     }
+}
+
+/// Lets the rest of the app reach the editor (jump to a heading).
+final class EditorBridge {
+    weak var textView: EditorTextView?
 }

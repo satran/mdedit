@@ -34,6 +34,8 @@ enum Palette {
     static let segmentText = dyn(0x5F656D, 0xB3B8BF)
     static let highlight = dyn(0xFFE58A, 0x6B5A1E)
     static let done = dyn(0x8A9099, 0x7B8089)
+    static let unresolved = dyn(0x9AA0A8, 0x7C828B)
+    static let focusDim = dyn(0xC3C8CE, 0x4A4E55)
     static let green = dyn(0x2E8B57, 0x58C98A)
 }
 

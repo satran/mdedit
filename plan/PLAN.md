@@ -171,3 +171,7 @@ I'd build M0 through M4 first (a usable viewer/editor), then stop for your feedb
 - Wiki-link embeds, rename-refactoring and full-text search are after v1.
 - The design's "stack" (folder that is also a document) and italic rows are not modelled in v1; folders are folders and files are files.
 - Name: **MDEdit** (placeholder).
+
+## 13. Status
+
+M0–M8 are built. Not done: bundled IBM Plex Mono / Source Serif 4 font files (the app falls back and says "not installed" in Settings), full-text search, embeds `![[…]]`, heading completion after `[[Note#`, rename-updates-links, manual binder ordering.

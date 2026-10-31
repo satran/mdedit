@@ -31,6 +31,9 @@ final class DocumentStore: ObservableObject {
         load()
     }
 
+    /// The file moved or was renamed; keep the text and the unsaved state.
+    func relocate(to new: URL) { url = new; modified = Self.modDate(new) }
+
     private func load() {
         pending?.cancel()
         loading = true

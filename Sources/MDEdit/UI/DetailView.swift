@@ -6,11 +6,17 @@ struct DetailView: View {
     @ObservedObject var document: DocumentStore
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            banner
-            content.frame(maxWidth: .infinity, maxHeight: .infinity)
-            footer
+        HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                header
+                banner
+                content.frame(maxWidth: .infinity, maxHeight: .infinity)
+                footer
+            }
+            if ws.outlineVisible {
+                Rectangle().fill(Color(Palette.paneBorder)).frame(width: 1)
+                OutlineView(document: document).frame(width: 240)
+            }
         }
         .background(Color(Palette.paneBg))
     }
@@ -21,6 +27,8 @@ struct DetailView: View {
         HStack(spacing: 12) {
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
             ModeSwitch(mode: $ws.mode)
+            IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.outlineVisible.toggle() }
+                .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
         .padding(.leading, 28).padding(.trailing, 16)
         .frame(height: Metrics.headerHeight)
@@ -71,7 +79,9 @@ struct DetailView: View {
         } else if ws.mode == .write {
             MarkdownTextEditor(text: $document.text, documentID: document.url,
                                style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth),
-                               onOpenWiki: { ws.openWiki($0) })
+                               onOpenWiki: { ws.openWiki($0) },
+                               wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
+                               linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor)
         } else {
             ViewerContainer(text: document.text, baseURL: document.url?.deletingLastPathComponent(), prefs: prefs)
                 .environment(\.openURL, OpenURLAction { url in
@@ -85,11 +95,30 @@ struct DetailView: View {
 
     private var footer: some View {
         let words = DocumentStore.wordCount(document.text)
+        let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
         return HStack(spacing: 2) {
             if document.url != nil {
                 Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
             }
             Spacer()
+            if document.url != nil {
+                if ws.mode == .write {
+                    IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
+                    IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle() }
+                        .foregroundStyle(Color(ws.typewriter ? Palette.link : Palette.muted))
+                } else {
+                    IconButton(symbol: "printer", label: "Print") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
+                }
+                Menu {
+                    Button("Export as HTML…") { Exporter.shared.saveHTML(markdown: document.text, name: name, prefs: prefs) }
+                    Button("Copy as Markdown") { Exporter.shared.copyMarkdown(document.text) }
+                    Divider()
+                    Button("Print… (PDF in the print panel)") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
+                } label: {
+                    Image(systemName: "square.and.arrow.up").font(.system(size: 13)).frame(width: 30, height: 30).contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 30).accessibilityLabel("Export")
+            }
         }
         .font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
         .padding(.leading, 28).padding(.trailing, 12)

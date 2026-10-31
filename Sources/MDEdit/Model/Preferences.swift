@@ -9,6 +9,8 @@ final class Preferences: ObservableObject {
     @Published var editorSize: Double { didSet { d.set(editorSize, forKey: "editorSize") } }
     /// Characters per line in the editor.
     @Published var lineWidth: Int { didSet { d.set(lineWidth, forKey: "lineWidth") } }
+    /// The "Custom" width is picked, even if its number happens to match a preset.
+    @Published var widthCustom: Bool { didSet { d.set(widthCustom, forKey: "widthCustom") } }
     @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
@@ -16,6 +18,7 @@ final class Preferences: ObservableObject {
         editorFont = d.string(forKey: "editorFont") ?? "IBM Plex Mono"
         editorSize = d.object(forKey: "editorSize") as? Double ?? 16
         lineWidth = d.object(forKey: "lineWidth") as? Int ?? 66
+        widthCustom = d.bool(forKey: "widthCustom")
         viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
         viewerSize = d.object(forKey: "viewerSize") as? Double ?? 18
     }

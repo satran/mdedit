@@ -13,6 +13,13 @@ final class EditorTextView: NSTextView {
     var style = EditorStyle(fontName: "IBM Plex Mono", size: 16, lineWidth: 66) { didSet { if style != oldValue { relayout() } } }
     var placeholder = "Start writing…"
     var onOpenWiki: ((String) -> Void)?
+    var wikiResolves: (String) -> Bool = { _ in true }
+    var wikiNames: () -> [String] = { [] }
+    /// Keeps the line being written in the middle of the pane.
+    var typewriter = false { didSet { if typewriter != oldValue { updateInsets(); if typewriter { centerCaret() } } } }
+    /// Everything but the paragraph being written is dimmed.
+    var focusDim = false { didSet { if focusDim != oldValue { restyle() } } }
+    private(set) var isRestyling = false
     private(set) var syntax = MarkdownSyntax.Result(spans: [], lines: [])
 
     static let gutter: CGFloat = 72
@@ -49,7 +56,8 @@ final class EditorTextView: NSTextView {
         let width = enclosingScrollView?.contentSize.width ?? bounds.width
         let column = min(CGFloat(style.lineWidth) * charWidth, max(200, width - 2 * Self.gutter))
         let x = max(8, ((width - column) / 2 - Self.gutter).rounded())
-        let inset = NSSize(width: x, height: Self.verticalInset)
+        let vertical = typewriter ? max(Self.verticalInset, ((enclosingScrollView?.contentSize.height ?? 0) / 2).rounded()) : Self.verticalInset
+        let inset = NSSize(width: x, height: vertical)
         if textContainerInset != inset { textContainerInset = inset }
         let size = NSSize(width: column + Self.gutter, height: CGFloat.greatestFiniteMagnitude)
         if textContainer?.widthTracksTextView == true { textContainer?.widthTracksTextView = false }
@@ -61,11 +69,32 @@ final class EditorTextView: NSTextView {
         updateInsets()
     }
 
+    /// Scrolls so the caret's line is in the vertical middle of the pane.
+    func centerCaret() {
+        guard let lm = layoutManager, let tc = textContainer, let scroll = enclosingScrollView else { return }
+        lm.ensureLayout(for: tc)
+        let loc = selectedRange().location
+        var rect = NSRect.zero
+        if loc >= (string as NSString).length {
+            rect = lm.extraLineFragmentRect
+            if rect.isEmpty, lm.numberOfGlyphs > 0 { rect = lm.lineFragmentRect(forGlyphAt: lm.numberOfGlyphs - 1, effectiveRange: nil) }
+        } else {
+            rect = lm.lineFragmentRect(forGlyphAt: lm.glyphIndexForCharacter(at: loc), effectiveRange: nil)
+        }
+        let clip = scroll.contentView
+        let maxY = max(0, frame.height - clip.bounds.height)
+        let y = min(maxY, max(0, rect.midY + textContainerOrigin.y - clip.bounds.height / 2))
+        guard abs(clip.bounds.origin.y - y) > 1 else { return }
+        clip.scroll(to: NSPoint(x: 0, y: y))
+        scroll.reflectScrolledClipView(clip)
+    }
+
     // MARK: styling
 
     /// Styles all of the text again. Notes are short, and this keeps the rules in one place.
     func restyle() {
         guard let storage = textStorage, !hasMarkedText() else { return }
+        isRestyling = true; defer { isRestyling = false }
         syntax = MarkdownSyntax.analyze(string)
         let full = NSRange(location: 0, length: storage.length)
         let selection = selectedRange()
@@ -89,7 +118,13 @@ final class EditorTextView: NSTextView {
             case .code: storage.addAttribute(.backgroundColor, value: Palette.chip, range: r)
             case .codeBlock: storage.addAttribute(.backgroundColor, value: Palette.chip, range: r)
             case .link: storage.addAttribute(.foregroundColor, value: Palette.link, range: r)
-            case .wikiLink: storage.addAttributes([.foregroundColor: Palette.link, .underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: Palette.link.withAlphaComponent(0.35)], range: r)
+            case .wikiLink(let target):
+                // a note that exists reads as a link; one that does not is faint and dashed, and a click offers to make it
+                if wikiResolves(target) {
+                    storage.addAttributes([.foregroundColor: Palette.link, .underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: Palette.link.withAlphaComponent(0.35)], range: r)
+                } else {
+                    storage.addAttributes([.foregroundColor: Palette.unresolved, .underlineStyle: NSUnderlineStyle.patternDash.union(.single).rawValue, .underlineColor: Palette.unresolved], range: r)
+                }
             case .listMarker: storage.addAttribute(.foregroundColor, value: Palette.marker, range: r)
             case .checkbox(let on): storage.addAttribute(.foregroundColor, value: on ? Palette.green : Palette.link, range: r)
             case .done: storage.addAttributes([.foregroundColor: Palette.done, .strikethroughStyle: NSUnderlineStyle.single.rawValue], range: r)
@@ -112,6 +147,12 @@ final class EditorTextView: NSTextView {
             let markerW = storage.attributedSubstring(from: line.prefix).size().width - leadW
             let p = paragraph(first: max(0, g + leadW - markerW), head: g + leadW)
             storage.addAttribute(.paragraphStyle, value: p, range: NSRange(location: line.range.location, length: line.range.length))
+        }
+        if focusDim {
+            let ns = storage.string as NSString
+            let here = ns.paragraphRange(for: selection)
+            if here.location > 0 { storage.addAttribute(.foregroundColor, value: Palette.focusDim, range: NSRange(location: 0, length: here.location)) }
+            if NSMaxRange(here) < ns.length { storage.addAttribute(.foregroundColor, value: Palette.focusDim, range: NSRange(location: NSMaxRange(here), length: ns.length - NSMaxRange(here))) }
         }
         storage.endEditing()
         if selectedRange() != selection { setSelectedRange(selection) }
@@ -187,6 +228,49 @@ final class EditorTextView: NSTextView {
         }
         if flags == [.command, .shift], c == "h" { toggleWrap("::"); return true }
         return super.performKeyEquivalent(with: event)
+    }
+
+    // MARK: [[ completion
+
+    /// The text between an open "[[" and the caret, when the caret is inside one.
+    private var openWikiRange: NSRange? {
+        let ns = string as NSString
+        let caret = selectedRange().location
+        guard selectedRange().length == 0, caret >= 2 else { return nil }
+        let line = ns.lineRange(for: NSRange(location: caret, length: 0))
+        let before = ns.substring(with: NSRange(location: line.location, length: caret - line.location))
+        guard let open = before.range(of: "[[", options: .backwards) else { return nil }
+        let typed = before[open.upperBound...]
+        guard !typed.contains("]"), !typed.contains("["), !typed.contains("|") else { return nil }
+        return NSRange(location: caret - (typed as Substring).utf16.count, length: (typed as Substring).utf16.count)
+    }
+
+    override var rangeForUserCompletion: NSRange { openWikiRange ?? super.rangeForUserCompletion }
+
+    override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
+        guard openWikiRange != nil else { return super.completions(forPartialWordRange: charRange, indexOfSelectedItem: index) }
+        let typed = (string as NSString).substring(with: charRange).lowercased()
+        index.pointee = 0
+        let all = wikiNames()
+        let starts = all.filter { $0.lowercased().hasPrefix(typed) }
+        let contains = all.filter { !$0.lowercased().hasPrefix(typed) && $0.lowercased().contains(typed) }
+        return Array((starts + contains).prefix(12))
+    }
+
+    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
+        guard openWikiRange != nil || flag else { return super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag) }
+        // choosing a note closes the link; Esc leaves what was typed
+        let chosen = movement == NSCancelTextMovement ? nil : word
+        guard flag, let chosen else { return super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag) }
+        let ns = string as NSString
+        let after = NSMaxRange(charRange) + 2 <= ns.length ? ns.substring(with: NSRange(location: NSMaxRange(charRange), length: 2)) : ""
+        super.insertCompletion(after == "]]" ? chosen : chosen + "]]", forPartialWordRange: charRange, movement: movement, isFinal: flag)
+    }
+
+    /// Called after typing: a second "[" opens the list of notes.
+    func offerNotesIfTypingLink() {
+        guard let r = openWikiRange, r.length == 0 else { return }
+        DispatchQueue.main.async { [weak self] in self?.complete(nil) }
     }
 
     // MARK: formatting actions

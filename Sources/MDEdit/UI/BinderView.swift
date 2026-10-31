@@ -46,6 +46,11 @@ struct BinderView: View {
             .padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 12)
         }
         .frame(maxHeight: .infinity)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let root = ws.rootURL else { return false }
+            for u in urls { ws.moveItem(u, into: root) }
+            return true
+        }
     }
 
     private var emptyState: some View {
@@ -89,6 +94,9 @@ struct BinderRowView: View {
     let selected: Bool
     let gap: CGFloat
     @State private var hover = false
+    @State private var dropTarget = false
+    @State private var draft = ""
+    @FocusState private var editing: Bool
 
     var body: some View {
         let node = row.node
@@ -100,24 +108,51 @@ struct BinderRowView: View {
             }
             .frame(width: 12, height: 12).foregroundStyle(Color(Palette.muted))
             Image(systemName: node.isFolder ? "folder" : "doc.text").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
-            Text(node.name).font(.system(size: 13, weight: row.depth == 0 && node.isFolder ? .semibold : .regular))
-                .lineLimit(1).truncationMode(.tail)
+            if ws.renaming == node.url {
+                TextField("Name", text: $draft)
+                    .textFieldStyle(.plain).font(.system(size: 13))
+                    .focused($editing)
+                    .onSubmit { ws.rename(node.url, to: draft) }
+                    .onExitCommand { ws.renaming = nil }
+                    .onAppear {
+                        draft = node.name; editing = true
+                        DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
+                    }
+                    .onChange(of: editing) { _, now in if !now, ws.renaming == node.url { ws.rename(node.url, to: draft) } }
+            } else {
+                Text(node.name).font(.system(size: 13, weight: row.depth == 0 && node.isFolder ? .semibold : .regular))
+                    .lineLimit(1).truncationMode(.tail)
+            }
             Spacer(minLength: 0)
         }
         .padding(.leading, 4 + CGFloat(row.depth) * Metrics.indent).padding(.trailing, 8)
         .frame(height: Metrics.rowHeight)
-        .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Color(Palette.selection) : (hover ? Color(Palette.selection).opacity(0.5) : .clear)))
+        .background(RoundedRectangle(cornerRadius: 7).fill(dropTarget ? Color(Palette.link).opacity(0.18) : selected ? Color(Palette.selection) : (hover ? Color(Palette.selection).opacity(0.5) : .clear)))
         .padding(.top, gap)
         .contentShape(Rectangle())
         .onHover { hover = $0 }
-        .onTapGesture { ws.select(node.url) }
+        .onTapGesture(count: 2) { if ws.renaming == nil { ws.renaming = node.url } }
+        .simultaneousGesture(TapGesture().onEnded { if ws.renaming != node.url { ws.select(node.url) } })
+        .draggable(node.url)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard node.isFolder else { return false }
+            for u in urls { ws.moveItem(u, into: node.url) }
+            return true
+        } isTargeted: { dropTarget = $0 && node.isFolder }
         .contextMenu {
+            Button("New Document Here") { ws.newDocument(in: node.isFolder ? node.url : node.url.deletingLastPathComponent()) }
+            Button("New Folder Here") { ws.newFolder(in: node.isFolder ? node.url : node.url.deletingLastPathComponent()) }
+            Divider()
+            Button("Rename") { ws.renaming = node.url }
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([node.url]) }
+            Divider()
+            Button("Move to Trash") { ws.trash(node.url) }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(node.name)
         .accessibilityValue(node.isFolder ? (row.isOpen ? "expanded" : "collapsed") : "")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(named: "Rename") { ws.renaming = node.url }
     }
 }
 

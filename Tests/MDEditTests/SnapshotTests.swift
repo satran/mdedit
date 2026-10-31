@@ -41,7 +41,7 @@ final class SnapshotTests: XCTestCase {
     ~~Struck~~ and https://dora.dev
     """
 
-    func render(dark: Bool, mode: Mode, name: String) throws {
+    func render(dark: Bool, mode: Mode, name: String, outline: Bool = false, focus: Bool = false, size: NSSize = NSSize(width: 1280, height: 820)) throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("snap-\(UUID().uuidString)")
         for d in ["Ideas", "Draft/A love letter to Regulations"] { try fm.createDirectory(at: dir.appendingPathComponent(d), withIntermediateDirectories: true) }
@@ -52,14 +52,20 @@ final class SnapshotTests: XCTestCase {
         ws.expanded = [dir.appendingPathComponent("Draft"), dir.appendingPathComponent("Draft/A love letter to Regulations"), dir.appendingPathComponent("Ideas")]
         ws.select(dir.appendingPathComponent("Draft/A love letter to Regulations/DORA, you have a naming problem.md"))
         ws.mode = mode
+        ws.outlineVisible = outline
+        if outline { ws.refreshBacklinks() }
 
-        let root = RootView().environmentObject(ws).environmentObject(Preferences.shared).frame(width: 1280, height: 820)
-        let host = NSHostingView(rootView: root)
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        let host: NSHostingView<AnyView>
+        if focus {
+            host = NSHostingView(rootView: AnyView(FocusView(document: ws.document).environmentObject(ws).environmentObject(Preferences.shared).frame(width: size.width, height: size.height)))
+        } else {
+            host = NSHostingView(rootView: AnyView(RootView().environmentObject(ws).environmentObject(Preferences.shared).frame(width: size.width, height: size.height)))
+        }
+        let win = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
         win.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         win.contentView = host
         win.titlebarAppearsTransparent = true
-        host.frame = NSRect(x: 0, y: 0, width: 1280, height: 820)
+        host.frame = NSRect(origin: .zero, size: size)
         for _ in 0..<6 { host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.15)) }
         guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return XCTFail("no rep") }
         host.cacheDisplay(in: host.bounds, to: rep)
@@ -71,5 +77,18 @@ final class SnapshotTests: XCTestCase {
 
     func testWriteLight() throws { try render(dark: false, mode: .write, name: "write-light") }
     func testWriteDark() throws { try render(dark: true, mode: .write, name: "write-dark") }
+    func testOutlineLight() throws { try render(dark: false, mode: .write, name: "outline-light", outline: true) }
+    func testFocusLight() throws { try render(dark: false, mode: .write, name: "focus-light", focus: true, size: NSSize(width: 1440, height: 900)) }
+
+    func testSettings() throws {
+        let host = NSHostingView(rootView: SettingsView().environmentObject(Preferences.shared))
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 560), styleMask: [.titled], backing: .buffered, defer: false)
+        win.contentView = host
+        for _ in 0..<4 { host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return XCTFail("no rep") }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        try rep.representation(using: .png, properties: [:])?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("settings.png"))
+    }
+
     func testViewLight() throws { try render(dark: false, mode: .view, name: "view-light") }
 }

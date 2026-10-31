@@ -6,10 +6,16 @@ struct RootView: View {
     @State private var dragStart: Double?
 
     var body: some View {
-        HStack(spacing: 0) {
-            BinderView().frame(width: binderWidth)
-            divider
-            DetailView(document: ws.document)
+        Group {
+            if ws.focus {
+                FocusView(document: ws.document)
+            } else {
+                HStack(spacing: 0) {
+                    BinderView().frame(width: binderWidth)
+                    divider
+                    DetailView(document: ws.document)
+                }
+            }
         }
         .ignoresSafeArea()
         .onOpenURL { ws.openExternal($0) }

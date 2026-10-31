@@ -11,14 +11,40 @@ final class Workspace: ObservableObject {
     @Published var selection: URL?
     @Published var search = ""
     @Published var mode: Mode = .write
+    @Published var focus = false
+    /// The row being renamed in the binder.
+    @Published var renaming: URL?
+    @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
+    @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
+    private var enteredFullScreen = false
+    let editor = EditorBridge()
+    @Published private(set) var backlinks: [URL] = []
+    private var backlinkTask: Task<Void, Never>?
     @Published var message: String?
+    /// Bumped on every scan, so views that depend on the notes (link styling) refresh.
+    @Published private(set) var treeVersion = 0
+    private(set) var index = WikiIndex(root: nil)
 
     let document = DocumentStore()
     private var watcher: FolderWatcher?
     private var scoped: URL?
     private let defaults = UserDefaults.standard
 
-    init() { restore() }
+    init() {
+        typewriter = UserDefaults.standard.bool(forKey: "typewriter")
+        outlineVisible = UserDefaults.standard.bool(forKey: "outlineVisible")
+        restore()
+    }
+
+    /// Distraction-free writing: just the text, in full screen, with everything but the current paragraph dimmed.
+    func toggleFocus() {
+        guard focus || document.url != nil else { return }
+        focus.toggle()
+        mode = .write
+        guard let w = NSApp.keyWindow ?? NSApp.windows.first else { return }
+        if focus, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil); enteredFullScreen = true }
+        else if !focus, enteredFullScreen { if w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil) }; enteredFullScreen = false }
+    }
 
     // MARK: opening a folder
 
@@ -73,7 +99,10 @@ final class Workspace: ObservableObject {
     func reload() {
         guard let rootURL else { return }
         root = BinderNode.scan(rootURL)
+        index = WikiIndex(root: root)
+        treeVersion += 1
         document.checkDisk()
+        refreshBacklinks()
         if let s = selection, root?.find(s) == nil { selection = nil }
     }
 
@@ -86,6 +115,7 @@ final class Workspace: ObservableObject {
         else {
             document.open(url)
             defaults.set(url.path, forKey: "lastFile")
+            refreshBacklinks()
         }
     }
 
@@ -131,30 +161,117 @@ final class Workspace: ObservableObject {
         return make(n)
     }
 
-    func newDocument() {
-        guard let folder = targetFolder else { return }
+    func newDocument(in folder: URL? = nil) {
+        guard let folder = folder ?? targetFolder else { return }
         let url = Self.uniqueURL(in: folder, base: "Untitled", ext: "md")
         do { try "".write(to: url, atomically: true, encoding: .utf8) } catch { message = error.localizedDescription; return }
         expanded.insert(folder)
         reload()
         select(url)
+        renaming = url
     }
 
-    func newFolder() {
-        guard let parent = targetFolder else { return }
+    func newFolder(in parent: URL? = nil) {
+        guard let parent = parent ?? targetFolder else { return }
         let url = Self.uniqueURL(in: parent, base: "New Folder", ext: nil)
         do { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false) } catch { message = error.localizedDescription; return }
         expanded.insert(parent)
         reload()
         selection = url
+        renaming = url
+    }
+
+    // MARK: rename, move, trash
+
+    func rename(_ url: URL, to newName: String) {
+        renaming = nil
+        guard let node = root?.find(url) else { return }
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        guard !name.isEmpty, name != node.name else { return }
+        let parent = url.deletingLastPathComponent()
+        let new = node.isFolder ? parent.appendingPathComponent(name, isDirectory: true) : parent.appendingPathComponent(name).appendingPathExtension(url.pathExtension)
+        if FileManager.default.fileExists(atPath: new.path), new.path.lowercased() != url.path.lowercased() {
+            message = "“\(name)” already exists here."; return
+        }
+        move(url, to: new)
+    }
+
+    /// Moves a file or folder into another folder of the binder (drag and drop).
+    func moveItem(_ url: URL, into folder: URL) {
+        guard let node = root?.find(url), root?.find(folder)?.isFolder == true else { return }
+        let from = url.standardizedFileURL.path, to = folder.standardizedFileURL.path
+        guard url.deletingLastPathComponent().standardizedFileURL.path != to, to != from, !to.hasPrefix(from + "/") else { return }
+        let dest = Self.uniqueURL(in: folder, base: node.name, ext: node.isFolder ? nil : url.pathExtension)
+        move(url, to: dest)
+        expanded.insert(folder)
+    }
+
+    private func move(_ old: URL, to new: URL) {
+        document.saveNow()
+        do { try FileManager.default.moveItem(at: old, to: new) } catch { message = error.localizedDescription; return }
+        let oldPath = old.standardizedFileURL.path, newPath = new.standardizedFileURL.path
+        func remap(_ u: URL) -> URL? {
+            let p = u.standardizedFileURL.path
+            if p == oldPath { return new }
+            if p.hasPrefix(oldPath + "/") { return URL(fileURLWithPath: newPath + p.dropFirst(oldPath.count), isDirectory: u.hasDirectoryPath) }
+            return nil
+        }
+        expanded = Set(expanded.map { remap($0) ?? $0 })
+        if let s = selection, let r = remap(s) { selection = r }
+        if let d = document.url, let r = remap(d) { document.relocate(to: r); defaults.set(r.path, forKey: "lastFile") }
+        reload()
+    }
+
+    func trash(_ url: URL) {
+        let p = url.standardizedFileURL.path
+        if let d = document.url?.standardizedFileURL.path, d == p || d.hasPrefix(p + "/") { document.open(nil) }
+        do { try FileManager.default.trashItem(at: url, resultingItemURL: nil) } catch { message = error.localizedDescription; return }
+        if let s = selection?.standardizedFileURL.path, s == p || s.hasPrefix(p + "/") { selection = nil }
+        reload()
+    }
+
+    // MARK: outline and backlinks
+
+    /// Notes that link to the open one. Reads the notes off the main thread.
+    func refreshBacklinks() {
+        backlinkTask?.cancel()
+        guard outlineVisible, let current = document.url, let root else { backlinks = []; return }
+        let files = root.files.map(\.url).filter { $0 != current }
+        let index = self.index
+        backlinkTask = Task.detached(priority: .utility) { [weak self] in
+            var found: [URL] = []
+            for f in files {
+                if Task.isCancelled { return }
+                guard let text = try? String(contentsOf: f, encoding: .utf8), text.contains("[[") else { continue }
+                if WikiLink.parse(text).contains(where: { index.resolve($0.link, from: f) == current }) { found.append(f) }
+            }
+            let result = found
+            await MainActor.run { [weak self] in if !Task.isCancelled { self?.backlinks = result } }
+        }
+    }
+
+    /// Puts the caret on a heading of the open note.
+    func jump(to location: Int) {
+        let go = { [weak self] in
+            guard let tv = self?.editor.textView else { return }
+            let r = NSRange(location: min(location, (tv.string as NSString).length), length: 0)
+            tv.window?.makeFirstResponder(tv)
+            tv.setSelectedRange(r)
+            tv.scrollRangeToVisible(r)
+            tv.showFindIndicator(for: (tv.string as NSString).paragraphRange(for: r))
+        }
+        if mode == .view { mode = .write; DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: go) } else { go() }
     }
 
     // MARK: wiki links
 
+    func wikiResolves(_ target: String) -> Bool { index.resolve(WikiLink(target: target, alias: nil), from: document.url) != nil }
+
     /// Opens the note a [[link]] points at, or offers to make it.
     func openWiki(_ target: String) {
         let link = WikiLink(target: target, alias: nil)
-        if let url = WikiIndex.resolve(link, from: document.url, in: root) { reveal(url); select(url); return }
+        if let url = index.resolve(link, from: document.url) { reveal(url); select(url); return }
         let name = link.note.split(separator: "/").last.map(String.init) ?? link.note
         guard !name.isEmpty else { return }
         let alert = NSAlert()
