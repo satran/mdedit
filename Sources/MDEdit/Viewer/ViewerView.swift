@@ -38,10 +38,15 @@ struct BlockList: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { i, b in
                 BlockView(block: b, prefs: prefs, baseURL: baseURL, textSize: textSize, leading: leading, ink: ink)
-                    .padding(.top, i == 0 ? 0 : max(Self.margins(blocks[i - 1], style, textSize).bottom, Self.margins(b, style, textSize).top))
+                    .padding(.top, i == 0 ? 0 : Self.gap(between: blocks[i - 1], and: b, style: style, textSize: textSize))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The space between two neighbouring blocks: the larger of the first's bottom margin and the second's top margin.
+    static func gap(between a: VBlock, and b: VBlock, style: ViewerStyle, textSize: CGFloat? = nil) -> CGFloat {
+        max(margins(a, style, textSize).bottom, margins(b, style, textSize).top)
     }
 
     static func margins(_ b: VBlock, _ style: ViewerStyle, _ textSize: CGFloat?) -> (top: CGFloat, bottom: CGFloat) {
