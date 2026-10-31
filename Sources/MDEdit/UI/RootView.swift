@@ -26,8 +26,8 @@ struct RootView: View {
         .overlay {
             if ws.paletteVisible {
                 ZStack(alignment: .top) {
-                    Color.black.opacity(0.12).onTapGesture { ws.paletteVisible = false }
-                    PaletteView().padding(.top, 90)
+                    Color.clear.contentShape(Rectangle()).onTapGesture { ws.paletteVisible = false }
+                    PaletteView().padding(.top, 70)
                 }
             }
         }

@@ -51,7 +51,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
             if let ws { Exporter.shared.print(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
 
-        Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "s", modifiers: [.command, .control], enabled: ws != nil) { ws?.toggleBinder() },
+        Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "f", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
         Cmd(id: "outline", title: ws?.outlineVisible == true ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
@@ -136,45 +136,58 @@ struct PaletteView: View {
 
     var body: some View {
         let list = results
-        VStack(spacing: 0) {
-            TextField("Type a command", text: $query)
-                .textFieldStyle(.plain).font(.system(size: 15))
-                .focused($focused)
-                .padding(.horizontal, 16).frame(height: 46)
-                .onSubmit { run(list) }
-                .onKeyPress(.upArrow) { selected = max(0, selected - 1); return .handled }
-                .onKeyPress(.downArrow) { selected = min(max(0, list.count - 1), selected + 1); return .handled }
-                .onExitCommand { ws.paletteVisible = false }
-                .onChange(of: query) { _, _ in selected = 0 }
-            Rectangle().fill(Color(Palette.binderBorder)).frame(height: 1)
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
+                TextField("Type a command", text: $query)
+                    .textFieldStyle(.plain).font(.system(size: 13))
+                    .focused($focused)
+                    .focusEffectDisabled()
+                    .onSubmit { run(list) }
+                    .onKeyPress(.upArrow) { selected = max(0, selected - 1); return .handled }
+                    .onKeyPress(.downArrow) { selected = min(max(0, list.count - 1), selected + 1); return .handled }
+                    .onExitCommand { ws.paletteVisible = false }
+                    .onChange(of: query) { _, _ in selected = 0 }
+                if !query.isEmpty {
+                    Button { query = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12)) }
+                        .buttonStyle(.plain).foregroundStyle(Color(Palette.muted)).accessibilityLabel("Clear")
+                }
+            }
+            .padding(.horizontal, 9).frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.field)))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(Palette.binderBorder), lineWidth: 1))
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(Array(list.enumerated()), id: \.element.id) { i, cmd in
+                            if cmd.dividerBefore && query.isEmpty && i > 0 {
+                                Rectangle().fill(Color(Palette.binderBorder)).frame(height: 1).padding(.vertical, 3).padding(.horizontal, 4)
+                            }
                             HStack {
-                                Text(cmd.title).font(.system(size: 13))
-                                Spacer()
+                                Text(cmd.title).font(.system(size: 13)).lineLimit(1)
+                                Spacer(minLength: 12)
                                 Text(cmd.shortcut).font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
                             }
                             .foregroundStyle(Color(cmd.enabled ? Palette.binderText : Palette.marker))
-                            .padding(.horizontal, 10).frame(height: 30)
-                            .background(RoundedRectangle(cornerRadius: 7).fill(i == selected ? Color(Palette.selection) : .clear))
+                            .padding(.horizontal, 8).frame(height: 26)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(i == selected ? Color(Palette.selection) : .clear))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(i == selected ? Color(Palette.binderBorder) : .clear, lineWidth: 1))
                             .contentShape(Rectangle())
                             .onTapGesture { selected = i; run(list) }
                             .id(i)
                         }
-                        if list.isEmpty { Text("No matching command").font(.system(size: 12.5)).foregroundStyle(Color(Palette.muted)).padding(.top, 14) }
+                        if list.isEmpty { Text("No matching command").font(.system(size: 12.5)).foregroundStyle(Color(Palette.muted)).padding(.vertical, 10) }
                     }
-                    .padding(6)
                 }
-                .frame(maxHeight: 320)
+                .frame(maxHeight: 300)
                 .onChange(of: selected) { _, n in proxy.scrollTo(n) }
             }
         }
-        .frame(width: 520)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(Palette.binderBg)))
+        .padding(6)
+        .frame(width: 440)
+        // the shadow belongs to the panel's own shape, not to the field and rows inside it
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(Palette.binderBg)).shadow(color: .black.opacity(0.16), radius: 14, y: 6))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(Palette.binderBorder), lineWidth: 1))
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
         .onAppear { focused = true }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Command palette")

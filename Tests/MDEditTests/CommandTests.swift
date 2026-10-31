@@ -9,7 +9,7 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(Set(cmds.map(\.id)).count, cmds.count)
         XCTAssertEqual(cmds.first { $0.id == "palette" }?.shortcut, "⇧⌘P")
         XCTAssertEqual(cmds.first { $0.id == "search" }?.shortcut, "⇧⌘F")
-        XCTAssertEqual(cmds.first { $0.id == "binder" }?.shortcut, "⌃⌘S")
+        XCTAssertEqual(cmds.first { $0.id == "binder" }?.shortcut, "⌘/")
         let keys = cmds.filter { $0.key != nil }.map(\.shortcut)
         XCTAssertEqual(Set(keys).count, keys.count, "two commands share a shortcut")
     }
