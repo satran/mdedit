@@ -1,0 +1,143 @@
+import SwiftUI
+import AppKit
+
+/// The text component: a scrolling editor that takes the room it is given.
+struct MarkdownTextEditor: NSViewRepresentable {
+    @Binding var text: String
+    var documentID: URL?
+    var style: EditorStyle
+    var onOpenWiki: ((String) -> Void)?
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let tv = EditorTextView()
+        tv.isRichText = false
+        tv.allowsUndo = true
+        tv.drawsBackground = false
+        tv.usesFindBar = true
+        tv.isIncrementalSearchingEnabled = true
+        // The system's own spelling and autocorrect. Smart quotes and dashes stay off: they would break code and "---".
+        tv.isContinuousSpellCheckingEnabled = true
+        tv.isAutomaticSpellingCorrectionEnabled = true
+        tv.isAutomaticTextReplacementEnabled = true
+        tv.smartInsertDeleteEnabled = true
+        tv.isAutomaticQuoteSubstitutionEnabled = false
+        tv.isAutomaticDashSubstitutionEnabled = false
+        tv.isAutomaticLinkDetectionEnabled = false
+        tv.textContainer?.lineFragmentPadding = 0
+        tv.delegate = context.coordinator
+        tv.onOpenWiki = onOpenWiki
+
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.documentView = tv
+        tv.isVerticallyResizable = true
+        tv.isHorizontallyResizable = false
+        tv.autoresizingMask = [.width]
+        tv.textContainer?.widthTracksTextView = true
+        tv.minSize = .zero
+        tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+        tv.style = style
+        tv.font = tv.baseFont
+        tv.string = text
+        tv.updateInsets()
+        tv.restyle()
+        context.coordinator.documentID = documentID
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.parent = self
+        guard let tv = scroll.documentView as? EditorTextView else { return }
+        tv.onOpenWiki = onOpenWiki
+        tv.style = style                                    // restyles itself when it changed
+        let switched = context.coordinator.documentID != documentID
+        if tv.string != text || switched {
+            tv.string = text
+            tv.restyle()
+            tv.needsDisplay = true
+        }
+        if switched {
+            context.coordinator.documentID = documentID
+            tv.undoManager?.removeAllActions()
+            tv.setSelectedRange(NSRange(location: 0, length: 0))
+            tv.scrollToBeginningOfDocument(nil)
+            if documentID != nil { DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) } }
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: MarkdownTextEditor
+        var documentID: URL?
+        init(_ p: MarkdownTextEditor) { parent = p }
+
+        func textDidChange(_ n: Notification) {
+            guard let tv = n.object as? EditorTextView else { return }
+            tv.restyle()
+            parent.text = tv.string
+            tv.needsDisplay = true
+        }
+
+        func textView(_ tv: NSTextView, doCommandBy sel: Selector) -> Bool {
+            switch sel {
+            case #selector(NSResponder.cancelOperation(_:)): tv.window?.makeFirstResponder(nil); return true
+            case #selector(NSResponder.insertNewline(_:)): return continueList(tv)
+            case #selector(NSResponder.insertTab(_:)): return shift(tv, by: 2)
+            case #selector(NSResponder.insertBacktab(_:)): return shift(tv, by: -2)
+            case #selector(NSResponder.deleteBackward(_:)): return deleteMarker(tv)
+            default: return false
+            }
+        }
+
+        func currentLine(_ tv: NSTextView) -> (para: NSRange, line: String, caret: Int) {
+            let ns = tv.string as NSString
+            let caret = tv.selectedRange().location
+            let para = ns.paragraphRange(for: NSRange(location: caret, length: 0))
+            return (para, ns.substring(with: para).trimmingCharacters(in: .newlines), caret)
+        }
+
+        /// Return in a list item starts the next one; Return on an empty item ends the list.
+        func continueList(_ tv: NSTextView) -> Bool {
+            guard tv.selectedRange().length == 0 else { return false }
+            let (para, line, caret) = currentLine(tv)
+            var prefix: String?, next: String?
+            if let m = ListMarker(line: line) { prefix = m.prefix; next = m.next }
+            else if line.hasPrefix("> ") { prefix = "> "; next = "> " }
+            guard let prefix, let next, caret >= para.location + (prefix as NSString).length else { return false }
+            if line.trimmingCharacters(in: .whitespaces) == prefix.trimmingCharacters(in: .whitespaces) {
+                tv.insertText("", replacementRange: NSRange(location: para.location, length: (line as NSString).length))
+            } else {
+                tv.insertText("\n" + next, replacementRange: tv.selectedRange())
+            }
+            return true
+        }
+
+        /// Tab and Shift-Tab nest and un-nest a list item.
+        func shift(_ tv: NSTextView, by n: Int) -> Bool {
+            let (para, line, _) = currentLine(tv)
+            guard ListMarker(line: line) != nil else { return false }
+            if n > 0 {
+                tv.insertText(String(repeating: " ", count: n), replacementRange: NSRange(location: para.location, length: 0))
+            } else {
+                let lead = line.prefix { $0 == " " }.count
+                if lead > 0 { tv.insertText("", replacementRange: NSRange(location: para.location, length: min(-n, lead))) }
+            }
+            return true
+        }
+
+        /// Backspace just after a bullet un-nests it, and then removes the bullet.
+        func deleteMarker(_ tv: NSTextView) -> Bool {
+            guard tv.selectedRange().length == 0 else { return false }
+            let (para, line, caret) = currentLine(tv)
+            guard let m = ListMarker(line: line), caret == para.location + (m.prefix as NSString).length else { return false }
+            let lead = line.prefix { $0 == " " }.count
+            if lead >= 2 { tv.insertText("", replacementRange: NSRange(location: para.location, length: 2)) }
+            else { tv.insertText("", replacementRange: NSRange(location: para.location, length: (m.prefix as NSString).length)) }
+            return true
+        }
+    }
+}
