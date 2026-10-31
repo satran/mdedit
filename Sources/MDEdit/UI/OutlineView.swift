@@ -38,9 +38,11 @@ struct OutlineView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 24)
         }
-        .background(Color(Palette.paneBg))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(Palette.binderBg))
     }
 
     private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {

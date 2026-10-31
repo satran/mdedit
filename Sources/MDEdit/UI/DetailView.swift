@@ -14,7 +14,7 @@ struct DetailView: View {
                 footer
             }
             if ws.outlineVisible {
-                Rectangle().fill(Color(Palette.paneBorder)).frame(width: 1)
+                Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
                 OutlineView(document: document).frame(width: 240)
             }
         }
