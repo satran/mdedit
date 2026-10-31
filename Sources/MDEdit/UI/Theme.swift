@@ -50,7 +50,7 @@ extension Color {
 enum Metrics {
     static let headerHeight: CGFloat = 52
     static let footerHeight: CGFloat = 40
-    static let rowHeight: CGFloat = 28
+    static let rowHeight: CGFloat = 24
     static let indent: CGFloat = 16
     static let column: CGFloat = 640
 }

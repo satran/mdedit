@@ -34,7 +34,7 @@ struct BinderView: View {
     private var tree: some View {
         let rows = ws.rows
         return ScrollView {
-            LazyVStack(spacing: 1) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                     BinderRowView(row: row, selected: ws.selection == row.node.url, gap: row.depth == 0 && i > 0 ? 8 : 0)
                 }
