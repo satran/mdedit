@@ -10,7 +10,7 @@ struct FocusView: View {
         ZStack {
             Color(Palette.paneBg)
             MarkdownTextEditor(text: $document.text, documentID: document.url,
-                               style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize) + 2, lineWidth: 72),
+                               style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize) + 2, lineWidth: 72, headingSizes: prefs.headingSizes),
                                onOpenWiki: { ws.openWiki($0) },
                                wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
                                linksVersion: ws.treeVersion, typewriter: true, focusDim: true, bridge: ws.editor,

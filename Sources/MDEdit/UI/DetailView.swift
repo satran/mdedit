@@ -87,7 +87,7 @@ struct DetailView: View {
                 .font(.system(size: 14)).foregroundStyle(Color(Palette.muted))
         } else if ws.mode == .write {
             MarkdownTextEditor(text: $document.text, documentID: document.url,
-                               style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth),
+                               style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth, headingSizes: prefs.headingSizes),
                                onOpenWiki: { ws.openWiki($0) },
                                wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
                                linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor)

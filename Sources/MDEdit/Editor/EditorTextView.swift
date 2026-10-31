@@ -5,6 +5,7 @@ struct EditorStyle: Equatable {
     var fontName: String
     var size: CGFloat
     var lineWidth: Int      // characters per line
+    var headingSizes = true
 }
 
 /// The writing surface: Markdown stays in the text, quiet, and is styled as you type. Block markers
@@ -108,7 +109,7 @@ final class EditorTextView: NSTextView {
             case .marker:
                 storage.addAttribute(.foregroundColor, value: Palette.marker, range: r)
             case .heading(let n):
-                let bump: [CGFloat] = [10, 4, 2, 0, 0, 0]
+                let bump: [CGFloat] = style.headingSizes ? [10, 4, 2, 0, 0, 0] : [0, 0, 0, 0, 0, 0]
                 let f = baseFont.withSize(size + bump[min(n, 6) - 1])
                 storage.addAttributes([.font: NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask), .foregroundColor: Palette.strongText], range: r)
             case .bold: trait(.boldFontMask, r)

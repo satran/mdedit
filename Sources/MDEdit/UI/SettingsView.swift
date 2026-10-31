@@ -29,6 +29,10 @@ struct SettingsView: View {
                         widthPicker
                     }
                     divider
+                    row("Heading sizes", note: "Larger text for headings") {
+                        Toggle("Heading sizes", isOn: $prefs.headingSizes).labelsHidden().toggleStyle(.switch)
+                    }
+                    divider
                     preview
                 }
                 section("Viewer") {
