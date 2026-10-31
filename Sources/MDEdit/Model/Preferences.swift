@@ -13,6 +13,7 @@ final class Preferences: ObservableObject {
     @Published var widthCustom: Bool { didSet { d.set(widthCustom, forKey: "widthCustom") } }
     /// Headings in the editor are larger than body text; off keeps them the body size (still bold).
     @Published var headingSizes: Bool { didSet { d.set(headingSizes, forKey: "headingSizes") } }
+    @Published var showStatusBar: Bool { didSet { d.set(showStatusBar, forKey: "showStatusBar") } }
     @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
@@ -22,6 +23,7 @@ final class Preferences: ObservableObject {
         lineWidth = d.object(forKey: "lineWidth") as? Int ?? 66
         widthCustom = d.bool(forKey: "widthCustom")
         headingSizes = d.object(forKey: "headingSizes") as? Bool ?? true
+        showStatusBar = d.object(forKey: "showStatusBar") as? Bool ?? true
         viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
         viewerSize = d.object(forKey: "viewerSize") as? Double ?? 18
     }

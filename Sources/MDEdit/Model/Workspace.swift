@@ -147,6 +147,7 @@ final class Workspace: ObservableObject {
         scoped?.stopAccessingSecurityScopedResource()
         _ = url.startAccessingSecurityScopedResource()
         scoped = url
+        RecentFolders.shared.add(url)
         rootURL = url
         search = ""
         document.open(nil)

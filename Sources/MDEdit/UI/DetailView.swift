@@ -11,7 +11,7 @@ struct DetailView: View {
                 header
                 banner
                 content.frame(maxWidth: .infinity, maxHeight: .infinity)
-                footer
+                if prefs.showStatusBar { footer }
             }
             if ws.outlineVisible {
                 Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
@@ -39,7 +39,7 @@ struct DetailView: View {
             IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
-        .padding(.leading, ws.binderVisible ? 16 : 84).padding(.trailing, 16)
+        .padding(.leading, ws.binderVisible ? 16 : 100).padding(.trailing, 16)
         .frame(height: Metrics.headerHeight)
         .background(WindowDragArea())
     }
