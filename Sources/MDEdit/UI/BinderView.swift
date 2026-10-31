@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BinderView: View {
     @EnvironmentObject var ws: Workspace
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,12 +21,21 @@ struct BinderView: View {
         .foregroundStyle(Color(Palette.binderText))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Binder")
+        .onAppear { takeSearchFocus() }
+        .onChange(of: ws.wantsSearchFocus) { _, _ in takeSearchFocus() }
+    }
+
+    private func takeSearchFocus() {
+        guard ws.wantsSearchFocus else { return }
+        ws.wantsSearchFocus = false
+        DispatchQueue.main.async { searchFocused = true }
     }
 
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
             TextField("Search", text: $ws.search).textFieldStyle(.plain).font(.system(size: 13))
+                .focused($searchFocused)
                 .accessibilityLabel("Search binder")
             if !ws.search.isEmpty {
                 Button { ws.search = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12)) }

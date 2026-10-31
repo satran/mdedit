@@ -23,6 +23,14 @@ struct RootView: View {
         .onOpenURL { ws.openExternal($0) }
         .background(Color(Palette.paneBg))
         .background(TrafficLights())
+        .overlay {
+            if ws.paletteVisible {
+                ZStack(alignment: .top) {
+                    Color.black.opacity(0.12).onTapGesture { ws.paletteVisible = false }
+                    PaletteView().padding(.top, 90)
+                }
+            }
+        }
         .alert("Something went wrong", isPresented: Binding(get: { ws.message != nil }, set: { if !$0 { ws.message = nil } })) {
             Button("OK") { ws.message = nil }
         } message: { Text(ws.message ?? "") }

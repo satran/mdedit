@@ -17,6 +17,9 @@ final class Workspace: ObservableObject {
     @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
     @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
     @Published var binderVisible: Bool
+    @Published var paletteVisible = false
+    /// Set by "Search Binder"; the binder's search field takes it when it can.
+    @Published var wantsSearchFocus = false
     private var enteredFullScreen = false
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
@@ -76,6 +79,13 @@ final class Workspace: ObservableObject {
             c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             w.animator().setFrame(f, display: true)
         }
+    }
+
+    /// Brings up the binder if it is hidden, then puts the cursor in its search field.
+    func focusSearch() {
+        if focus { toggleFocus() }
+        if !binderVisible { toggleBinder() }
+        wantsSearchFocus = true
     }
 
     func toggleFocus() {
