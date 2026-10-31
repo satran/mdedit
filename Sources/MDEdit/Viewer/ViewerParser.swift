@@ -48,19 +48,32 @@ enum ViewerParser {
     }
 
     private static func blocks(_ children: MarkupChildren) -> [VBlock] {
-        children.compactMap(block)
+        children.flatMap(block)
     }
 
-    private static func block(_ m: Markup) -> VBlock? {
+    private static func block(_ m: Markup) -> [VBlock] {
+        guard let single = singleBlock(m) else { return paragraphBlocks(m) }
+        return [single]
+    }
+
+    /// A paragraph is text and images in reading order. Without a blank line an image belongs to the paragraph around it
+    /// (`text\n![a](b.png)\nmore`), so the paragraph is split at every image: text runs stay paragraphs, each image becomes a figure.
+    /// An image inside a link (`[![a](b.png)](url)`) shows as a figure and loses the link: a figure cannot carry one.
+    private static func paragraphBlocks(_ m: Markup) -> [VBlock] {
+        guard let p = m as? Paragraph else { return [] }
+        let sink = ImageSink()
+        var out = AttributedString()
+        for c in p.children { append(c, to: &out, intent: [], link: nil, sink: sink) }
+        sink.flush(&out)
+        return sink.blocks
+    }
+
+    private static func singleBlock(_ m: Markup) -> VBlock? {
         switch m {
         case let h as Heading:
             return .heading(h.level, inlines(h))
-        case let p as Paragraph:
-            // a paragraph that is only an image is a figure
-            if p.childCount == 1, let img = p.child(at: 0) as? Markdown.Image, let src = img.source {
-                return .image(src: src, alt: img.plainText)
-            }
-            return .paragraph(inlines(p))
+        case is Paragraph:
+            return nil // handled by paragraphBlocks
         case let q as BlockQuote:
             return .quote(blocks(q.children))
         case let l as UnorderedList:
@@ -103,7 +116,20 @@ enum ViewerParser {
         return a
     }
 
-    private static func append(_ m: Markup, to out: inout AttributedString, intent: InlinePresentationIntent, link: URL?) {
+    /// Collects the blocks of a paragraph while its inlines are walked; nil where images stay inline text (headings, table cells).
+    private final class ImageSink {
+        var blocks: [VBlock] = []
+        /// Text before an image becomes a paragraph (dropping the soft break or space next to the image); nothing if only blanks.
+        func flush(_ out: inout AttributedString) {
+            defer { out = AttributedString() }
+            var text = out
+            while let c = text.characters.last, c.isWhitespace { text.characters.removeLast() }
+            while let c = text.characters.first, c.isWhitespace { text.characters.removeFirst() }
+            if !text.characters.isEmpty { blocks.append(.paragraph(text)) }
+        }
+    }
+
+    private static func append(_ m: Markup, to out: inout AttributedString, intent: InlinePresentationIntent, link: URL?, sink: ImageSink? = nil) {
         switch m {
         case let t as Markdown.Text:
             if link == nil, !intent.contains(.code) { out += linkified(t.string, intent: intent, smart: true, previous: out.characters.last) }
@@ -115,22 +141,27 @@ enum ViewerParser {
         case is SoftBreak: out += run(" ", intent: intent, link: link)
         case is LineBreak: out += run("\n", intent: intent, link: link)
         case let e as Emphasis:
-            for c in e.children { append(c, to: &out, intent: intent.union(.emphasized), link: link) }
+            for c in e.children { append(c, to: &out, intent: intent.union(.emphasized), link: link, sink: sink) }
         case let s as Strong:
-            for c in s.children { append(c, to: &out, intent: intent.union(.stronglyEmphasized), link: link) }
+            for c in s.children { append(c, to: &out, intent: intent.union(.stronglyEmphasized), link: link, sink: sink) }
         case let s as Strikethrough:
-            for c in s.children { append(c, to: &out, intent: intent.union(.strikethrough), link: link) }
+            for c in s.children { append(c, to: &out, intent: intent.union(.strikethrough), link: link, sink: sink) }
         case let c as InlineCode:
             out += run(c.code, intent: intent.union(.code), link: link)
         case let l as Markdown.Link:
             let url = l.destination.flatMap { URL(string: $0) }
-            for c in l.children { append(c, to: &out, intent: intent, link: url ?? link) }
+            for c in l.children { append(c, to: &out, intent: intent, link: url ?? link, sink: sink) }
         case let i as Markdown.Image:
-            out += run(i.plainText, intent: intent, link: link)
+            if let sink, let src = i.source, !src.isEmpty {
+                sink.flush(&out)
+                sink.blocks.append(.image(src: src, alt: i.plainText))
+            } else {
+                out += run(i.plainText, intent: intent, link: link)
+            }
         case let h as InlineHTML:
             out += run(h.rawHTML, intent: intent, link: link)
         default:
-            for c in m.children { append(c, to: &out, intent: intent, link: link) }
+            for c in m.children { append(c, to: &out, intent: intent, link: link, sink: sink) }
         }
     }
 
