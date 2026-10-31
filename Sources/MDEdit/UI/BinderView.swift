@@ -6,6 +6,12 @@ struct BinderView: View {
     var body: some View {
         VStack(spacing: 0) {
             WindowDragArea().frame(height: Metrics.headerHeight)
+            if let root = ws.rootURL {
+                Text(root.lastPathComponent).font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18).padding(.bottom, 10)
+            }
             searchField
             if ws.root == nil { emptyState } else { tree }
             footer

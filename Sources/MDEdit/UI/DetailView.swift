@@ -28,7 +28,14 @@ struct DetailView: View {
             IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
                 .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
-            ModeSwitch(mode: $ws.mode)
+            HStack(spacing: 0) {
+                IconButton(symbol: "pencil", label: "Write") { ws.mode = .write }
+                    .foregroundStyle(Color(ws.mode == .write ? Palette.link : Palette.muted))
+                    .accessibilityAddTraits(ws.mode == .write ? .isSelected : [])
+                IconButton(symbol: "eye", label: "View") { ws.mode = .view }
+                    .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
+                    .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
+            }
             IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.outlineVisible.toggle() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
@@ -140,37 +147,5 @@ struct ViewerContainer: View {
         ViewerView(blocks: blocks, baseURL: baseURL, prefs: prefs)
             .onAppear { blocks = ViewerParser.parse(text) }
             .onChange(of: text) { _, new in blocks = ViewerParser.parse(new) }
-    }
-}
-
-/// Write | View, the pill in the header.
-struct ModeSwitch: View {
-    @Binding var mode: Mode
-
-    var body: some View {
-        HStack(spacing: 2) {
-            item(.write, "Write", "pencil")
-            item(.view, "View", "eye")
-        }
-        .padding(2)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
-        .accessibilityElement(children: .contain)
-    }
-
-    private func item(_ m: Mode, _ title: String, _ symbol: String) -> some View {
-        let on = mode == m
-        return Button { mode = m } label: {
-            HStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 11))
-                Text(title).font(.system(size: 12.5, weight: .medium))
-            }
-            .padding(.horizontal, 12).frame(height: 26)
-            .foregroundStyle(Color(on ? Palette.strongText : Palette.segmentText))
-            .background(RoundedRectangle(cornerRadius: 6).fill(on ? Color(Palette.segmentOn) : .clear).shadow(color: .black.opacity(on ? 0.12 : 0), radius: 1, y: 1))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

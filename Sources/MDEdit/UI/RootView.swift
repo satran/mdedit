@@ -22,6 +22,7 @@ struct RootView: View {
         .ignoresSafeArea()
         .onOpenURL { ws.openExternal($0) }
         .background(Color(Palette.paneBg))
+        .background(TrafficLights())
         .alert("Something went wrong", isPresented: Binding(get: { ws.message != nil }, set: { if !$0 { ws.message = nil } })) {
             Button("OK") { ws.message = nil }
         } message: { Text(ws.message ?? "") }

@@ -63,3 +63,36 @@ struct WindowDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { V() }
     func updateNSView(_ v: NSView, context: Context) {}
 }
+
+/// Centres the traffic lights in the header row, level with the header's buttons.
+struct TrafficLights: NSViewRepresentable {
+    final class V: NSView {
+        private var observers: [NSObjectProtocol] = []
+        private var step: CGFloat?
+        override func viewDidMoveToWindow() {
+            observers.forEach(NotificationCenter.default.removeObserver)
+            observers = []
+            guard let w = window else { return }
+            for n in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didEndLiveResizeNotification] {
+                observers.append(NotificationCenter.default.addObserver(forName: n, object: w, queue: .main) { [weak self] _ in self?.place() })
+            }
+            DispatchQueue.main.async { self.place() }
+        }
+        func place() {
+            guard let w = window, !w.styleMask.contains(.fullScreen),
+                  let close = w.standardWindowButton(.closeButton), let bar = close.superview, let container = bar.superview else { return }
+            let h = Metrics.headerHeight
+            container.frame = NSRect(x: container.frame.minX, y: w.frame.height - h, width: container.frame.width, height: h)
+            bar.frame = container.bounds
+            // keep the system spacing, but start further in from the left edge
+            if step == nil, let mini = w.standardWindowButton(.miniaturizeButton), mini.frame.minX > close.frame.minX { step = mini.frame.minX - close.frame.minX }
+            for (i, t) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
+                guard let b = w.standardWindowButton(t), b.superview === bar else { continue }
+                b.setFrameOrigin(NSPoint(x: 20 + CGFloat(i) * (step ?? 20), y: (bar.bounds.height - b.frame.height) / 2))
+            }
+        }
+        deinit { observers.forEach(NotificationCenter.default.removeObserver) }
+    }
+    func makeNSView(context: Context) -> NSView { V() }
+    func updateNSView(_ v: NSView, context: Context) {}
+}
