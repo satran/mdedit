@@ -4,6 +4,11 @@ import SwiftUI
 struct MDEditApp: App {
     @StateObject private var prefs = Preferences.shared
 
+    init() {
+        // windows, not tabs: this also removes Show Tab Bar and Show All Tabs from the menus
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     var body: some Scene {
         // One window per folder; the value is the window's own id, which keys what it remembers.
         WindowGroup("MDEdit", id: "main", for: UUID.self) { $id in

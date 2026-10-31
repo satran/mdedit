@@ -81,6 +81,12 @@ final class Workspace: ObservableObject {
         }
     }
 
+    /// Another window on the folder that is open here.
+    func openInNewWindow() {
+        guard let rootURL, let id = Workspace.stash(rootURL) else { return }
+        newWindow?(id)
+    }
+
     /// Brings up the binder if it is hidden, then puts the cursor in its search field.
     func focusSearch() {
         if focus { toggleFocus() }

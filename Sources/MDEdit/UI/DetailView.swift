@@ -36,6 +36,8 @@ struct DetailView: View {
                     .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
                     .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
             }
+            IconButton(symbol: "macwindow.badge.plus", label: "New window with this folder") { ws.openInNewWindow() }
+                .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
             IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
