@@ -58,6 +58,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
         Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil, dividerBefore: true) { ws?.mode = .write },
         Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil) { ws?.mode = .view },
+        Cmd(id: "preview", title: ws?.mode == .view ? "Back to Writing" : "Preview", place: .view, key: "e", modifiers: [.command, .shift], enabled: ws != nil) { ws?.mode = ws?.mode == .view ? .write : .view },
         Cmd(id: "focus", title: ws?.focus == true ? "Leave Distraction Free" : "Distraction Free", place: .view, key: "f", modifiers: [.command, .control], enabled: ws != nil, dividerBefore: true) { ws?.toggleFocus() },
         Cmd(id: "typewriter", title: ws?.typewriter == true ? "Turn Off Typewriter Mode" : "Typewriter Mode", place: .view, key: "t", modifiers: [.command, .control], enabled: ws != nil) { ws?.typewriter.toggle() },
         Cmd(id: "palette", title: "Command Palette…", place: .view, key: "p", modifiers: [.command, .shift], enabled: ws != nil, dividerBefore: true) { ws?.paletteVisible.toggle() },

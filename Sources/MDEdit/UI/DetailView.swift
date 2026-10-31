@@ -28,15 +28,10 @@ struct DetailView: View {
             IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
                 .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 0) {
-                IconButton(symbol: "pencil", label: "Write") { ws.mode = .write }
-                    .foregroundStyle(Color(ws.mode == .write ? Palette.link : Palette.muted))
-                    .accessibilityAddTraits(ws.mode == .write ? .isSelected : [])
-                IconButton(symbol: "eye", label: "View") { ws.mode = .view }
-                    .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
-                    .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
-            }
-            IconButton(symbol: "macwindow.badge.plus", label: "New window with this folder") { ws.openInNewWindow() }
+            IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
+                .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
+                .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
+            IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
                 .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
             IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
