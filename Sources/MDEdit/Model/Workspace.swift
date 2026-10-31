@@ -159,6 +159,7 @@ final class Workspace: ObservableObject {
         selection = url
         guard let node = root?.find(url) else { return }
         if node.isFolder { toggle(url) }
+        else if !node.isDocument { NSWorkspace.shared.open(url) }
         else {
             document.open(url)
             defaults.set(url.path, forKey: "lastFile" + windowKey)
@@ -237,7 +238,9 @@ final class Workspace: ObservableObject {
             .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
         guard !name.isEmpty, name != node.name else { return }
         let parent = url.deletingLastPathComponent()
-        let new = node.isFolder ? parent.appendingPathComponent(name, isDirectory: true) : parent.appendingPathComponent(name).appendingPathExtension(url.pathExtension)
+        let new = node.isFolder ? parent.appendingPathComponent(name, isDirectory: true)
+            : node.isDocument ? parent.appendingPathComponent(name).appendingPathExtension(url.pathExtension)
+            : parent.appendingPathComponent(name)
         if FileManager.default.fileExists(atPath: new.path), new.path.lowercased() != url.path.lowercased() {
             message = "“\(name)” already exists here."; return
         }
@@ -249,7 +252,7 @@ final class Workspace: ObservableObject {
         guard let node = root?.find(url), root?.find(folder)?.isFolder == true else { return }
         let from = url.standardizedFileURL.path, to = folder.standardizedFileURL.path
         guard url.deletingLastPathComponent().standardizedFileURL.path != to, to != from, !to.hasPrefix(from + "/") else { return }
-        let dest = Self.uniqueURL(in: folder, base: node.name, ext: node.isFolder ? nil : url.pathExtension)
+        let dest = Self.uniqueURL(in: folder, base: node.name, ext: node.isDocument ? url.pathExtension : nil)
         move(url, to: dest)
         expanded.insert(folder)
     }

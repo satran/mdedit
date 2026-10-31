@@ -9,24 +9,25 @@ final class BinderTests: XCTestCase {
         let fm = FileManager.default
         try fm.createDirectory(at: dir.appendingPathComponent("Ideas"), withIntermediateDirectories: true)
         try fm.createDirectory(at: dir.appendingPathComponent("Draft/Letter"), withIntermediateDirectories: true)
-        for f in ["Zeta.md", "alpha.md", "notes.txt", ".hidden.md", "Ideas/Goals.md", "Ideas/Metrics.markdown", "Draft/Letter/Dora.md", "Draft/Outline.md"] {
+        for f in ["Zeta.md", "alpha.md", "notes.txt", "photo.png", ".hidden.md", "Ideas/Goals.md", "Ideas/Metrics.markdown", "Draft/Letter/Dora.md", "Draft/Outline.md"] {
             try "x".write(to: dir.appendingPathComponent(f), atomically: true, encoding: .utf8)
         }
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: dir) }
 
-    func testScanKeepsOnlyMarkdownFoldersFirstNaturalOrder() {
+    func testScanListsEveryVisibleFileFoldersFirstNaturalOrder() {
         let root = BinderNode.scan(dir)
-        XCTAssertEqual(root.children.map(\.name), ["Draft", "Ideas", "alpha", "Zeta"])
+        XCTAssertEqual(root.children.map(\.name), ["Draft", "Ideas", "alpha", "notes", "photo.png", "Zeta"])
+        XCTAssertEqual(root.files.map(\.name).sorted(), ["Dora", "Goals", "Metrics", "Outline", "Zeta", "alpha", "notes"], "photo.png is not a note")
         XCTAssertEqual(root.children.first { $0.name == "Ideas" }?.children.map(\.name), ["Goals", "Metrics"])
     }
 
     func testRowsFollowExpansion() {
         let root = BinderNode.scan(dir)
-        XCTAssertEqual(root.rows(expanded: [], search: "").map(\.node.name), ["Draft", "Ideas", "alpha", "Zeta"])
+        XCTAssertEqual(root.rows(expanded: [], search: "").map(\.node.name), ["Draft", "Ideas", "alpha", "notes", "photo.png", "Zeta"])
         let draft = root.children[0].url
         let rows = root.rows(expanded: [draft], search: "")
-        XCTAssertEqual(rows.map(\.node.name), ["Draft", "Letter", "Outline", "Ideas", "alpha", "Zeta"])
+        XCTAssertEqual(rows.map(\.node.name), ["Draft", "Letter", "Outline", "Ideas", "alpha", "notes", "photo.png", "Zeta"])
         XCTAssertEqual(rows[1].depth, 1)
         XCTAssertTrue(rows[0].isOpen)
     }

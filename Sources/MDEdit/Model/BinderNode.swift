@@ -1,18 +1,21 @@
 import Foundation
 
-/// One folder or Markdown file in the opened folder.
+/// One folder or file in the opened folder. Markdown and text files are notes; anything else opens in its default app.
 final class BinderNode: Identifiable {
     let url: URL
     let isFolder: Bool
     var children: [BinderNode]
     var id: URL { url }
-    var name: String { isFolder ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent }
+    /// Notes show without their extension; other files keep it.
+    var isDocument: Bool { !isFolder && Self.documentExtensions.contains(url.pathExtension.lowercased()) }
+    var name: String { isFolder || !isDocument ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent }
 
     init(url: URL, isFolder: Bool, children: [BinderNode] = []) {
         self.url = url; self.isFolder = isFolder; self.children = children
     }
 
     static let markdownExtensions: Set<String> = ["md", "markdown"]
+    static let documentExtensions: Set<String> = markdownExtensions.union(["txt"])
 
     /// Reads the tree below `url`: folders first, then files, each in natural order. Hidden files are skipped.
     static func scan(_ url: URL, fileManager fm: FileManager = .default) -> BinderNode {
@@ -24,7 +27,7 @@ final class BinderNode: Identifiable {
             if v?.isDirectory == true {
                 if v?.isPackage == true { continue }
                 folders.append(scan(u, fileManager: fm))
-            } else if markdownExtensions.contains(u.pathExtension.lowercased()) {
+            } else {
                 files.append(BinderNode(url: u, isFolder: false))
             }
         }
@@ -59,8 +62,8 @@ final class BinderNode: Identifiable {
         return nil
     }
 
-    /// Every Markdown file below this node, depth first.
-    var files: [BinderNode] { isFolder ? children.flatMap { $0.files } : [self] }
+    /// Every note (Markdown or text) below this node, depth first.
+    var files: [BinderNode] { isFolder ? children.flatMap { $0.files } : (isDocument ? [self] : []) }
 }
 
 struct BinderRow: Identifiable {

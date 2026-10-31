@@ -107,7 +107,7 @@ struct BinderRowView: View {
                 } else { Color.clear }
             }
             .frame(width: 12, height: 12).foregroundStyle(Color(Palette.muted))
-            Image(systemName: node.isFolder ? "folder" : "doc.text").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
+            Image(systemName: node.isFolder ? "folder" : node.isDocument ? "doc.text" : "doc").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
             if ws.renaming == node.url {
                 TextField("Name", text: $draft)
                     .textFieldStyle(.plain).font(.system(size: 13))
