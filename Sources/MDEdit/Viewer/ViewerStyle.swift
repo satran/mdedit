@@ -37,13 +37,14 @@ struct ViewerStyle {
     struct Heading { var size: CGFloat; var leading: CGFloat; var weight: Font.Weight; var tracking: CGFloat; var top: CGFloat; var bottom: CGFloat }
 
     /// H1 / H2 / H3 are 40 / 26 / 20 (serif) and 34 / 23 / 18 (sans); deeper levels are body size and semibold.
-    /// Space is larger above a heading than below it.
+    /// Space is larger above a heading than below it. The first block of a page or quote gets no top space (BlockList),
+    /// so H1 still has room above it when it turns up mid-note.
     func heading(_ level: Int) -> Heading {
         switch (isSerif, level) {
-        case (true, 1): return Heading(size: px(40), leading: 1.12, weight: .semibold, tracking: -0.012, top: 0, bottom: px(30))
+        case (true, 1): return Heading(size: px(40), leading: 1.12, weight: .semibold, tracking: -0.012, top: px(40) * 1.6, bottom: px(30))
         case (true, 2): return Heading(size: px(26), leading: 1.25, weight: .semibold, tracking: -0.005, top: px(26) * 1.7, bottom: px(26) * 0.45)
         case (true, 3): return Heading(size: px(20), leading: 1.45, weight: .semibold, tracking: 0, top: px(20) * 1.5, bottom: px(20) * 0.35)
-        case (false, 1): return Heading(size: px(34), leading: 1.15, weight: .bold, tracking: -0.022, top: 0, bottom: px(28))
+        case (false, 1): return Heading(size: px(34), leading: 1.15, weight: .bold, tracking: -0.022, top: px(34) * 1.6, bottom: px(28))
         case (false, 2): return Heading(size: px(23), leading: 1.3, weight: .semibold, tracking: -0.012, top: px(23) * 1.75, bottom: px(23) * 0.45)
         case (false, 3): return Heading(size: px(18), leading: 1.5, weight: .semibold, tracking: 0, top: px(18) * 1.6, bottom: px(18) * 0.35)
         default: return Heading(size: body, leading: bodyLeading, weight: .semibold, tracking: 0, top: body * 1.5, bottom: body * 0.35)
