@@ -39,6 +39,56 @@ final class EditorBehaviorTests: XCTestCase {
         XCTAssertFalse(c.continueList(tv), "before the text there is nothing to continue")
     }
 
+    // MARK: Shift-Return (insertLineBreak) continues the same item, never starts a new one
+
+    func testShiftReturnIndentsUnderTheMarkerInsteadOfStartingANewItem() {
+        for sel in [#selector(NSResponder.insertLineBreak(_:)), #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:))] {
+            for (text, expected) in [("- one", "- one\n  "), ("* one", "* one\n  "), ("+ one", "+ one\n  "), ("\u{2022} one", "\u{2022} one\n  "),
+                                     ("1. one", "1. one\n   "), ("9) nine", "9) nine\n   "), ("10. ten", "10. ten\n    "),
+                                     ("- [ ] task", "- [ ] task\n      "), ("- [x] done", "- [x] done\n      "),
+                                     ("  - nested", "  - nested\n    "), ("    - [ ] deep", "    - [ ] deep\n          "),
+                                     ("> quote", "> quote\n> ")] {
+                let (tv, c) = make(text)
+                XCTAssertTrue(c.textView(tv, doCommandBy: sel), text)
+                XCTAssertEqual(tv.string, expected, text)
+            }
+        }
+    }
+
+    func testShiftReturnInTheMiddleOfATaskSplitsTheTextUnderTheMarker() {
+        let (tv, c) = make("- [ ] one two", caret: 10)
+        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
+        XCTAssertEqual(tv.string, "- [ ] one \n      two")
+    }
+
+    func testShiftReturnOnAnEmptyItemDoesNotEndTheList() {
+        let (tv, c) = make("- one\n- ")
+        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
+        XCTAssertEqual(tv.string, "- one\n- \n  ")
+    }
+
+    func testShiftReturnInPlainTextIsLeftToTheTextView() {
+        let (tv, c) = make("just text")
+        XCTAssertFalse(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
+        XCTAssertEqual(tv.string, "just text")
+    }
+
+    func testShiftReturnIsOneUndoStep() {
+        let (tv, c) = make("- [ ] one")
+        tv.allowsUndo = true
+        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
+        XCTAssertEqual(tv.string, "- [ ] one\n      ")
+        // One insertText call: the newline and the indent are a single edit.
+        tv.undoManager?.undo()
+        if tv.undoManager != nil { XCTAssertEqual(tv.string, "- [ ] one") }
+    }
+
+    func testPlainReturnStillContinuesTheListThroughDoCommand() {
+        let (tv, c) = make("- [x] done")
+        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        XCTAssertEqual(tv.string, "- [x] done\n- [ ] ")
+    }
+
     func testTabNestsAndShiftTabUnnests() {
         let (tv, c) = make("- one")
         XCTAssertTrue(c.shift(tv, by: 2)); XCTAssertEqual(tv.string, "  - one")
