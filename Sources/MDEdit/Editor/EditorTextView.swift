@@ -206,7 +206,10 @@ final class EditorTextView: NSTextView {
                     }
                 }
             case .link(let url) where event.modifierFlags.contains(.command) && NSLocationInRange(idx, span.range):
-                if let u = URL(string: url.hasPrefix("http") ? url : "https://" + url) { NSWorkspace.shared.open(u) }
+                // only web addresses and mail open from the editor; anything else is just text
+                let scheme = LinkPolicy.scheme(of: url)
+                let text = scheme == nil && url.lowercased().hasPrefix("www.") ? "https://" + url : url
+                if let scheme = LinkPolicy.scheme(of: text), LinkPolicy.webSchemes.contains(scheme), let u = URL(string: text) { NSWorkspace.shared.open(u) }
                 return
             case .wikiLink(let target) where event.modifierFlags.contains(.command) && NSLocationInRange(idx, span.range):
                 onOpenWiki?(target)

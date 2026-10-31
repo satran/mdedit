@@ -44,7 +44,7 @@ enum ViewerParser {
             }))
             body = (source as NSString).substring(from: fm.end)
         }
-        return out + blocks(Document(parsing: body).children)
+        return out + blocks(Document(parsing: MarkdownLimits.clamp(body)).children)
     }
 
     private static func blocks(_ children: MarkupChildren) -> [VBlock] {
@@ -135,12 +135,16 @@ enum ViewerParser {
     /// Plain text with [[wiki links]] and bare web addresses turned into links.
     static func linkified(_ s: String, intent: InlinePresentationIntent) -> AttributedString {
         var pieces: [(Range<String.Index>, String, URL?)] = []
-        for (r, w) in WikiLink.parse(s) { pieces.append((r, w.shown, w.url)) }
+        let wikis = WikiLink.parse(s)
+        for (r, w) in wikis { pieces.append((r, w.shown, w.url)) }
         let ns = s as NSString
+        // wiki links come in order, so overlap is found by walking both lists once (a note with thousands of addresses was quadratic)
+        var w = 0
         for m in bareURL.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
             guard var r = Range(m.range, in: s) else { continue }
             while s[r].count > 1, ".,;:!?)'\"".contains(s[r].last!) { r = r.lowerBound..<s.index(before: r.upperBound) }
-            if pieces.contains(where: { $0.0.overlaps(r) }) { continue }
+            while w < wikis.count, wikis[w].range.upperBound <= r.lowerBound { w += 1 }
+            if w < wikis.count, wikis[w].range.overlaps(r) { continue }
             pieces.append((r, String(s[r]), URL(string: String(s[r]))))
         }
         guard !pieces.isEmpty else { return run(s, intent: intent, link: nil) }

@@ -185,7 +185,12 @@ struct BinderRowView: View {
             Button("New Folder Here") { ws.newFolder(in: node.isFolder ? node.url : node.url.deletingLastPathComponent()) }
             Divider()
             Button("Rename") { ws.renaming = node.url }
-            if !node.isFolder && !node.isDocument { Button("Open in Default App") { NSWorkspace.shared.open(node.url) } }
+            if !node.isFolder && !node.isDocument {
+                // programs are shown, never started from here
+                Button(LinkPolicy.isProgram(node.url) ? "Reveal Program in Finder" : "Open in Default App") {
+                    if LinkPolicy.isProgram(node.url) { NSWorkspace.shared.activateFileViewerSelecting([node.url]) } else { NSWorkspace.shared.open(node.url) }
+                }
+            }
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([node.url]) }
             Divider()
             Button("Move to Trash") { ws.trash(node.url) }

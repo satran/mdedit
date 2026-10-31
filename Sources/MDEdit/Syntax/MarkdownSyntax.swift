@@ -114,8 +114,12 @@ enum MarkdownSyntax {
         inline(ns, body, &spans)
     }
 
+    /// Inline styling looks for pairs of marks in a line, which is quadratic in its length for hostile text (thousands of
+    /// "[a](" in a row took seconds). Lines longer than any real paragraph are left plain.
+    static let maxInlineLength = 8000
+
     private static func inline(_ ns: NSString, _ range: NSRange, _ spans: inout [MDSpan]) {
-        guard range.length > 0 else { return }
+        guard range.length > 0, range.length <= maxInlineLength else { return }
         var taken: [NSRange] = []            // code and links: nothing inside them is styled again
         func free(_ r: NSRange) -> Bool { !taken.contains { NSIntersectionRange($0, r).length > 0 } }
         let s = ns as String

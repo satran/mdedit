@@ -55,6 +55,10 @@ struct SettingsView: View {
                         stepper($prefs.viewerSize, 14...28, label: "viewer text size")
                     }
                     divider
+                    row("Remote pictures", note: "A picture on the web tells its server you opened the note") {
+                        Toggle("Load remote pictures", isOn: $prefs.loadRemoteImages).labelsHidden().toggleStyle(.switch)
+                    }
+                    divider
                     viewerPreview
                 }
             }

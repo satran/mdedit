@@ -82,6 +82,13 @@ struct DetailView: View {
         if document.url == nil {
             Text(ws.root == nil ? "Open a folder to start" : "Select a note")
                 .font(.system(size: 14)).foregroundStyle(Color(Palette.muted))
+        } else if document.unreadable {
+            VStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 24, weight: .light))
+                Text(document.error ?? "This file cannot be opened.").font(.system(size: 13)).multilineTextAlignment(.center)
+                Text("It has not been changed.").font(.system(size: 12))
+            }
+            .foregroundStyle(Color(Palette.muted)).padding(40)
         } else if ws.mode == .write {
             MarkdownTextEditor(text: $document.text, documentID: document.url,
                                style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth, headingSizes: prefs.headingSizes),
@@ -92,15 +99,15 @@ struct DetailView: View {
         } else {
             ViewerContainer(text: document.text, baseURL: document.url?.deletingLastPathComponent(), prefs: prefs)
                 .environment(\.openURL, OpenURLAction { url in
-                    if let t = WikiLink.target(from: url) { ws.openWiki(t); return .handled }
-                    if url.scheme == nil, let dir = document.url?.deletingLastPathComponent() {
-                        // a link to a file next to the note
-                        let target = URL(fileURLWithPath: url.path(percentEncoded: false), relativeTo: dir).standardizedFileURL
-                        if ws.isInside(target), BinderNode.documentExtensions.contains(target.pathExtension.lowercased()) { ws.select(target) }
-                        else { NSWorkspace.shared.open(target) }
-                        return .handled
+                    switch LinkPolicy.decide(url, noteFolder: document.url?.deletingLastPathComponent(), root: ws.rootURL) {
+                    case .wiki(let t): ws.openWiki(t)
+                    case .openWeb(let u): NSWorkspace.shared.open(u)
+                    case .selectNote(let u): ws.select(u)
+                    case .openFile(let u): NSWorkspace.shared.open(u)
+                    case .reveal(let u): NSWorkspace.shared.activateFileViewerSelecting([u])
+                    case .ignore: break
                     }
-                    return .systemAction
+                    return .handled
                 })
         }
     }

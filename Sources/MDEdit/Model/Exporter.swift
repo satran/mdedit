@@ -9,17 +9,25 @@ final class Exporter: NSObject, WKNavigationDelegate {
     private var web: WKWebView?
     private var printWindow: NSWindow?
 
+    nonisolated static func safeHTML(_ markdown: String) -> String {
+        SafeHTML.render(Document(parsing: MarkdownLimits.clamp(markdown)))
+    }
+
     /// A full HTML page for the note, set the way the viewer sets it. [[Wiki links]] become their plain text.
     nonisolated static func html(markdown: String, title: String, viewerFont: String = "Source Serif 4", size: Double = 18) -> String {
         let fm = FrontMatter.parse(markdown)
         let content = fm.map { (markdown as NSString).substring(from: $0.end) } ?? markdown
-        let body = (fm.map(propertiesHTML) ?? "") + HTMLFormatter.format(Document(parsing: plainWikiLinks(content)))
-        let esc = title.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+        let body = (fm.map(propertiesHTML) ?? "") + safeHTML(plainWikiLinks(content))
+        let esc = title.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+        // the font name goes into a CSS string
+        let font = viewerFont.filter { $0.isLetter || $0.isNumber || $0 == " " || $0 == "-" }
         return """
         <!doctype html>
-        <html><head><meta charset="utf-8"><title>\(esc)</title>
+        <html><head><meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'">
+        <meta name="referrer" content="no-referrer"><title>\(esc)</title>
         <style>
-        body { font: \(Int(size))px/1.65 "\(viewerFont)", "New York", Georgia, serif; color: #24272B; max-width: 640px; margin: 48px auto; padding: 0 24px; }
+        body { font: \(Int(size))px/1.65 "\(font)", "New York", Georgia, serif; color: #24272B; max-width: 640px; margin: 48px auto; padding: 0 24px; }
         h1 { font-size: 2em; line-height: 1.2; } h2 { font-size: 1.33em; margin-top: 1.6em; } h3 { font-size: 1.11em; }
         blockquote { margin: 0; padding: 2px 0 2px 20px; border-left: 3px solid #D7DCE2; color: #4A4F56; font-style: italic; }
         code { font: 0.85em "IBM Plex Mono", ui-monospace, Menlo, monospace; background: #F2F4F7; border-radius: 4px; padding: 1px 5px; }
@@ -66,7 +74,7 @@ final class Exporter: NSObject, WKNavigationDelegate {
         panel.allowedContentTypes = [.html]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let html = Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: prefs.viewerSize)
-        try? html.write(to: url, atomically: true, encoding: .utf8)
+        do { try html.write(to: url, atomically: true, encoding: .utf8) } catch { NSAlert(error: error).runModal() }
     }
 
     func copyMarkdown(_ markdown: String) {
@@ -76,10 +84,19 @@ final class Exporter: NSObject, WKNavigationDelegate {
 
     /// The print panel; its PDF menu saves a PDF.
     func print(markdown: String, name: String, prefs: Preferences) {
-        let w = WKWebView(frame: NSRect(x: 0, y: 0, width: 612, height: 792))
+        // a note is not allowed to run anything while it is being printed
+        let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        let w = WKWebView(frame: NSRect(x: 0, y: 0, width: 612, height: 792), configuration: config)
         w.navigationDelegate = self
         web = w
         w.loadHTMLString(Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: prefs.viewerSize), baseURL: nil)
+    }
+
+    /// Only the page itself loads; a click on a link goes nowhere.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+        let ok = navigationAction.navigationType == .other && (navigationAction.request.url?.absoluteString ?? "about:blank") == "about:blank"
+        decisionHandler(ok ? .allow : .cancel)
     }
 
     nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

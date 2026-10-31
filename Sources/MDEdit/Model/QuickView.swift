@@ -8,14 +8,15 @@ final class QuickView: NSObject, QLPreviewPanelDataSource {
 
     func show(_ url: URL) {
         self.url = url
-        guard let panel = QLPreviewPanel.shared() else { return }
+        // the tests must not put a real panel on the screen
+        guard !AppEnvironment.isTesting, let panel = QLPreviewPanel.shared() else { return }
         panel.dataSource = self
         panel.reloadData()
         // in front but not key, so the arrow keys keep walking the binder
         if !panel.isVisible { panel.orderFront(nil) }
     }
 
-    var isShowing: Bool { QLPreviewPanel.sharedPreviewPanelExists() && (QLPreviewPanel.shared()?.isVisible ?? false) }
+    var isShowing: Bool { AppEnvironment.isTesting ? url != nil : QLPreviewPanel.sharedPreviewPanelExists() && (QLPreviewPanel.shared()?.isVisible ?? false) }
 
     /// Opening a note puts the panel away.
     func hide() {

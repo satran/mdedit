@@ -29,13 +29,13 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
     let hasRoot = ws?.root != nil, hasDoc = ws?.document.url != nil
     func docName(_ w: Workspace) -> String { w.document.url?.deletingPathExtension().lastPathComponent ?? "" }
     func openFolderElsewhere(_ url: URL) {
-        if let ws { ws.openFolder(url) } else if let id = Workspace.stash(url) { newWindow(id) }
+        if let ws { ws.openFolder(url) } else if let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { newWindow(id) }
     }
 
     var c: [Cmd] = [
         Cmd(id: "open", title: "Open Folder…", place: .file, key: "o") {
             if let ws { ws.chooseFolder() }
-            else if let url = Workspace.pickFolder(), let id = Workspace.stash(url) { newWindow(id) }
+            else if let url = Workspace.pickFolder(), let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { newWindow(id) }
         },
         Cmd(id: "new-window", title: "New Window", place: .file, key: "n", modifiers: [.command, .option]) { newWindow(UUID()) },
         Cmd(id: "same-folder", title: "New Window with This Folder", place: .file, enabled: hasRoot) { ws?.openInNewWindow() },
@@ -111,7 +111,7 @@ struct AppCommands: Commands {
                 Button(item.name) {
                     guard let url = recents.resolve(item) else { return }
                     if let ws { ws.openFolder(url) }
-                    else if let id = Workspace.stash(url) { openWindow(id: "main", value: id) }
+                    else if let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { openWindow(id: "main", value: id) }
                 }
             }
             Divider()
@@ -132,8 +132,13 @@ struct PaletteView: View {
 
     private var results: [Cmd] {
         let all = makeCommands(ws: ws, prefs: prefs, recents: recents, newWindow: { openWindow(id: "main", value: $0) }).filter { $0.id != "palette" }
+        return Self.filter(all, query)
+    }
+
+    /// Every word typed must appear in the title; case does not matter.
+    static func filter(_ commands: [Cmd], _ query: String) -> [Cmd] {
         let words = query.lowercased().split(separator: " ")
-        return all.filter { c in words.allSatisfy { c.title.lowercased().contains($0) } }
+        return commands.filter { c in words.allSatisfy { c.title.lowercased().contains($0) } }
     }
 
     var body: some View {

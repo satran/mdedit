@@ -55,6 +55,7 @@ final class KeyboardNavPreviewTests: XCTestCase {
         let ws = Workspace()
         ws.open(dir)
         ws.selection = nil
+        QuickView.shared.hide()
         ws.moveSelection(1)
         XCTAssertEqual(ws.selection?.lastPathComponent, "pic.png")
         XCTAssertFalse(QuickView.shared.isShowing)

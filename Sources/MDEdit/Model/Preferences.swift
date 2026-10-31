@@ -2,8 +2,8 @@ import SwiftUI
 
 /// What Settings changes. Fonts fall back when a family is not installed.
 final class Preferences: ObservableObject {
-    static let shared = Preferences()
-    private let d = UserDefaults.standard
+    static let shared = Preferences(defaults: AppEnvironment.defaults)
+    private let d: UserDefaults
 
     @Published var editorFont: String { didSet { d.set(editorFont, forKey: "editorFont") } }
     @Published var editorSize: Double { didSet { d.set(editorSize, forKey: "editorSize") } }
@@ -18,20 +18,24 @@ final class Preferences: ObservableObject {
     @Published var theme: String { didSet { d.set(theme, forKey: "theme"); applyTheme() } }
     /// Distraction free mode takes the window full screen; off keeps it in its window.
     @Published var focusFullScreen: Bool { didSet { d.set(focusFullScreen, forKey: "focusFullScreen") } }
+    /// Pictures from the web load only when this is on: a remote picture tells its server that the note was opened.
+    @Published var loadRemoteImages: Bool { didSet { d.set(loadRemoteImages, forKey: "loadRemoteImages") } }
     @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
-    init() {
+    init(defaults: UserDefaults = AppEnvironment.defaults) {
+        d = defaults
         editorFont = d.string(forKey: "editorFont") ?? "IBM Plex Mono"
-        editorSize = d.object(forKey: "editorSize") as? Double ?? 16
-        lineWidth = d.object(forKey: "lineWidth") as? Int ?? 66
+        editorSize = min(72, max(8, d.object(forKey: "editorSize") as? Double ?? 16))
+        lineWidth = min(200, max(20, d.object(forKey: "lineWidth") as? Int ?? 66))
         widthCustom = d.bool(forKey: "widthCustom")
         headingSizes = d.object(forKey: "headingSizes") as? Bool ?? true
         showStatusBar = d.object(forKey: "showStatusBar") as? Bool ?? true
-        theme = d.string(forKey: "theme") ?? "auto"
+        theme = ["auto", "light", "dark"].contains(d.string(forKey: "theme") ?? "") ? d.string(forKey: "theme")! : "auto"
         focusFullScreen = d.object(forKey: "focusFullScreen") as? Bool ?? true
+        loadRemoteImages = d.bool(forKey: "loadRemoteImages")
         viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
-        viewerSize = d.object(forKey: "viewerSize") as? Double ?? 18
+        viewerSize = min(48, max(10, d.object(forKey: "viewerSize") as? Double ?? 18))
     }
 
     func applyTheme() {

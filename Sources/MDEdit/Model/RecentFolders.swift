@@ -2,7 +2,7 @@ import Foundation
 
 /// The folders opened lately, for File > Open Recent. Each keeps a security-scoped bookmark so it can be reopened in the sandbox.
 final class RecentFolders: ObservableObject {
-    static let shared = RecentFolders()
+    static let shared = RecentFolders(defaults: AppEnvironment.defaults)
     struct Item: Identifiable, Codable, Equatable {
         var path: String
         var bookmark: Data
@@ -14,8 +14,11 @@ final class RecentFolders: ObservableObject {
     private let limit = 10
     @Published private(set) var items: [Item]
 
-    init() {
-        items = (UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode([Item].self, from: $0) }) ?? []
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = AppEnvironment.defaults) {
+        self.defaults = defaults
+        items = (defaults.data(forKey: key).flatMap { try? JSONDecoder().decode([Item].self, from: $0) }) ?? []
     }
 
     func add(_ url: URL) {
@@ -40,6 +43,6 @@ final class RecentFolders: ObservableObject {
     func clear() { items = []; save() }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: key) }
+        if let data = try? JSONEncoder().encode(items) { defaults.set(data, forKey: key) }
     }
 }

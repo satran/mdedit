@@ -1,0 +1,44 @@
+import XCTest
+@testable import MDEdit
+
+/// TODO: one line on what __NAME__ does for the person using the app.
+///
+/// For every new feature, cover:
+///   1. the normal use (the first test below),
+///   2. what a hostile or broken input does (second),
+///   3. that the user's files are safe if it fails halfway (third),
+///   4. that it stays fast on a big folder or note (fourth), if it touches either.
+final class __NAME__Tests: XCTestCase {
+    var s: Scratch!                       // a scratch folder, removed after each test
+    var ws: Workspace!                    // a workspace on its own settings; never the real ones
+
+    override func setUpWithError() throws {
+        s = try Scratch(["Notes/One.md": "# One\n\nbody", "Notes/Two.md": "see [[One]]", "pic.png": "png"])
+        ws = makeWorkspace(open: s.url)
+    }
+    override func tearDown() { ws = nil; s.remove() }
+
+    func testNormalUse() throws {
+        // TODO: do what the person does, assert what they would see
+        ws.select(s.path("Notes/One.md"))
+        XCTAssertEqual(ws.document.text, "# One\n\nbody")
+    }
+
+    func testHostileInputIsHarmless() throws {
+        // TODO: names, text and files built to break it: "..", "a/b", NUL, 300 characters, "<script>", links to /etc/passwd, huge input
+        for evil in ["..", "a/b", "\u{0}", String(repeating: "x", count: 300), "<script>alert(1)</script>"] {
+            _ = evil
+        }
+    }
+
+    func testAFailureLeavesTheFilesAlone() throws {
+        // TODO: make the disk operation fail (read-only folder: setAttributes posixPermissions 0o555) and check the originals and `ws.message`
+        let before = try s.read("Notes/One.md")
+        XCTAssertEqual(try s.read("Notes/One.md"), before)
+    }
+
+    func testStaysFastOnABigFolder() throws {
+        // TODO: only if this feature touches many files or long notes; `within(budget, label) { ... }` fails if it gets slow
+        within(1, "something on a big input") { _ = String(repeating: "x", count: 1_000) }
+    }
+}

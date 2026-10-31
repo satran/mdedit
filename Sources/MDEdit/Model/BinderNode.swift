@@ -14,19 +14,27 @@ final class BinderNode: Identifiable {
         self.url = url; self.isFolder = isFolder; self.children = children
     }
 
+    static let maxDepth = 40
     static let markdownExtensions: Set<String> = ["md", "markdown"]
     static let documentExtensions: Set<String> = markdownExtensions.union(["txt"])
 
     /// Reads the tree below `url`: folders first, then files, each in natural order. Hidden files are skipped.
-    static func scan(_ url: URL, fileManager fm: FileManager = .default) -> BinderNode {
-        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey]
+    static func scan(_ url: URL, fileManager fm: FileManager = .default, depth: Int = 0) -> BinderNode {
+        // deeper than any real folder tree: a guard against loops and hostile folders
+        guard depth < maxDepth else { return BinderNode(url: url, isFolder: true) }
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey]
         let urls = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])) ?? []
         var folders: [BinderNode] = [], files: [BinderNode] = []
         for u in urls {
             let v = try? u.resourceValues(forKeys: Set(keys))
-            if v?.isDirectory == true {
+            if v?.isSymbolicLink == true {
+                // a link to a folder could lead back into this one, or out of it; links to files are fine
+                var d: ObjCBool = false
+                if fm.fileExists(atPath: u.resolvingSymlinksInPath().path, isDirectory: &d), d.boolValue { continue }
+                files.append(BinderNode(url: u, isFolder: false))
+            } else if v?.isDirectory == true {
                 if v?.isPackage == true { continue }
-                folders.append(scan(u, fileManager: fm))
+                folders.append(scan(u, fileManager: fm, depth: depth + 1))
             } else {
                 files.append(BinderNode(url: u, isFolder: false))
             }

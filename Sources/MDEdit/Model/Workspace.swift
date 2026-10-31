@@ -27,6 +27,10 @@ final class Workspace: ObservableObject {
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
     private var backlinkTask: Task<Void, Never>?
+    private var backlinkTarget: URL?
+    private var backlinkRunning = false
+    private var backlinkAgain = false
+    private var backlinkGeneration = 0
     @Published var message: String?
     /// Bumped on every scan, so views that depend on the notes (link styling) refresh.
     @Published private(set) var treeVersion = 0
@@ -35,7 +39,8 @@ final class Workspace: ObservableObject {
     let document = DocumentStore()
     private var watcher: FolderWatcher?
     private var scoped: URL?
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+    private let recents: RecentFolders
 
     /// Suffix for the per-window defaults keys; nil is the original, single-window state.
     private let windowKey: String
@@ -43,18 +48,20 @@ final class Workspace: ObservableObject {
     var newWindow: ((UUID) -> Void)?
     private static var lastExternal: (url: URL, at: Date)?
 
-    init(id: UUID? = nil) {
+    init(id: UUID? = nil, defaults: UserDefaults = AppEnvironment.defaults, recents: RecentFolders = .shared) {
+        self.defaults = defaults
+        self.recents = recents
         windowKey = id.map { ".\($0.uuidString)" } ?? ""
-        typewriter = UserDefaults.standard.bool(forKey: "typewriter")
-        outlineVisible = UserDefaults.standard.bool(forKey: "outlineVisible")
-        binderVisible = UserDefaults.standard.object(forKey: "binderVisible") as? Bool ?? true
+        typewriter = defaults.bool(forKey: "typewriter")
+        outlineVisible = defaults.bool(forKey: "outlineVisible")
+        binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
         restore()
     }
 
     /// Distraction-free writing: just the text, in full screen, with everything but the current paragraph dimmed.
     /// Slides the binder away and shrinks the window by the same amount, so the writing pane keeps its width and place.
     func toggleBinder() {
-        let width = CGFloat(UserDefaults.standard.object(forKey: "binderWidth") as? Double ?? 272) + 1
+        let width = CGFloat(defaults.object(forKey: "binderWidth") as? Double ?? 272) + 1
         binderVisible.toggle()
         defaults.set(binderVisible, forKey: "binderVisible")
         if binderVisible { wantsTreeFocus = true }
@@ -87,7 +94,7 @@ final class Workspace: ObservableObject {
 
     /// Another window on the folder that is open here.
     func openInNewWindow() {
-        guard let rootURL, let id = Workspace.stash(rootURL) else { return }
+        guard let rootURL, let id = Workspace.stash(rootURL, defaults: defaults) else { return }
         newWindow?(id)
     }
 
@@ -123,10 +130,10 @@ final class Workspace: ObservableObject {
     }
 
     /// Remembers a folder for a window that does not exist yet; returns the id to open it with.
-    static func stash(_ url: URL) -> UUID? {
+    static func stash(_ url: URL, defaults: UserDefaults = AppEnvironment.defaults) -> UUID? {
         let id = UUID()
         guard let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) else { return nil }
-        UserDefaults.standard.set(data, forKey: "folderBookmark.\(id.uuidString)")
+        defaults.set(data, forKey: "folderBookmark.\(id.uuidString)")
         return id
     }
 
@@ -141,7 +148,7 @@ final class Workspace: ObservableObject {
                 defaults.set(data, forKey: "folderBookmark" + windowKey)
             }
             open(url)
-        } else if let id = Workspace.stash(url) {
+        } else if let id = Workspace.stash(url, defaults: defaults) {
             newWindow?(id)
         }
     }
@@ -173,7 +180,7 @@ final class Workspace: ObservableObject {
         scoped?.stopAccessingSecurityScopedResource()
         _ = url.startAccessingSecurityScopedResource()
         scoped = url
-        RecentFolders.shared.add(url)
+        recents.add(url)
         rootURL = url
         search = ""
         document.open(nil)
@@ -324,6 +331,8 @@ final class Workspace: ObservableObject {
     /// Copies a file or folder into `folder` under a name that is free; nil (with a message) when it fails.
     @discardableResult
     func copyIn(_ src: URL, to folder: URL) -> URL? {
+        let from = src.standardizedFileURL.path, into = folder.standardizedFileURL.path
+        if into == from || into.hasPrefix(from + "/") { message = "A folder cannot be copied into itself."; return nil }
         let ext = src.pathExtension
         let dest = Self.uniqueURL(in: folder, base: src.deletingPathExtension().lastPathComponent, ext: ext.isEmpty ? nil : ext)
         do { try FileManager.default.copyItem(at: src, to: dest) } catch { message = error.localizedDescription; return nil }
@@ -337,6 +346,12 @@ final class Workspace: ObservableObject {
         }
         expanded.insert(folder)
         reload()
+    }
+
+    /// File names go into Markdown link text; brackets and backslashes would end it early.
+    static func escapeLinkText(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+            .replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
     }
 
     /// `rel/path` from a folder to a file, percent-encoded for a Markdown link.
@@ -360,10 +375,11 @@ final class Workspace: ObservableObject {
             var target = u
             if !isInside(u) { guard let copied = copyIn(u, to: folder) else { continue }; target = copied }
             let name = target.deletingPathExtension().lastPathComponent
+            let label = Self.escapeLinkText(name)
             let isImage = UTType(filenameExtension: target.pathExtension)?.conforms(to: .image) == true
-            if isImage { out.append("![\(name)](\(Self.relativePath(from: folder, to: target)))") }
-            else if BinderNode.documentExtensions.contains(target.pathExtension.lowercased()) { out.append("[[\(name)]]") }
-            else { out.append("[\(target.lastPathComponent)](\(Self.relativePath(from: folder, to: target)))") }
+            if isImage { out.append("![\(label)](\(Self.relativePath(from: folder, to: target)))") }
+            else if BinderNode.documentExtensions.contains(target.pathExtension.lowercased()), !name.contains(where: { "[]|#".contains($0) }) { out.append("[[\(name)]]") }
+            else { out.append("[\(Self.escapeLinkText(target.lastPathComponent))](\(Self.relativePath(from: folder, to: target)))") }
         }
         reload()
         return out.joined(separator: "\n")
@@ -371,11 +387,19 @@ final class Workspace: ObservableObject {
 
     // MARK: rename, move, trash
 
+    /// A name that is safe as a file name: no path separators or control characters, not "." or "..", and short enough.
+    static func cleanName(_ raw: String) -> String {
+        var s = String(raw.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) && $0 != "\u{0}" })
+        s = s.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.utf8.count > 200 { s.removeLast() }
+        return s.allSatisfy({ $0 == "." }) ? "" : s
+    }
+
     func rename(_ url: URL, to newName: String) {
         renaming = nil
         guard let node = root?.find(url) else { return }
-        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let name = Self.cleanName(newName)
         guard !name.isEmpty, name != node.name else { return }
         let parent = url.deletingLastPathComponent()
         let new = node.isFolder ? parent.appendingPathComponent(name, isDirectory: true)
@@ -425,8 +449,15 @@ final class Workspace: ObservableObject {
 
     /// Notes that link to the open one. Reads the notes off the main thread.
     func refreshBacklinks() {
+        guard outlineVisible, let current = document.url, let root else {
+            backlinkTask?.cancel(); backlinkRunning = false; backlinkGeneration += 1; backlinks = []; return
+        }
+        // a scan of this same note is under way: let it finish and run once more, instead of restarting it on every change in the folder
+        if backlinkRunning, backlinkTarget == current { backlinkAgain = true; return }
         backlinkTask?.cancel()
-        guard outlineVisible, let current = document.url, let root else { backlinks = []; return }
+        backlinkGeneration += 1
+        let generation = backlinkGeneration
+        backlinkTarget = current; backlinkRunning = true; backlinkAgain = false
         let files = root.files.map(\.url).filter { $0 != current }
         let index = self.index
         backlinkTask = Task.detached(priority: .utility) { [weak self] in
@@ -437,7 +468,12 @@ final class Workspace: ObservableObject {
                 if WikiLink.parse(text).contains(where: { index.resolve($0.link, from: f) == current }) { found.append(f) }
             }
             let result = found
-            await MainActor.run { [weak self] in if !Task.isCancelled { self?.backlinks = result } }
+            await MainActor.run { [weak self] in
+                guard let self, self.backlinkGeneration == generation else { return }
+                self.backlinks = result
+                self.backlinkRunning = false
+                if self.backlinkAgain { self.backlinkAgain = false; self.refreshBacklinks() }
+            }
         }
     }
 
@@ -462,7 +498,7 @@ final class Workspace: ObservableObject {
     func openWiki(_ target: String) {
         let link = WikiLink(target: target, alias: nil)
         if let url = index.resolve(link, from: document.url) { reveal(url); select(url); return }
-        let name = link.note.split(separator: "/").last.map(String.init) ?? link.note
+        let name = Self.cleanName(link.note.split(separator: "/").last.map(String.init) ?? link.note)
         guard !name.isEmpty else { return }
         let alert = NSAlert()
         alert.messageText = "Create “\(name)”?"

@@ -28,7 +28,7 @@ struct WindowRoot: View {
     @StateObject private var ws: Workspace
     @Environment(\.openWindow) private var openWindow
 
-    init(id: UUID?) { _ws = StateObject(wrappedValue: Workspace(id: id)) }
+    init(id: UUID?) { _ws = StateObject(wrappedValue: Workspace(id: id, defaults: AppEnvironment.defaults)) }
 
     var body: some View {
         RootView()

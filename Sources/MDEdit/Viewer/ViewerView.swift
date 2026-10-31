@@ -107,7 +107,7 @@ struct BlockView: View {
         case .rule:
             Rectangle().fill(Color(Palette.rule)).frame(height: 1).padding(.vertical, size * 0.5)
         case .image(let src, let alt):
-            ImageBlock(src: src, alt: alt, baseURL: baseURL, size: size)
+            ImageBlock(src: src, alt: alt, baseURL: baseURL, size: size, allowRemote: prefs.loadRemoteImages)
         case .html(let raw):
             Text(raw).font(prefs.monoFont(size * 0.8)).foregroundStyle(Color(Palette.marker))
         case .properties(let props):
@@ -183,13 +183,15 @@ struct ImageBlock: View {
     let alt: String
     let baseURL: URL?
     let size: CGFloat
+    var allowRemote = false
+
+    /// Pictures larger than this are not decoded: a small file can hold an enormous bitmap.
+    static let maxBytes = 40 * 1024 * 1024
 
     var body: some View {
         Group {
-            if src.hasPrefix("http://") || src.hasPrefix("https://"), let url = URL(string: src) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFit().frame(maxWidth: .infinity) } else { placeholder }
-                }
+            if src.hasPrefix("http://") || src.hasPrefix("https://") {
+                if allowRemote, let url = URL(string: src) { remote(url) } else { blocked }
             } else if let image = local() {
                 // as wide as the page, never larger than the picture itself, and centred
                 Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: image.size.width)
@@ -201,6 +203,18 @@ struct ImageBlock: View {
         .accessibilityLabel(alt)
     }
 
+    private var blocked: some View {
+        Text("Remote picture not loaded" + (alt.isEmpty ? "" : ": \(alt)")).font(.system(size: size * 0.8)).foregroundStyle(Color(Palette.muted))
+            .padding(10).frame(maxWidth: .infinity).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.chip)))
+            .help(src)
+    }
+
+    private func remote(_ url: URL) -> some View {
+        AsyncImage(url: url) { phase in
+            if let image = phase.image { image.resizable().scaledToFit().frame(maxWidth: .infinity) } else { placeholder }
+        }
+    }
+
     private var placeholder: some View {
         Text(alt.isEmpty ? src : alt).font(.system(size: size * 0.8)).foregroundStyle(Color(Palette.muted))
             .padding(10).frame(maxWidth: .infinity).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.chip)))
@@ -208,7 +222,10 @@ struct ImageBlock: View {
 
     private func local() -> NSImage? {
         let path = src.removingPercentEncoding ?? src
+        guard !path.contains("\0"), !path.lowercased().hasPrefix("file:") || path.count > 7 else { return nil }
         let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : URL(fileURLWithPath: path, relativeTo: baseURL)
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.resolvingSymlinksInPath().path)[.size] as? Int) ?? 0
+        guard size > 0, size <= Self.maxBytes else { return nil }
         return NSImage(contentsOf: url)
     }
 }
