@@ -19,7 +19,7 @@ final class EditorTextView: NSTextView {
     /// Turns files dropped on the editor into Markdown (copying them in first); empty means nothing was done.
     var dropText: (([URL]) -> String)?
     /// Keeps the line being written in the middle of the pane.
-    var typewriter = false { didSet { if typewriter != oldValue { updateInsets(); if typewriter { centerCaret() } } } }
+    var typewriter = false { didSet { if typewriter != oldValue { updateInsets(); if typewriter { centerCaret(); DispatchQueue.main.async { [weak self] in if self?.typewriter == true { self?.centerCaret() } } } } } }
     /// Everything but the paragraph being written is dimmed.
     var focusDim = false { didSet { if focusDim != oldValue { restyle() } } }
     private(set) var isRestyling = false
@@ -79,6 +79,19 @@ final class EditorTextView: NSTextView {
         if textContainer?.size != size { textContainer?.size = size }
     }
 
+    private var paneObserver: NSObjectProtocol?
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        if let o = paneObserver { NotificationCenter.default.removeObserver(o); paneObserver = nil }
+        guard let clip = superview as? NSClipView else { return }
+        clip.postsFrameChangedNotifications = true
+        // The typewriter padding is half the pane's height, so it follows the pane when its height changes.
+        paneObserver = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+            guard let self, self.typewriter else { return }
+            self.updateInsets()
+        }
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         updateInsets()
@@ -97,9 +110,12 @@ final class EditorTextView: NSTextView {
             rect = lm.lineFragmentRect(forGlyphAt: lm.glyphIndexForCharacter(at: loc), effectiveRange: nil)
         }
         let clip = scroll.contentView
-        let maxY = max(0, frame.height - clip.bounds.height)
+        // The text view's frame may not have grown for the new insets yet, so size the document from the layout.
+        let docHeight = max(frame.height, lm.usedRect(for: tc).maxY + 2 * textContainerInset.height)
+        let maxY = max(0, docHeight - clip.bounds.height)
         let y = min(maxY, max(0, rect.midY + textContainerOrigin.y - clip.bounds.height / 2))
         guard abs(clip.bounds.origin.y - y) > 1 else { return }
+        if frame.height < docHeight { setFrameSize(NSSize(width: frame.width, height: docHeight)) }
         clip.scroll(to: NSPoint(x: 0, y: y))
         scroll.reflectScrolledClipView(clip)
     }
