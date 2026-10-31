@@ -352,23 +352,6 @@ final class EditorTextView: NSTextView {
         super.mouseDown(with: event)
     }
 
-    // MARK: keys: ⌘B bold, ⌘I italic, ⇧⌘H highlight, ⌘K link, ⌘E code
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard window?.firstResponder === self, let c = event.charactersIgnoringModifiers?.lowercased() else { return super.performKeyEquivalent(with: event) }
-        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        if flags == .command {
-            switch c {
-            case "b": toggleWrap("**"); return true
-            case "i": toggleWrap("*"); return true
-            case "e": toggleWrap("`"); return true
-            case "k": insertLink(); return true
-            default: break
-            }
-        }
-        if flags == [.command, .shift], c == "h" { toggleWrap("::"); return true }
-        return super.performKeyEquivalent(with: event)
-    }
 
     // MARK: [[ completion
 
@@ -411,52 +394,6 @@ final class EditorTextView: NSTextView {
     func offerNotesIfTypingLink() {
         guard let r = openWikiRange, r.length == 0 else { return }
         DispatchQueue.main.async { [weak self] in self?.complete(nil) }
-    }
-
-    // MARK: formatting actions
-
-    /// Puts a marker around the selection (or the word at the cursor), or takes it off if it is already there.
-    func toggleWrap(_ marker: String) {
-        let ns = string as NSString
-        var r = selectedRange()
-        let m = (marker as NSString).length
-        if r.length == 0 {
-            let w = ns.rangeOfWord(at: r.location)
-            if w.length > 0 { r = w }
-        }
-        let before = r.location >= m ? ns.substring(with: NSRange(location: r.location - m, length: m)) : ""
-        let after = NSMaxRange(r) + m <= ns.length ? ns.substring(with: NSRange(location: NSMaxRange(r), length: m)) : ""
-        if before == marker, after == marker {
-            insertText(ns.substring(with: r), replacementRange: NSRange(location: r.location - m, length: r.length + 2 * m))
-            setSelectedRange(NSRange(location: r.location - m, length: r.length))
-        } else {
-            insertText(marker + ns.substring(with: r) + marker, replacementRange: r)
-            setSelectedRange(NSRange(location: r.location + m, length: r.length))
-        }
-    }
-
-    /// Puts `prefix` at the start of the line (a heading, a list, a quote), or takes it off.
-    func togglePrefix(_ prefix: String) {
-        let ns = string as NSString
-        let para = ns.paragraphRange(for: selectedRange())
-        let line = ns.substring(with: para)
-        let p = (prefix as NSString).length
-        if line.hasPrefix(prefix) {
-            insertText("", replacementRange: NSRange(location: para.location, length: p))
-        } else {
-            var cut = 0
-            if let m = ListMarker(line: line.trimmingCharacters(in: .newlines)), prefix.hasPrefix("- ") { cut = (m.prefix as NSString).length }
-            else if line.hasPrefix("#") { cut = line.prefix { $0 == "#" }.count + 1 }
-            insertText(prefix, replacementRange: NSRange(location: para.location, length: min(cut, (line as NSString).length)))
-        }
-    }
-
-    func insertLink() {
-        let r = selectedRange()
-        let text = (string as NSString).substring(with: r)
-        let label = text.isEmpty ? "text" : text
-        insertText("[\(label)](https://)", replacementRange: r)
-        setSelectedRange(NSRange(location: r.location + (label as NSString).length + 3, length: 8))
     }
 
     // MARK: dropped files
