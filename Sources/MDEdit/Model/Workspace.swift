@@ -99,8 +99,13 @@ final class Workspace: ObservableObject {
         focus.toggle()
         mode = .write
         guard let w = NSApp.keyWindow ?? NSApp.windows.first else { return }
-        if focus, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil); enteredFullScreen = true }
+        let fullScreen = Preferences.shared.focusFullScreen
+        if focus, fullScreen, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil); enteredFullScreen = true }
         else if !focus, enteredFullScreen { if w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil) }; enteredFullScreen = false }
+        // in a plain window the traffic lights would sit over the text; Esc brings everything back
+        for t in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            w.standardWindowButton(t)?.isHidden = focus && !fullScreen
+        }
     }
 
     // MARK: opening a folder

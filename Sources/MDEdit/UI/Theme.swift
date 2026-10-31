@@ -73,7 +73,8 @@ struct TrafficLights: NSViewRepresentable {
             observers.forEach(NotificationCenter.default.removeObserver)
             observers = []
             guard let w = window else { return }
-            for n in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didEndLiveResizeNotification] {
+            // a change of appearance makes AppKit lay the title bar out again, so look again after every update
+            for n in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification, NSWindow.didEndLiveResizeNotification, NSWindow.didUpdateNotification] {
                 observers.append(NotificationCenter.default.addObserver(forName: n, object: w, queue: .main) { [weak self] _ in self?.place() })
             }
             DispatchQueue.main.async { self.place() }
@@ -82,13 +83,15 @@ struct TrafficLights: NSViewRepresentable {
             guard let w = window, !w.styleMask.contains(.fullScreen),
                   let close = w.standardWindowButton(.closeButton), let bar = close.superview, let container = bar.superview else { return }
             let h = Metrics.headerHeight
-            container.frame = NSRect(x: container.frame.minX, y: w.frame.height - h, width: container.frame.width, height: h)
-            bar.frame = container.bounds
+            let barFrame = NSRect(x: container.frame.minX, y: w.frame.height - h, width: container.frame.width, height: h)
+            if container.frame != barFrame { container.frame = barFrame }
+            if bar.frame != container.bounds { bar.frame = container.bounds }
             // keep the system spacing, but start further in from the left edge
             if step == nil, let mini = w.standardWindowButton(.miniaturizeButton), mini.frame.minX > close.frame.minX { step = mini.frame.minX - close.frame.minX }
             for (i, t) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
                 guard let b = w.standardWindowButton(t), b.superview === bar else { continue }
-                b.setFrameOrigin(NSPoint(x: 20 + CGFloat(i) * (step ?? 20), y: (bar.bounds.height - b.frame.height) / 2))
+                let origin = NSPoint(x: 20 + CGFloat(i) * (step ?? 20), y: (bar.bounds.height - b.frame.height) / 2)
+                if b.frame.origin != origin { b.setFrameOrigin(origin) }
             }
         }
         deinit { observers.forEach(NotificationCenter.default.removeObserver) }

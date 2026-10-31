@@ -16,6 +16,8 @@ final class Preferences: ObservableObject {
     @Published var showStatusBar: Bool { didSet { d.set(showStatusBar, forKey: "showStatusBar") } }
     /// "auto" follows the system; "light" and "dark" override it for the whole app.
     @Published var theme: String { didSet { d.set(theme, forKey: "theme"); applyTheme() } }
+    /// Distraction free mode takes the window full screen; off keeps it in its window.
+    @Published var focusFullScreen: Bool { didSet { d.set(focusFullScreen, forKey: "focusFullScreen") } }
     @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
@@ -27,6 +29,7 @@ final class Preferences: ObservableObject {
         headingSizes = d.object(forKey: "headingSizes") as? Bool ?? true
         showStatusBar = d.object(forKey: "showStatusBar") as? Bool ?? true
         theme = d.string(forKey: "theme") ?? "auto"
+        focusFullScreen = d.object(forKey: "focusFullScreen") as? Bool ?? true
         viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
         viewerSize = d.object(forKey: "viewerSize") as? Double ?? 18
     }

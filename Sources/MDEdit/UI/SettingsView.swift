@@ -43,6 +43,10 @@ struct SettingsView: View {
                         Toggle("Heading sizes", isOn: $prefs.headingSizes).labelsHidden().toggleStyle(.switch)
                     }
                     divider
+                    row("Distraction free in full screen", note: "Off keeps it in the window") {
+                        Toggle("Distraction free in full screen", isOn: $prefs.focusFullScreen).labelsHidden().toggleStyle(.switch)
+                    }
+                    divider
                     preview
                 }
                 section("Viewer") {
