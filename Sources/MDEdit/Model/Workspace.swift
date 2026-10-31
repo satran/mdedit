@@ -63,6 +63,21 @@ final class Workspace: ObservableObject {
         }
     }
 
+    /// Same for the outline on the right: the window grows or shrinks, the writing pane stays as it is.
+    func toggleOutline() {
+        outlineVisible.toggle()
+        let delta: CGFloat = outlineVisible ? 241 : -241
+        guard let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
+        var f = w.frame
+        f.size.width += delta
+        if let screen = w.screen?.visibleFrame, f.maxX > screen.maxX { f.origin.x = max(screen.minX, screen.maxX - f.width) }
+        NSAnimationContext.runAnimationGroup { c in
+            c.duration = 0.25
+            c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            w.animator().setFrame(f, display: true)
+        }
+    }
+
     func toggleFocus() {
         guard focus || document.url != nil else { return }
         focus.toggle()

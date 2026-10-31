@@ -36,7 +36,7 @@ struct DetailView: View {
                     .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
                     .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
             }
-            IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.outlineVisible.toggle() }
+            IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
         .padding(.leading, ws.binderVisible ? 16 : 84).padding(.trailing, 16)

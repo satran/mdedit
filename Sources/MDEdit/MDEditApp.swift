@@ -30,7 +30,7 @@ struct WindowRoot: View {
             .environmentObject(ws)
             .focusedSceneObject(ws)
             .navigationTitle(ws.rootURL?.lastPathComponent ?? "MDEdit")
-            .frame(minWidth: ws.binderVisible ? 760 : 488, minHeight: 480)
+            .frame(minWidth: (ws.binderVisible ? 760 : 488) + (ws.outlineVisible ? 241 : 0), minHeight: 480)
             .onAppear { ws.newWindow = { openWindow(id: "main", value: $0) } }
     }
 }
@@ -67,7 +67,7 @@ struct AppCommands: Commands {
             Divider()
             Button(ws?.focus == true ? "Leave Distraction Free" : "Distraction Free") { ws?.toggleFocus() }.keyboardShortcut("f", modifiers: [.command, .control]).disabled(ws == nil)
             Button(ws?.typewriter == true ? "Turn Off Typewriter Mode" : "Typewriter Mode") { ws?.typewriter.toggle() }.keyboardShortcut("t", modifiers: [.command, .control]).disabled(ws == nil)
-            Button(ws?.outlineVisible == true ? "Hide Outline" : "Show Outline") { ws?.outlineVisible.toggle() }.keyboardShortcut("o", modifiers: [.command, .option]).disabled(ws == nil)
+            Button(ws?.outlineVisible == true ? "Hide Outline" : "Show Outline") { ws?.toggleOutline() }.keyboardShortcut("o", modifiers: [.command, .option]).disabled(ws == nil)
         }
     }
 }
