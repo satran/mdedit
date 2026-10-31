@@ -3,3 +3,4 @@ build/
 MDEdit.xcodeproj/
 xcuserdata/
 Sources/MDEdit/Info.plist
+.claude/worktrees/
