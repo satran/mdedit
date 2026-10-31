@@ -69,6 +69,26 @@ final class TypographyTests: XCTestCase {
         approx(ViewerStyle(template: .sans, serifBody: 24).body, 21.6, "sans follows")
     }
 
+    func testViewerLineWidthSetsTheColumnAndKeepsTheSpecsAtItsMiddle() {
+        approx(ViewerStyle(template: .serif, serifBody: 20, width: 68).measure, 680, "68 characters is the specs' 34 em")
+        approx(ViewerStyle(template: .sans, serifBody: 20, width: 68).measure, 648, "and 36 em for sans")
+        let wide = ViewerStyle(template: .serif, serifBody: 20, width: 80).measure, narrow = ViewerStyle(template: .serif, serifBody: 20, width: 58).measure
+        XCTAssertGreaterThan(wide, 680); XCTAssertLessThan(narrow, 680)
+        approx(ViewerStyle(template: .serif, serifBody: 20, width: 136).measure, 1360, "proportional to the number of characters")
+        XCTAssertEqual(SettingsView.viewerPresets.map(\.1), [58, 68, 80])
+    }
+
+    func testViewerWidthIsRememberedAndKeptSane() {
+        let d = isolatedDefaults()
+        let p = Preferences(defaults: d)
+        XCTAssertEqual(p.viewerWidth, 68); XCTAssertFalse(p.viewerWidthCustom)
+        p.viewerWidth = 90; p.viewerWidthCustom = true
+        let q = Preferences(defaults: d)
+        XCTAssertEqual(q.viewerWidth, 90); XCTAssertTrue(q.viewerWidthCustom); XCTAssertEqual(q.viewerStyle.width, 90)
+        d.set(100_000, forKey: "viewerWidth"); XCTAssertEqual(Preferences(defaults: d).viewerWidth, 140)
+        d.set(-3, forKey: "viewerWidth"); XCTAssertEqual(Preferences(defaults: d).viewerWidth, 30)
+    }
+
     func testPreferencesPickTheTemplate() {
         let d = isolatedDefaults()
         let p = Preferences(defaults: d)

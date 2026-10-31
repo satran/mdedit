@@ -6,6 +6,8 @@ struct SettingsView: View {
 
     static let editorFonts = ["IBM Plex Mono", "JetBrains Mono", "SF Mono", "Menlo", "Source Serif 4"]
         static let presets: [(String, Int)] = [("Narrow", 64), ("Medium", 72), ("Wide", 80)]
+    /// The viewer's middle is the specs' column, about 68 characters.
+    static let viewerPresets: [(String, Int)] = [("Narrow", 58), ("Medium", ViewerStyle.specWidth), ("Wide", 80)]
 
     var body: some View {
         ScrollView {
@@ -27,15 +29,7 @@ struct SettingsView: View {
                     }
                     divider
                     row("Line width", note: "Characters per line") {
-                        if prefs.widthCustom {
-                            HStack(spacing: 6) {
-                                TextField("", value: Binding(get: { prefs.lineWidth }, set: { prefs.lineWidth = min(160, max(40, $0)) }), format: .number)
-                                    .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 56)
-                                    .accessibilityLabel("Custom line width in characters")
-                                Text("ch").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
-                            }
-                        }
-                        widthPicker
+                        widthControl($prefs.lineWidth, custom: $prefs.widthCustom, presets: Self.presets, range: 40...160, label: "editor")
                     }
                     divider
                     row("Heading sizes", note: "Larger text for headings") {
@@ -60,6 +54,10 @@ struct SettingsView: View {
                     divider
                     row("Text size", note: "Serif body; sans runs 2 points smaller") {
                         stepper($prefs.viewerSize, 14...28, label: "viewer text size")
+                    }
+                    divider
+                    row("Line width", note: "Characters per line") {
+                        widthControl($prefs.viewerWidth, custom: $prefs.viewerWidthCustom, presets: Self.viewerPresets, range: 40...120, label: "viewer")
                     }
                     divider
                     row("Remote pictures", note: "A picture on the web tells its server you opened the note") {
@@ -129,13 +127,24 @@ struct SettingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(Palette.rule)))
     }
 
-    private var widthPicker: some View {
-        let current = prefs.widthCustom ? nil : Self.presets.first { $0.1 == prefs.lineWidth }?.0
-        return HStack(spacing: 2) {
-            ForEach(Self.presets, id: \.0) { name, n in segment(name, on: current == name) { prefs.widthCustom = false; prefs.lineWidth = n } }
-            segment("Custom", on: current == nil) { prefs.widthCustom = true }
+    /// Narrow, Medium, Wide or a number typed in: the same control for the editor and the viewer.
+    private func widthControl(_ value: Binding<Int>, custom: Binding<Bool>, presets: [(String, Int)], range: ClosedRange<Int>, label: String) -> some View {
+        let current = custom.wrappedValue ? nil : presets.first { $0.1 == value.wrappedValue }?.0
+        return HStack(spacing: 10) {
+            if custom.wrappedValue {
+                HStack(spacing: 6) {
+                    TextField("", value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = min(range.upperBound, max(range.lowerBound, $0)) }), format: .number)
+                        .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 56)
+                        .accessibilityLabel("Custom \(label) line width in characters")
+                    Text("ch").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
+                }
+            }
+            HStack(spacing: 2) {
+                ForEach(presets, id: \.0) { name, n in segment(name, on: current == name) { custom.wrappedValue = false; value.wrappedValue = n } }
+                segment("Custom", on: current == nil) { custom.wrappedValue = true }
+            }
+            .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
         }
-        .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
     }
 
     private func segment(_ title: String, on: Bool, _ action: @escaping () -> Void) -> some View {

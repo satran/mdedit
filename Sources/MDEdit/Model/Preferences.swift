@@ -20,6 +20,9 @@ final class Preferences: ObservableObject {
     @Published var focusFullScreen: Bool { didSet { d.set(focusFullScreen, forKey: "focusFullScreen") } }
     /// Pictures from the web load only when this is on: a remote picture tells its server that the note was opened.
     @Published var loadRemoteImages: Bool { didSet { d.set(loadRemoteImages, forKey: "loadRemoteImages") } }
+    /// Characters per line in the viewer; 68 gives the type specs' own column (34 em serif, 36 em sans).
+    @Published var viewerWidth: Int { didSet { d.set(viewerWidth, forKey: "viewerWidth") } }
+    @Published var viewerWidthCustom: Bool { didSet { d.set(viewerWidthCustom, forKey: "viewerWidthCustom") } }
     /// "serif" (Literata) or "sans" (Inter): the two reading templates of the viewer.
     @Published var viewerTemplate: String { didSet { d.set(viewerTemplate, forKey: "viewerTemplate") } }
     /// The serif template's body size in points (20 by default); the sans template runs 2 points smaller, as in the type specs.
@@ -36,6 +39,8 @@ final class Preferences: ObservableObject {
         theme = ["auto", "light", "dark"].contains(d.string(forKey: "theme") ?? "") ? d.string(forKey: "theme")! : "auto"
         focusFullScreen = d.object(forKey: "focusFullScreen") as? Bool ?? true
         loadRemoteImages = d.bool(forKey: "loadRemoteImages")
+        viewerWidth = min(140, max(30, d.object(forKey: "viewerWidth") as? Int ?? 68))
+        viewerWidthCustom = d.bool(forKey: "viewerWidthCustom")
         viewerTemplate = d.string(forKey: "viewerTemplate") == "sans" ? "sans" : "serif"
         viewerSize = min(32, max(14, d.object(forKey: "viewerSize") as? Double ?? 20))
     }
@@ -58,7 +63,7 @@ final class Preferences: ObservableObject {
     var viewerFont: String { viewerTemplate == "sans" ? "Inter" : "Literata" }
 
     /// Every size, spacing and colour of the viewer for the chosen template (the type specs).
-    var viewerStyle: ViewerStyle { ViewerStyle(template: viewerTemplate == "sans" ? .sans : .serif, serifBody: CGFloat(viewerSize)) }
+    var viewerStyle: ViewerStyle { ViewerStyle(template: viewerTemplate == "sans" ? .sans : .serif, serifBody: CGFloat(viewerSize), width: viewerWidth) }
 
     var monoFont: (CGFloat) -> Font { { [self] s in
         Fonts.installed(editorFont) ? .custom(editorFont, size: s) : .system(size: s, design: .monospaced) } }

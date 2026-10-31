@@ -9,7 +9,11 @@ struct ViewerStyle {
     /// 1 at the specs' own sizes.
     let scale: CGFloat
 
-    init(template: Template, serifBody: CGFloat) { self.template = template; scale = serifBody / 20 }
+    /// Characters per line the reader asked for; `ViewerStyle.specWidth` is the specs' own column.
+    let width: Int
+    static let specWidth = 68
+
+    init(template: Template, serifBody: CGFloat, width: Int = ViewerStyle.specWidth) { self.template = template; scale = serifBody / 20; self.width = width }
 
     var isSerif: Bool { template == .serif }
     private func px(_ v: CGFloat) -> CGFloat { v * scale }
@@ -20,7 +24,7 @@ struct ViewerStyle {
     var body: CGFloat { px(isSerif ? 20 : 18) }
     var bodyLeading: CGFloat { isSerif ? 1.45 : 1.6 }
     /// The column: 34 em (serif) or 36 em (sans), about 65 to 70 characters.
-    var measure: CGFloat { (isSerif ? 34 : 36) * body }
+    var measure: CGFloat { (isSerif ? 34 : 36) * body * CGFloat(width) / CGFloat(Self.specWidth) }
     var pageTop: CGFloat { 64 }
     var pageBottom: CGFloat { 56 }
 
