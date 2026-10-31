@@ -14,6 +14,8 @@ final class Preferences: ObservableObject {
     /// Headings in the editor are larger than body text; off keeps them the body size (still bold).
     @Published var headingSizes: Bool { didSet { d.set(headingSizes, forKey: "headingSizes") } }
     @Published var showStatusBar: Bool { didSet { d.set(showStatusBar, forKey: "showStatusBar") } }
+    /// "auto" follows the system; "light" and "dark" override it for the whole app.
+    @Published var theme: String { didSet { d.set(theme, forKey: "theme"); applyTheme() } }
     @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
@@ -24,8 +26,17 @@ final class Preferences: ObservableObject {
         widthCustom = d.bool(forKey: "widthCustom")
         headingSizes = d.object(forKey: "headingSizes") as? Bool ?? true
         showStatusBar = d.object(forKey: "showStatusBar") as? Bool ?? true
+        theme = d.string(forKey: "theme") ?? "auto"
         viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
         viewerSize = d.object(forKey: "viewerSize") as? Double ?? 18
+    }
+
+    func applyTheme() {
+        NSApplication.shared.appearance = switch theme {
+        case "light": NSAppearance(named: .aqua)
+        case "dark": NSAppearance(named: .darkAqua)
+        default: nil
+        }
     }
 
     /// The editor's body font: the chosen family, else SF Mono / the system monospaced font.

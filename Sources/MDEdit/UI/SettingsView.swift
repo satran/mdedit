@@ -11,6 +11,16 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                section("Appearance") {
+                    row("Theme", note: "Auto follows the system") {
+                        HStack(spacing: 2) {
+                            ForEach([("auto", "Auto"), ("light", "Light"), ("dark", "Dark")], id: \.0) { key, name in
+                                segment(name, on: prefs.theme == key) { prefs.theme = key }
+                            }
+                        }
+                        .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
+                    }
+                }
                 section("Editor") {
                     row("Font") {
                         fontPicker($prefs.editorFont, Self.editorFonts, label: "Editor font")
