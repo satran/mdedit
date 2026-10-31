@@ -197,8 +197,9 @@ final class Workspace: ObservableObject {
         selection = url
         guard let node = root?.find(url) else { return }
         if node.isFolder { toggle(url) }
-        else if !node.isDocument { NSWorkspace.shared.open(url) }
+        else if !node.isDocument { QuickView.shared.show(url) }
         else {
+            QuickView.shared.hide()
             document.open(url)
             defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()

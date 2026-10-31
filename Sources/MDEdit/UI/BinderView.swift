@@ -160,6 +160,7 @@ struct BinderRowView: View {
             Button("New Folder Here") { ws.newFolder(in: node.isFolder ? node.url : node.url.deletingLastPathComponent()) }
             Divider()
             Button("Rename") { ws.renaming = node.url }
+            if !node.isFolder && !node.isDocument { Button("Open in Default App") { NSWorkspace.shared.open(node.url) } }
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([node.url]) }
             Divider()
             Button("Move to Trash") { ws.trash(node.url) }
