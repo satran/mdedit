@@ -83,7 +83,7 @@ struct BinderView: View {
             .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 30).accessibilityLabel("Binder options")
         }
         .foregroundStyle(Color(Palette.muted))
-        .padding(.horizontal, 8).frame(height: 44)
+        .padding(.horizontal, 8).frame(height: Metrics.footerHeight)
         .overlay(alignment: .top) { Rectangle().fill(Color(Palette.binderBorder)).frame(height: 1) }
     }
 }

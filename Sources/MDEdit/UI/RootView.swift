@@ -11,8 +11,10 @@ struct RootView: View {
                 FocusView(document: ws.document)
             } else {
                 HStack(spacing: 0) {
-                    BinderView().frame(width: binderWidth)
-                    divider
+                    if ws.binderVisible {
+                        BinderView().frame(width: binderWidth)
+                        divider
+                    }
                     DetailView(document: ws.document)
                 }
             }

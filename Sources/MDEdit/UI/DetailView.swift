@@ -25,12 +25,14 @@ struct DetailView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
+            IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
+                .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
             ModeSwitch(mode: $ws.mode)
             IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.outlineVisible.toggle() }
                 .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
         }
-        .padding(.leading, 28).padding(.trailing, 16)
+        .padding(.leading, ws.binderVisible ? 16 : 84).padding(.trailing, 16)
         .frame(height: Metrics.headerHeight)
         .background(WindowDragArea())
     }

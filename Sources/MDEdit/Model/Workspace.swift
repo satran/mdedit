@@ -16,6 +16,7 @@ final class Workspace: ObservableObject {
     @Published var renaming: URL?
     @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
     @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
+    @Published var binderVisible: Bool
     private var enteredFullScreen = false
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
@@ -30,13 +31,38 @@ final class Workspace: ObservableObject {
     private var scoped: URL?
     private let defaults = UserDefaults.standard
 
-    init() {
+    /// Suffix for the per-window defaults keys; nil is the original, single-window state.
+    private let windowKey: String
+    /// Set by the window so a second folder can open in a window of its own.
+    var newWindow: ((UUID) -> Void)?
+    private static var lastExternal: (url: URL, at: Date)?
+
+    init(id: UUID? = nil) {
+        windowKey = id.map { ".\($0.uuidString)" } ?? ""
         typewriter = UserDefaults.standard.bool(forKey: "typewriter")
         outlineVisible = UserDefaults.standard.bool(forKey: "outlineVisible")
+        binderVisible = UserDefaults.standard.object(forKey: "binderVisible") as? Bool ?? true
         restore()
     }
 
     /// Distraction-free writing: just the text, in full screen, with everything but the current paragraph dimmed.
+    /// Slides the binder away and shrinks the window by the same amount, so the writing pane keeps its width and place.
+    func toggleBinder() {
+        let width = CGFloat(UserDefaults.standard.object(forKey: "binderWidth") as? Double ?? 272) + 1
+        binderVisible.toggle()
+        defaults.set(binderVisible, forKey: "binderVisible")
+        let delta = binderVisible ? width : -width
+        guard let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
+        var f = w.frame
+        f.size.width += delta
+        f.origin.x -= delta
+        NSAnimationContext.runAnimationGroup { c in
+            c.duration = 0.25
+            c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            w.animator().setFrame(f, display: true)
+        }
+    }
+
     func toggleFocus() {
         guard focus || document.url != nil else { return }
         focus.toggle()
@@ -48,33 +74,54 @@ final class Workspace: ObservableObject {
 
     // MARK: opening a folder
 
-    func chooseFolder() {
+    static func pickFolder() -> URL? {
         let p = NSOpenPanel()
         p.canChooseDirectories = true; p.canChooseFiles = false; p.allowsMultipleSelection = false
         p.prompt = "Open"; p.message = "Choose the folder to write in"
-        guard p.runModal() == .OK, let url = p.url else { return }
-        if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
-            defaults.set(data, forKey: "folderBookmark")
+        return p.runModal() == .OK ? p.url : nil
+    }
+
+    /// Remembers a folder for a window that does not exist yet; returns the id to open it with.
+    static func stash(_ url: URL) -> UUID? {
+        let id = UUID()
+        guard let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) else { return nil }
+        UserDefaults.standard.set(data, forKey: "folderBookmark.\(id.uuidString)")
+        return id
+    }
+
+    func chooseFolder() {
+        if let url = Workspace.pickFolder() { openFolder(url) }
+    }
+
+    /// Opens in this window when it is empty, otherwise in a new one.
+    func openFolder(_ url: URL) {
+        if root == nil {
+            if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
+                defaults.set(data, forKey: "folderBookmark" + windowKey)
+            }
+            open(url)
+        } else if let id = Workspace.stash(url) {
+            newWindow?(id)
         }
-        open(url)
     }
 
     /// A folder dropped on the Dock icon, or opened with `open -a`.
     func openExternal(_ url: URL) {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
-        if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
-            defaults.set(data, forKey: "folderBookmark")
-        }
-        open(url)
+        // every window is told about the URL; only the first acts
+        if let l = Workspace.lastExternal, l.url == url, Date().timeIntervalSince(l.at) < 1 { return }
+        Workspace.lastExternal = (url, Date())
+        openFolder(url)
     }
 
     private func restore() {
-        guard let data = defaults.data(forKey: "folderBookmark") else { return }
+        let key = "folderBookmark" + windowKey
+        guard let data = defaults.data(forKey: key) else { return }
         var stale = false
         guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &stale) else { return }
         if stale, let fresh = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
-            defaults.set(fresh, forKey: "folderBookmark")
+            defaults.set(fresh, forKey: key)
         }
         open(url, restoring: true)
     }
@@ -92,7 +139,7 @@ final class Workspace: ObservableObject {
         expanded = Set((defaults.stringArray(forKey: expandedKey(url)) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         reload()
         watcher = FolderWatcher(url: url) { [weak self] in self?.reload() }
-        if restoring, let last = defaults.string(forKey: "lastFile").map({ URL(fileURLWithPath: $0) }), root?.find(last) != nil { select(last) }
+        if restoring, let last = defaults.string(forKey: "lastFile" + windowKey).map({ URL(fileURLWithPath: $0) }), root?.find(last) != nil { select(last) }
         else if let first = root?.files.first { select(first.url) }
     }
 
@@ -114,7 +161,7 @@ final class Workspace: ObservableObject {
         if node.isFolder { toggle(url) }
         else {
             document.open(url)
-            defaults.set(url.path, forKey: "lastFile")
+            defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()
         }
     }
@@ -219,7 +266,7 @@ final class Workspace: ObservableObject {
         }
         expanded = Set(expanded.map { remap($0) ?? $0 })
         if let s = selection, let r = remap(s) { selection = r }
-        if let d = document.url, let r = remap(d) { document.relocate(to: r); defaults.set(r.path, forKey: "lastFile") }
+        if let d = document.url, let r = remap(d) { document.relocate(to: r); defaults.set(r.path, forKey: "lastFile" + windowKey) }
         reload()
     }
 
