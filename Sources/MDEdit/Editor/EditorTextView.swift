@@ -11,7 +11,7 @@ struct EditorStyle: Equatable {
 /// The writing surface: Markdown stays in the text, quiet, and is styled as you type. Block markers
 /// (`#`, `>`, `-`) hang in the left margin so the text keeps one straight edge.
 final class EditorTextView: NSTextView {
-    var style = EditorStyle(fontName: "IBM Plex Mono", size: 16, lineWidth: 66) { didSet { if style != oldValue { relayout() } } }
+    var style = EditorStyle(fontName: "IBM Plex Mono", size: 17, lineWidth: 72) { didSet { if style != oldValue { semiboldCache = [:]; cachedBase = nil; relayout() } } }
     var placeholder = "Start writing…"
     var onOpenWiki: ((String) -> Void)?
     var wikiResolves: (String) -> Bool = { _ in true }
@@ -24,26 +24,38 @@ final class EditorTextView: NSTextView {
     var focusDim = false { didSet { if focusDim != oldValue { restyle() } } }
     private(set) var isRestyling = false
     private(set) var syntax = MarkdownSyntax.Result(spans: [], lines: [])
+    /// What is drawn behind the text: code blocks as one tinted band, inline code as chips.
+    private var codeBlocks: [NSRange] = []
+    private var inlineCode: [NSRange] = []
 
     static let gutter: CGFloat = 72
     static let verticalInset: CGFloat = 48
 
     // MARK: fonts
 
+    private var cachedBase: NSFont?
     var baseFont: NSFont {
-        Fonts.nsFont(family: style.fontName, size: style.size) ?? .monospacedSystemFont(ofSize: style.size, weight: .regular)
+        if let cachedBase { return cachedBase }
+        let f = Fonts.nsFont(family: style.fontName, size: style.size) ?? .monospacedSystemFont(ofSize: style.size, weight: .regular)
+        cachedBase = f
+        return f
     }
     var charWidth: CGFloat { NSAttributedString(string: "0", attributes: [.font: baseFont]).size().width }
 
+    /// Body text sits on a 1.65 line (28 px at 17 px), so one blank line is exactly one line of rhythm.
+    static let leading: CGFloat = 1.65
+
     private func paragraph(first: CGFloat, head: CGFloat) -> NSMutableParagraphStyle {
         let p = NSMutableParagraphStyle()
-        p.lineSpacing = style.size * 0.55
+        let f = baseFont
+        p.lineSpacing = max(0, style.size * Self.leading - (f.ascender - f.descender + f.leading))
         p.firstLineHeadIndent = first; p.headIndent = head
         return p
     }
     var baseAttributes: [NSAttributedString.Key: Any] {
         let g = Self.gutter
-        return [.font: baseFont, .foregroundColor: Palette.text, .paragraphStyle: paragraph(first: g, head: g)]
+        // ligatures off, so every character of the Markdown is visible
+        return [.font: baseFont, .foregroundColor: Palette.text, .paragraphStyle: paragraph(first: g, head: g), .ligature: 0]
     }
 
     // MARK: layout: a centred column with a gutter on its left
@@ -102,6 +114,7 @@ final class EditorTextView: NSTextView {
         let full = NSRange(location: 0, length: storage.length)
         let selection = selectedRange()
         let size = style.size
+        codeBlocks = []; inlineCode = []
         storage.beginEditing()
         storage.setAttributes(baseAttributes, range: full)
         for span in syntax.spans {
@@ -113,18 +126,27 @@ final class EditorTextView: NSTextView {
             case .heading(let n):
                 let bump: [CGFloat] = style.headingSizes ? [10, 4, 2, 0, 0, 0] : [0, 0, 0, 0, 0, 0]
                 let f = baseFont.withSize(size + bump[min(n, 6) - 1])
-                storage.addAttributes([.font: NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask), .foregroundColor: Palette.strongText], range: r)
-            case .bold: trait(.boldFontMask, r)
+                storage.addAttributes([.font: semibold(f), .foregroundColor: Palette.strongText], range: r)
+            case .bold:
+                semibold(in: r)
+                storage.addAttribute(.foregroundColor, value: Palette.strongText, range: r)
             case .italic: trait(.italicFontMask, r)
             case .highlight: storage.addAttribute(.backgroundColor, value: Palette.highlight, range: r)
             case .strike: storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: Palette.done], range: r)
-            case .code: storage.addAttribute(.backgroundColor, value: Palette.chip, range: r)
-            case .codeBlock: storage.addAttribute(.backgroundColor, value: Palette.chip, range: r)
-            case .link: storage.addAttribute(.foregroundColor, value: Palette.link, range: r)
+            case .code:
+                storage.addAttribute(.foregroundColor, value: Palette.codeInk, range: r)
+                inlineCode.append(r)
+            case .codeBlock:
+                let line = (storage.string as NSString).substring(with: r).trimmingCharacters(in: .whitespaces)
+                let fence = line.hasPrefix("```") || line.hasPrefix("~~~")
+                storage.addAttribute(.foregroundColor, value: fence ? Palette.marker : Palette.codeInk, range: r)
+                // one band per block: lines that follow each other join it
+                if let last = codeBlocks.last, NSMaxRange(last) + 1 == r.location { codeBlocks[codeBlocks.count - 1] = NSUnionRange(last, r) } else { codeBlocks.append(r) }
+            case .link: storage.addAttribute(.foregroundColor, value: Palette.linkText, range: r)
             case .wikiLink(let target):
                 // a note that exists reads as a link; one that does not is faint and dashed, and a click offers to make it
                 if wikiResolves(target) {
-                    storage.addAttributes([.foregroundColor: Palette.link, .underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: Palette.link.withAlphaComponent(0.35)], range: r)
+                    storage.addAttributes([.foregroundColor: Palette.linkText, .underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: Palette.linkText.withAlphaComponent(0.35)], range: r)
                 } else {
                     storage.addAttributes([.foregroundColor: Palette.unresolved, .underlineStyle: NSUnderlineStyle.patternDash.union(.single).rawValue, .underlineColor: Palette.unresolved], range: r)
                 }
@@ -136,9 +158,27 @@ final class EditorTextView: NSTextView {
                 trait(.italicFontMask, r)
             case .rule: storage.addAttribute(.foregroundColor, value: Palette.marker, range: r)
             case .frontMatter:
-                storage.addAttribute(.foregroundColor, value: Palette.done, range: r)
-            case .tableRow:
+                // the fences are faint, the key is a step lighter than its value
                 let ns = storage.string as NSString
+                let line = ns.substring(with: r)
+                if line.trimmingCharacters(in: .whitespaces) == "---" { storage.addAttribute(.foregroundColor, value: Palette.fmFence, range: r) }
+                else {
+                    storage.addAttribute(.foregroundColor, value: Palette.fmValue, range: r)
+                    let colon = (line as NSString).range(of: ":")
+                    if colon.location != NSNotFound, !line.hasPrefix(" "), !line.hasPrefix("-") {
+                        storage.addAttribute(.foregroundColor, value: Palette.fmKey, range: NSRange(location: r.location, length: colon.location + 1))
+                    }
+                }
+            case .tableRow:
+                // the separator row is all markup; the header row above it is semibold; pipes are always faint
+                let ns = storage.string as NSString
+                let line = ns.substring(with: r)
+                if Self.isTableSeparator(line) { storage.addAttribute(.foregroundColor, value: Palette.marker, range: r); break }
+                let next = NSMaxRange(r) + 1 < ns.length ? ns.paragraphRange(for: NSRange(location: NSMaxRange(r) + 1, length: 0)) : NSRange(location: 0, length: 0)
+                if next.length > 0, Self.isTableSeparator(ns.substring(with: next).trimmingCharacters(in: .newlines)) {
+                    semibold(in: r)
+                    storage.addAttribute(.foregroundColor, value: Palette.strongText, range: r)
+                }
                 for i in r.location..<NSMaxRange(r) where ns.character(at: i) == 0x7C {
                     storage.addAttribute(.foregroundColor, value: Palette.marker, range: NSRange(location: i, length: 1))
                 }
@@ -166,6 +206,40 @@ final class EditorTextView: NSTextView {
         if selectedRange() != selection { setSelectedRange(selection) }
         typingAttributes = baseAttributes
         insertionPointColor = Palette.caret
+        selectedTextAttributes = [.backgroundColor: Palette.selectionText]
+        needsDisplay = true
+    }
+
+    static func isTableSeparator(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        return t.contains("-") && t.allSatisfy { "|:- \t".contains($0) } && t.contains("|")
+    }
+
+    /// Weight 600 of the same family, keeping italic: IBM Plex Mono has a SemiBold, and the type specs use it for bold and headings.
+    private var semiboldCache: [String: NSFont] = [:]
+
+    private func semibold(_ f: NSFont) -> NSFont {
+        let italic = f.fontDescriptor.symbolicTraits.contains(.italic)
+        // looking a font up is slow and a note repeats the same few, so they are kept
+        let key = "\(f.fontName)|\(f.pointSize)|\(italic)"
+        if let hit = semiboldCache[key] { return hit }
+        let made = makeSemibold(f, italic: italic)
+        semiboldCache[key] = made
+        return made
+    }
+
+    private func makeSemibold(_ f: NSFont, italic: Bool) -> NSFont {
+        var traits: [NSFontDescriptor.TraitKey: Any] = [.weight: NSFont.Weight.semibold.rawValue]
+        if italic { traits[.symbolic] = NSFontDescriptor.SymbolicTraits.italic.rawValue }
+        let d = NSFontDescriptor(fontAttributes: [.family: f.familyName ?? style.fontName, .traits: traits])
+        return NSFont(descriptor: d, size: f.pointSize) ?? NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask)
+    }
+
+    private func semibold(in r: NSRange) {
+        guard let storage = textStorage else { return }
+        storage.enumerateAttribute(.font, in: r) { v, sub, _ in
+            storage.addAttribute(.font, value: semibold((v as? NSFont) ?? baseFont), range: sub)
+        }
     }
 
     private func trait(_ t: NSFontTraitMask, _ r: NSRange) {
@@ -182,6 +256,45 @@ final class EditorTextView: NSTextView {
         guard string.isEmpty, !placeholder.isEmpty, let container = textContainer else { return }
         let x = textContainerOrigin.x + container.lineFragmentPadding + Self.gutter
         (placeholder as NSString).draw(at: NSPoint(x: x, y: textContainerOrigin.y), withAttributes: [.font: baseFont, .foregroundColor: Palette.marker])
+    }
+
+    // MARK: behind the text, and the caret
+
+    /// Code blocks are one tinted band that reaches 2 ch past the text on each side; inline code is a small rounded chip.
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard let lm = layoutManager, let tc = textContainer, !codeBlocks.isEmpty || !inlineCode.isEmpty else { return }
+        let origin = textContainerOrigin, ch = charWidth
+        let columnLeft = origin.x + Self.gutter, columnWidth = max(0, tc.size.width - Self.gutter)
+        Palette.codeBand.setFill()
+        for r in codeBlocks where NSMaxRange(r) <= (string as NSString).length {
+            let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
+            var union = NSRect.null
+            lm.enumerateLineFragments(forGlyphRange: g) { frag, _, _, _, _ in union = union.union(frag) }
+            guard !union.isNull else { continue }
+            let band = NSRect(x: columnLeft - 2 * ch, y: union.minY + origin.y - 6, width: columnWidth + 4 * ch, height: union.height + 12)
+            if band.intersects(rect) { NSBezierPath(roundedRect: band, xRadius: 8, yRadius: 8).fill() }
+        }
+        Palette.inlineCode.setFill()
+        let natural = baseFont.ascender - baseFont.descender
+        for r in inlineCode where NSMaxRange(r) <= (string as NSString).length {
+            let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
+            lm.enumerateEnclosingRects(forGlyphRange: g, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: tc) { box, _ in
+                let chip = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)
+                if chip.intersects(rect) { NSBezierPath(roundedRect: chip, xRadius: 3, yRadius: 3).fill() }
+            }
+        }
+    }
+
+    /// A 2 px caret, as in the type specs.
+    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
+        var r = rect
+        r.size.width = 2
+        super.drawInsertionPoint(in: r, color: color, turnedOn: flag)
+    }
+
+    override func setNeedsDisplay(_ rect: NSRect, avoidAdditionalLayout flag: Bool) {
+        super.setNeedsDisplay(rect.insetBy(dx: -2, dy: 0), avoidAdditionalLayout: flag)
     }
 
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); restyle(); needsDisplay = true }

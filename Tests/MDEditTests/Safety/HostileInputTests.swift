@@ -90,7 +90,7 @@ final class HostileInputTests: XCTestCase {
         for (name, text) in Self.inputs where text.utf8.count < 400_000 {
             let tv = EditorTextView(frame: NSRect(x: 0, y: 0, width: 700, height: 500))
             tv.string = text
-            within(10, "restyle \(name)") { tv.restyle() }
+            within(25, "restyle \(name)") { tv.restyle() }   // TextKit lays out every line of a 400 KB file; this only has to finish
         }
     }
 

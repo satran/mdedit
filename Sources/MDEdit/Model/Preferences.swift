@@ -20,22 +20,24 @@ final class Preferences: ObservableObject {
     @Published var focusFullScreen: Bool { didSet { d.set(focusFullScreen, forKey: "focusFullScreen") } }
     /// Pictures from the web load only when this is on: a remote picture tells its server that the note was opened.
     @Published var loadRemoteImages: Bool { didSet { d.set(loadRemoteImages, forKey: "loadRemoteImages") } }
-    @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
+    /// "serif" (Literata) or "sans" (Inter): the two reading templates of the viewer.
+    @Published var viewerTemplate: String { didSet { d.set(viewerTemplate, forKey: "viewerTemplate") } }
+    /// The serif template's body size in points (20 by default); the sans template runs 2 points smaller, as in the type specs.
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
     init(defaults: UserDefaults = AppEnvironment.defaults) {
         d = defaults
         editorFont = d.string(forKey: "editorFont") ?? "IBM Plex Mono"
-        editorSize = min(72, max(8, d.object(forKey: "editorSize") as? Double ?? 16))
-        lineWidth = min(200, max(20, d.object(forKey: "lineWidth") as? Int ?? 66))
+        editorSize = min(72, max(8, d.object(forKey: "editorSize") as? Double ?? 17))
+        lineWidth = min(200, max(20, d.object(forKey: "lineWidth") as? Int ?? 72))
         widthCustom = d.bool(forKey: "widthCustom")
-        headingSizes = d.object(forKey: "headingSizes") as? Bool ?? true
+        headingSizes = d.object(forKey: "headingSizes") as? Bool ?? false
         showStatusBar = d.object(forKey: "showStatusBar") as? Bool ?? true
         theme = ["auto", "light", "dark"].contains(d.string(forKey: "theme") ?? "") ? d.string(forKey: "theme")! : "auto"
         focusFullScreen = d.object(forKey: "focusFullScreen") as? Bool ?? true
         loadRemoteImages = d.bool(forKey: "loadRemoteImages")
-        viewerFont = d.string(forKey: "viewerFont") ?? "Source Serif 4"
-        viewerSize = min(48, max(10, d.object(forKey: "viewerSize") as? Double ?? 18))
+        viewerTemplate = d.string(forKey: "viewerTemplate") == "sans" ? "sans" : "serif"
+        viewerSize = min(32, max(14, d.object(forKey: "viewerSize") as? Double ?? 20))
     }
 
     func applyTheme() {
@@ -52,28 +54,12 @@ final class Preferences: ObservableObject {
         return Fonts.nsFont(family: editorFont, size: s) ?? .monospacedSystemFont(ofSize: s, weight: .regular)
     }
 
-    /// The viewer's text font as AppKit sees it, to measure text the way SwiftUI sets it.
-    func viewerNSFont(size: CGFloat, bold: Bool) -> NSFont {
-        var f = Fonts.nsFont(family: viewerFont, size: size)
-        if f == nil {
-            let sys = NSFont.systemFont(ofSize: size)
-            f = ["SF Pro", "Inter"].contains(viewerFont) ? sys : (sys.fontDescriptor.withDesign(.serif).flatMap { NSFont(descriptor: $0, size: size) } ?? sys)
-        }
-        return bold ? NSFontManager.shared.convert(f!, toHaveTrait: .boldFontMask) : f!
-    }
+    /// The family of the chosen template; the exported HTML names it too.
+    var viewerFont: String { viewerTemplate == "sans" ? "Inter" : "Literata" }
 
-    var viewerBase: Font { Self.viewerFont(viewerFont, size: viewerSize) }
+    /// Every size, spacing and colour of the viewer for the chosen template (the type specs).
+    var viewerStyle: ViewerStyle { ViewerStyle(template: viewerTemplate == "sans" ? .sans : .serif, serifBody: CGFloat(viewerSize)) }
 
-    static func viewerFont(_ name: String, size: CGFloat) -> Font {
-        if Fonts.installed(name) { return .custom(name, size: size) }
-        switch name {
-        case "SF Pro", "Inter": return .system(size: size)
-        default: return .system(size: size, design: .serif)    // New York
-        }
-    }
-    func viewerFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Self.viewerFont(viewerFont, size: size).weight(weight)
-    }
     var monoFont: (CGFloat) -> Font { { [self] s in
         Fonts.installed(editorFont) ? .custom(editorFont, size: s) : .system(size: s, design: .monospaced) } }
 }

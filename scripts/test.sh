@@ -21,7 +21,7 @@ xcodebuild -project MDEdit.xcodeproj -scheme MDEdit -derivedDataPath build/Deriv
 status=$?
 
 # what went wrong, then the totals
-grep -E "error: |: error|Test Case .* failed|\*\* (BUILD|TEST) FAILED" build/test.log | grep -v "linkd.autoShortcut" | sed -E 's/^\/Users\/[^ ]*\/(Sources|Tests)\//\1\//' | sort -u | head -60
-grep -E "Executed [0-9]+ tests?, with" build/test.log | tail -1
+grep -aE "error: |: error|Test Case .* failed|\*\* (BUILD|TEST) FAILED" build/test.log | grep -av "linkd.autoShortcut" | sed -E 's/^\/Users\/[^ ]*\/(Sources|Tests)\//\1\//' | sort -u | head -60
+grep -aE "Executed [0-9]+ tests?, with" build/test.log | tail -1
 if [ $status -eq 0 ]; then echo "PASS"; else echo "FAIL (log: build/test.log)"; fi
 exit $status

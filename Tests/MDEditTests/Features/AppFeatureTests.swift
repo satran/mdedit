@@ -104,7 +104,7 @@ final class AppFeatureTests: XCTestCase {
     func testPreferencesHaveSaneDefaultsAndPersist() {
         let d = isolatedDefaults()
         let p = Preferences(defaults: d)
-        XCTAssertEqual(p.theme, "auto"); XCTAssertTrue(p.headingSizes); XCTAssertTrue(p.focusFullScreen)
+        XCTAssertEqual(p.theme, "auto"); XCTAssertFalse(p.headingSizes, "headings are body size by default"); XCTAssertTrue(p.focusFullScreen)
         XCTAssertTrue(p.showStatusBar); XCTAssertFalse(p.loadRemoteImages, "remote pictures are off until asked for")
         p.theme = "dark"; p.editorSize = 20; p.headingSizes = false; p.loadRemoteImages = true; p.showStatusBar = false
         let q = Preferences(defaults: d)
@@ -116,14 +116,19 @@ final class AppFeatureTests: XCTestCase {
         let d = isolatedDefaults()
         d.set(1e9, forKey: "editorSize"); d.set(-5, forKey: "lineWidth"); d.set(0.0, forKey: "viewerSize"); d.set("<script>", forKey: "theme")
         let p = Preferences(defaults: d)
-        XCTAssertEqual(p.editorSize, 72); XCTAssertEqual(p.lineWidth, 20); XCTAssertEqual(p.viewerSize, 10); XCTAssertEqual(p.theme, "auto")
+        XCTAssertEqual(p.editorSize, 72); XCTAssertEqual(p.lineWidth, 20); XCTAssertEqual(p.viewerSize, 14); XCTAssertEqual(p.theme, "auto")
     }
 
     func testMissingFontsFallBack() {
         let p = Preferences(defaults: isolatedDefaults())
-        p.editorFont = "No Such Font"; p.viewerFont = "No Such Font"
+        p.editorFont = "No Such Font"
         XCTAssertGreaterThan(p.editorNSFont().pointSize, 0)
-        XCTAssertGreaterThan(p.viewerNSFont(size: 16, bold: true).pointSize, 0)
+        // Literata and Inter fall back to the system serif and sans when they are not installed
+        for t in ["serif", "sans"] {
+            p.viewerTemplate = t
+            XCTAssertGreaterThan(p.viewerStyle.nsFont(16, weight: .semibold).pointSize, 0)
+            XCTAssertGreaterThan(p.viewerStyle.lineSpacing(size: 16, leading: 1.5), -1)
+        }
     }
 
     // MARK: command palette and menus

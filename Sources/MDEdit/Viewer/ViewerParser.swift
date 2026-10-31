@@ -44,7 +44,7 @@ enum ViewerParser {
             }))
             body = (source as NSString).substring(from: fm.end)
         }
-        return out + blocks(Document(parsing: MarkdownLimits.clamp(body)).children)
+        return out + blocks(Document(parsing: MarkdownLimits.clamp(body), options: [.disableSmartOpts]).children)
     }
 
     private static func blocks(_ children: MarkupChildren) -> [VBlock] {
@@ -106,8 +106,12 @@ enum ViewerParser {
     private static func append(_ m: Markup, to out: inout AttributedString, intent: InlinePresentationIntent, link: URL?) {
         switch m {
         case let t as Markdown.Text:
-            if link == nil, !intent.contains(.code) { out += linkified(t.string, intent: intent) }
-            else { out += run(t.string, intent: intent, link: link) }
+            if link == nil, !intent.contains(.code) { out += linkified(t.string, intent: intent, smart: true, previous: out.characters.last) }
+            else {
+                // the words of a link are prose; a web address shown as the link is not
+                let isAddress = t.string.contains("://") || t.string.lowercased().hasPrefix("www.") || t.string.hasPrefix("mailto:")
+                out += run(intent.contains(.code) || isAddress ? t.string : SmartPunctuation.apply(t.string, previous: out.characters.last), intent: intent, link: link)
+            }
         case is SoftBreak: out += run(" ", intent: intent, link: link)
         case is LineBreak: out += run("\n", intent: intent, link: link)
         case let e as Emphasis:
@@ -133,7 +137,8 @@ enum ViewerParser {
     private static let bareURL = try! NSRegularExpression(pattern: "https?://[^\\s<>\\]]+")
 
     /// Plain text with [[wiki links]] and bare web addresses turned into links.
-    static func linkified(_ s: String, intent: InlinePresentationIntent) -> AttributedString {
+    static func linkified(_ s: String, intent: InlinePresentationIntent, smart: Bool = false, previous: Character? = nil) -> AttributedString {
+        func plain(_ t: String, _ before: Character?) -> String { smart ? SmartPunctuation.apply(t, previous: before) : t }
         var pieces: [(Range<String.Index>, String, URL?)] = []
         let wikis = WikiLink.parse(s)
         for (r, w) in wikis { pieces.append((r, w.shown, w.url)) }
@@ -142,20 +147,61 @@ enum ViewerParser {
         var w = 0
         for m in bareURL.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
             guard var r = Range(m.range, in: s) else { continue }
-            while s[r].count > 1, ".,;:!?)'\"".contains(s[r].last!) { r = r.lowerBound..<s.index(before: r.upperBound) }
+            // trailing punctuation belongs to the sentence, not the address; a quote only when it has no partner inside the address
+            while s[r].count > 1, let last = s[r].last, ".,;:!?)'\"".contains(last),
+                  last != "'" && last != "\"" || s[r].filter({ $0 == last }).count % 2 == 1 {
+                r = r.lowerBound..<s.index(before: r.upperBound)
+            }
             while w < wikis.count, wikis[w].range.upperBound <= r.lowerBound { w += 1 }
             if w < wikis.count, wikis[w].range.overlaps(r) { continue }
             pieces.append((r, String(s[r]), URL(string: String(s[r]))))
         }
-        guard !pieces.isEmpty else { return run(s, intent: intent, link: nil) }
+        guard !pieces.isEmpty else { return run(plain(s, previous), intent: intent, link: nil) }
         pieces.sort { $0.0.lowerBound < $1.0.lowerBound }
         var out = AttributedString(), at = s.startIndex
         for (r, text, url) in pieces {
-            if at < r.lowerBound { out += run(String(s[at..<r.lowerBound]), intent: intent, link: nil) }
+            if at < r.lowerBound { out += run(plain(String(s[at..<r.lowerBound]), out.characters.last ?? previous), intent: intent, link: nil) }
             out += run(text, intent: intent, link: url)
             at = r.upperBound
         }
-        if at < s.endIndex { out += run(String(s[at...]), intent: intent, link: nil) }
+        if at < s.endIndex { out += run(plain(String(s[at...]), out.characters.last ?? previous), intent: intent, link: nil) }
+        return out
+    }
+}
+
+
+/// The viewer sets real punctuation: curly quotes, en and em dashes, true ellipses. Only the viewer: the text on disk is not changed,
+/// and code, addresses and link targets are never touched.
+enum SmartPunctuation {
+    static func apply(_ s: String, previous: Character? = nil) -> String {
+        guard s.contains(where: { "\"'.-".contains($0) }) else { return s }
+        var out = ""
+        var prev = previous
+        let chars = Array(s)
+        var i = 0
+        func opens(_ before: Character?) -> Bool {
+            guard let b = before else { return true }
+            return b.isWhitespace || "([{<“‘—–/".contains(b)
+        }
+        while i < chars.count {
+            let c = chars[i]
+            switch c {
+            case "\"": out.append(opens(prev) ? "“" : "”")
+            case "'":
+                // an apostrophe or a closing quote after a word; an opening quote after a space, before a letter
+                let next = i + 1 < chars.count ? chars[i + 1] : nil
+                out.append(opens(prev) && (next?.isLetter ?? false) ? "‘" : "’")
+            case "." where i + 2 < chars.count + 0 && chars[i + 1] == "." && chars[i + 2] == ".":
+                out.append("…"); i += 2
+            case "-" where i + 2 < chars.count && chars[i + 1] == "-" && chars[i + 2] == "-":
+                out.append("—"); i += 2
+            case "-" where i + 1 < chars.count && chars[i + 1] == "-":
+                out.append("–"); i += 1
+            default: out.append(c)
+            }
+            prev = out.last
+            i += 1
+        }
         return out
     }
 }

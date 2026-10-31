@@ -1,7 +1,7 @@
 import AppKit
 import CoreText
 
-/// The fonts that ship in the app (IBM Plex Mono, Source Serif 4; see the OFL files next to them), and a
+/// The fonts that ship in the app (IBM Plex Mono, Source Serif 4, and Literata and Inter when they are in the bundle; see the OFL files next to them), and a
 /// lookup by family that works for those and for anything installed on the Mac.
 enum Fonts {
     private static let registered: Void = {

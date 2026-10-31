@@ -118,6 +118,9 @@ struct DetailView: View {
         let words = DocumentStore.wordCount(document.text)
         let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
         return HStack(spacing: 2) {
+            if document.url != nil, ws.mode == .view {
+                TemplateSwitch(template: $prefs.viewerTemplate).padding(.trailing, 10)
+            }
             if document.url != nil {
                 Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
             }
@@ -159,5 +162,36 @@ struct ViewerContainer: View {
         ViewerView(blocks: blocks, baseURL: baseURL, prefs: prefs)
             .onAppear { blocks = ViewerParser.parse(text) }
             .onChange(of: text) { _, new in blocks = ViewerParser.parse(new) }
+    }
+}
+
+
+/// Serif | Sans, the two reading templates, in the footer while previewing.
+struct TemplateSwitch: View {
+    @Binding var template: String
+
+    var body: some View {
+        HStack(spacing: 2) {
+            item("serif", "Serif", ViewerStyle(template: .serif, serifBody: 20))
+            item("sans", "Sans", ViewerStyle(template: .sans, serifBody: 20))
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color(Palette.segmentTrack)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Template")
+    }
+
+    private func item(_ key: String, _ title: String, _ style: ViewerStyle) -> some View {
+        let on = template == key
+        return Button { template = key } label: {
+            Text(title).font(style.font(12.5, weight: .medium))
+                .padding(.horizontal, 10).frame(height: 22)
+                .foregroundStyle(Color(on ? Palette.strongText : Palette.segmentText))
+                .background(RoundedRectangle(cornerRadius: 5).fill(on ? Color(Palette.segmentOn) : .clear).shadow(color: .black.opacity(on ? 0.12 : 0), radius: 1, y: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

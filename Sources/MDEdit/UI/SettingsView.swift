@@ -5,8 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var prefs: Preferences
 
     static let editorFonts = ["IBM Plex Mono", "JetBrains Mono", "SF Mono", "Menlo", "Source Serif 4"]
-    static let viewerFonts = ["Source Serif 4", "Literata", "New York", "Inter", "SF Pro"]
-    static let presets: [(String, Int)] = [("Narrow", 52), ("Medium", 66), ("Wide", 80)]
+        static let presets: [(String, Int)] = [("Narrow", 64), ("Medium", 72), ("Wide", 80)]
 
     var body: some View {
         ScrollView {
@@ -50,8 +49,16 @@ struct SettingsView: View {
                     preview
                 }
                 section("Viewer") {
-                    row("Text font") {
-                        fontPicker($prefs.viewerFont, Self.viewerFonts, label: "Viewer font")
+                    row("Template", note: "Serif is Literata, sans is Inter") {
+                        HStack(spacing: 2) {
+                            ForEach([("serif", "Serif"), ("sans", "Sans")], id: \.0) { key, name in
+                                segment(name, on: prefs.viewerTemplate == key) { prefs.viewerTemplate = key }
+                            }
+                        }
+                        .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
+                    }
+                    divider
+                    row("Text size", note: "Serif body; sans runs 2 points smaller") {
                         stepper($prefs.viewerSize, 14...28, label: "viewer text size")
                     }
                     divider
@@ -164,7 +171,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("PREVIEW").font(.system(size: 11, weight: .semibold)).tracking(0.3).foregroundStyle(Color(Palette.muted))
             Text("Both are about the same thing: how well your systems hold up when something goes wrong.")
-                .font(prefs.viewerBase).lineSpacing(CGFloat(prefs.viewerSize) * 0.33).lineLimit(3)
+                .font(prefs.viewerStyle.font(prefs.viewerStyle.body)).foregroundStyle(Color(prefs.viewerStyle.ink))
+                .lineSpacing(prefs.viewerStyle.lineSpacing(size: prefs.viewerStyle.body, leading: prefs.viewerStyle.bodyLeading)).lineLimit(3)
         }
         .padding(.horizontal, 16).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(Palette.binderBg).opacity(0.5))

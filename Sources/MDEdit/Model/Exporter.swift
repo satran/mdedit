@@ -73,7 +73,7 @@ final class Exporter: NSObject, WKNavigationDelegate {
         panel.nameFieldStringValue = name + ".html"
         panel.allowedContentTypes = [.html]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let html = Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: prefs.viewerSize)
+        let html = Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: Double(prefs.viewerStyle.body))
         do { try html.write(to: url, atomically: true, encoding: .utf8) } catch { NSAlert(error: error).runModal() }
     }
 
@@ -90,7 +90,7 @@ final class Exporter: NSObject, WKNavigationDelegate {
         let w = WKWebView(frame: NSRect(x: 0, y: 0, width: 612, height: 792), configuration: config)
         w.navigationDelegate = self
         web = w
-        w.loadHTMLString(Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: prefs.viewerSize), baseURL: nil)
+        w.loadHTMLString(Self.html(markdown: markdown, title: name, viewerFont: prefs.viewerFont, size: Double(prefs.viewerStyle.body)), baseURL: nil)
     }
 
     /// Only the page itself loads; a click on a link goes nowhere.

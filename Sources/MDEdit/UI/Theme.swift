@@ -22,9 +22,9 @@ enum Palette {
     static let paneBg = dyn(0xFFFFFF, 0x1E1F22)
     static let paneBorder = dyn(0xEFF1F3, 0x2C2E33)
     static let text = dyn(0x2A2D31, 0xDCDFE3)
-    static let strongText = dyn(0x1E2024, 0xF3F4F6)
+    static let strongText = dyn(0x15171A, 0xF3F4F6)
     static let quoteText = dyn(0x4A4F56, 0xA9AEB6)
-    static let marker = dyn(0xB4BAC2, 0x5D626B)
+    static let marker = dyn(0xAEB4BC, 0x5D626B)
     static let link = dyn(0x2F6FDB, 0x6FA3F7)
     static let caret = dyn(0x3478F6, 0x4C8DF6)
     static let chip = dyn(0xF2F4F7, 0x2C2E33)
@@ -37,6 +37,29 @@ enum Palette {
     static let unresolved = dyn(0x9AA0A8, 0x7C828B)
     static let focusDim = dyn(0xC3C8CE, 0x4A4E55)
     static let green = dyn(0x2E8B57, 0x58C98A)
+
+    // type specs: editor
+    static let linkText = dyn(0x2453B3, 0x7FA8F5)            // the words of a link
+    static let selectionText = dyn(0xCFE0FB, 0x2F4A73)       // selected text
+    static let fmKey = dyn(0x9AA0A8, 0x7C828B)               // front matter: key, value, fence
+    static let fmValue = dyn(0x7C828A, 0x9BA1A9)
+    static let fmFence = dyn(0xB4BAC2, 0x5D626B)
+    static let codeBand = dyn(0xF6F7F9, 0x292B2F)            // a code block
+    static let codeInk = dyn(0x2F3338, 0xD3D7DC)
+    static let inlineCode = dyn(0xF2F4F7, 0x2E3035)
+
+    // type specs: viewer
+    static let vInkSerif = dyn(0x24272B, 0xDCDFE3), vInkSans = dyn(0x25282C, 0xDCDFE3)
+    static let vHeadSerif = dyn(0x15171A, 0xF3F4F6), vHeadSans = dyn(0x131518, 0xF3F4F6)
+    static let vQuoteSerif = dyn(0x3B4045, 0xA9AEB6), vQuoteSans = dyn(0x4A4F56, 0xA9AEB6)
+    static let vQuoteBar = dyn(0xD9DEE4, 0x42454C)
+    static let vBulletSerif = dyn(0x8C929A, 0x7B8089), vBulletSans = dyn(0x9AA0A8, 0x7B8089)
+    static let vRule = dyn(0xD5D9DF, 0x42454C)
+    static let vRowLine = dyn(0xECEEF1, 0x2F3136)
+    static let vLabel = dyn(0x6A7078, 0x9BA1A9)
+    static let vSecondary = dyn(0x4A4F56, 0xA9AEB6)
+    static let vChip = dyn(0xF1F3F5, 0x2E3035)
+    static let vCard = dyn(0xE4E7EB, 0x34363B)
 }
 
 extension NSColor {

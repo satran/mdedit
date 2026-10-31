@@ -2,18 +2,19 @@ import SwiftUI
 import AppKit
 import Markdown
 
-/// Read mode: the same Markdown, set as a page.
+/// Read mode: the same Markdown, set as a page, in the serif or sans template of the type specs.
 struct ViewerView: View {
     let blocks: [VBlock]
     let baseURL: URL?
     @ObservedObject var prefs: Preferences
 
     var body: some View {
+        let style = prefs.viewerStyle
         ScrollView {
-            BlockList(blocks: blocks, prefs: prefs, baseURL: baseURL, spacing: prefs.viewerSize)
+            BlockList(blocks: blocks, prefs: prefs, baseURL: baseURL)
                 .textSelection(.enabled)
-                .frame(maxWidth: Metrics.column, alignment: .leading)
-                .padding(.top, 44).padding(.bottom, 80)
+                .frame(maxWidth: style.measure, alignment: .leading)
+                .padding(.top, style.pageTop).padding(.bottom, style.pageBottom + 24)
                 .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity)
         }
@@ -21,19 +22,41 @@ struct ViewerView: View {
     }
 }
 
+/// Blocks one after the other. The space between two is the larger of the one below the first and the one above the
+/// second, as margins collapse on a web page, so a heading keeps more room above it than below.
 struct BlockList: View {
     let blocks: [VBlock]
     @ObservedObject var prefs: Preferences
     let baseURL: URL?
-    var spacing: CGFloat
+    /// Text inside a quote is set in the quote's size and colour.
+    var textSize: CGFloat?
+    var leading: CGFloat?
+    var ink: NSColor?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: spacing) {
+        let style = prefs.viewerStyle
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { i, b in
-                BlockView(block: b, prefs: prefs, baseURL: baseURL, first: i == 0)
+                BlockView(block: b, prefs: prefs, baseURL: baseURL, textSize: textSize, leading: leading, ink: ink)
+                    .padding(.top, i == 0 ? 0 : max(Self.margins(blocks[i - 1], style, textSize).bottom, Self.margins(b, style, textSize).top))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    static func margins(_ b: VBlock, _ style: ViewerStyle, _ textSize: CGFloat?) -> (top: CGFloat, bottom: CGFloat) {
+        let body = textSize ?? style.body
+        switch b {
+        case .heading(let level, _): let h = style.heading(level); return (h.top, h.bottom)
+        case .paragraph, .html: return (0, body * (style.isSerif ? 0.75 : 0.85))
+        case .quote: return (0, style.quoteGap)
+        case .list: return (0, body * (style.isSerif ? 0.75 : 0.85))
+        case .code: return (style.codeTop, style.codeBottom)
+        case .table: return (style.tableTop, style.tableBottom)
+        case .rule: return (style.ruleGap, style.ruleGap)
+        case .image: return (body * 0.25, body * 0.75)
+        case .properties: return (0, style.propertiesBottom)
+        }
     }
 }
 
@@ -41,110 +64,123 @@ struct BlockView: View {
     let block: VBlock
     @ObservedObject var prefs: Preferences
     let baseURL: URL?
-    var first = false
+    var textSize: CGFloat?
+    var leading: CGFloat?
+    var ink: NSColor?
 
-    private var size: CGFloat { CGFloat(prefs.viewerSize) }
-    private var ink: Color { Color(Palette.text) }
+    private var style: ViewerStyle { prefs.viewerStyle }
+    private var size: CGFloat { textSize ?? style.body }
+    private var lead: CGFloat { leading ?? style.bodyLeading }
+    private var inkColor: Color { Color(ink ?? style.ink) }
 
     var body: some View {
         switch block {
         case .heading(let level, let text):
-            let (s, w): (CGFloat, Font.Weight) = {
-                switch level {
-                case 1: return (size * 2, .bold)
-                case 2: return (size * 1.33, .semibold)
-                case 3: return (size * 1.11, .semibold)
-                default: return (size, .semibold)
-                }
-            }()
-            Text(styled(text, size: s))
-                .font(prefs.viewerFont(size: s, weight: w))
-                .foregroundStyle(Color(Palette.strongText))
-                .lineSpacing(s * 0.15)
-                .modifier(LinkCursor(text: text, font: prefs.viewerNSFont(size: s, bold: true), size: s, lineSpacing: s * 0.15, prefs: prefs))
-                .padding(.top, first ? 0 : (level <= 2 ? size * 0.9 : size * 0.4))
-                .padding(.bottom, level == 1 ? size * 0.25 : 0)
+            let h = style.heading(level)
+            Text(styled(text, size: h.size))
+                .font(style.font(h.size, weight: h.weight))
+                .tracking(h.size * h.tracking)
+                .foregroundStyle(Color(style.headingInk))
+                .lineSpacing(style.lineSpacing(size: h.size, leading: h.leading, weight: h.weight))
+                .modifier(LinkCursor(text: text, font: style.nsFont(h.size, weight: h.weight), size: h.size, lineSpacing: style.lineSpacing(size: h.size, leading: h.leading, weight: h.weight), prefs: prefs))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
         case .paragraph(let text):
             Text(styled(text, size: size))
-                .font(prefs.viewerFont(size: size))
-                .foregroundStyle(ink)
-                .lineSpacing(size * 0.33)
-                .modifier(LinkCursor(text: text, font: prefs.viewerNSFont(size: size, bold: false), size: size, lineSpacing: size * 0.33, prefs: prefs))
+                .font(style.font(size))
+                .foregroundStyle(inkColor)
+                .lineSpacing(style.lineSpacing(size: size, leading: lead))
+                .modifier(LinkCursor(text: text, font: style.nsFont(size), size: size, lineSpacing: style.lineSpacing(size: size, leading: lead), prefs: prefs))
                 .fixedSize(horizontal: false, vertical: true)
         case .quote(let inner):
+            // serif: set in and a little smaller, no rule. sans: body size behind a hairline
             HStack(alignment: .top, spacing: 0) {
-                Rectangle().fill(Color(Palette.rule)).frame(width: 3)
-                BlockList(blocks: inner, prefs: prefs, baseURL: baseURL, spacing: size * 0.5)
-                    .italic().foregroundStyle(Color(Palette.quoteText))
-                    .padding(.leading, 20).padding(.vertical, 2)
+                if style.quoteBar > 0 { Rectangle().fill(Color(Palette.vQuoteBar)).frame(width: style.quoteBar) }
+                BlockList(blocks: inner, prefs: prefs, baseURL: baseURL, textSize: style.quoteSize, leading: style.quoteLeading, ink: style.quoteInk)
+                    .padding(.leading, style.quotePadding).padding(.vertical, style.isSerif ? 0 : 2)
             }
+            .padding(.horizontal, style.quoteIndent)
         case .list(let ordered, let start, let items):
-            VStack(alignment: .leading, spacing: size * 0.3) {
+            VStack(alignment: .leading, spacing: style.itemGap) {
                 ForEach(Array(items.enumerated()), id: \.offset) { i, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .top, spacing: 0) {
                         marker(ordered: ordered, number: start + i, item: item)
-                        BlockList(blocks: item.blocks, prefs: prefs, baseURL: baseURL, spacing: size * 0.3)
+                        BlockList(blocks: item.blocks, prefs: prefs, baseURL: baseURL, textSize: textSize, leading: leading, ink: ink)
                             .strikethrough(item.checkbox == true)
-                            .foregroundStyle(item.checkbox == true ? Color(Palette.done) : ink)
+                            .foregroundStyle(item.checkbox == true ? Color(Palette.done) : inkColor)
                     }
                 }
             }
-            .padding(.leading, size * 0.4)
         case .code(let code, _):
             ScrollView(.horizontal) {
                 Text(code)
-                    .font(prefs.monoFont(size * 0.85))
-                    .foregroundStyle(ink)
-                    .padding(12)
+                    .font(style.mono(style.codeSize))
+                    .foregroundStyle(Color(Palette.codeInk))
+                    .lineSpacing(codeLineSpacing)
+                    .padding(.vertical, 16).padding(.horizontal, 20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
             }
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.chip)))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.codeBand)))
         case .table(let header, let aligns, let rows):
             TableBlock(header: header, aligns: aligns, rows: rows, prefs: prefs)
         case .rule:
-            Rectangle().fill(Color(Palette.rule)).frame(height: 1).padding(.vertical, size * 0.5)
+            // a short centred hairline, not a full-width line
+            Rectangle().fill(Color(Palette.vRule)).frame(width: 96, height: 1).frame(maxWidth: .infinity)
         case .image(let src, let alt):
             ImageBlock(src: src, alt: alt, baseURL: baseURL, size: size, allowRemote: prefs.loadRemoteImages)
         case .html(let raw):
-            Text(raw).font(prefs.monoFont(size * 0.8)).foregroundStyle(Color(Palette.marker))
+            Text(raw).font(style.mono(size * 0.8)).foregroundStyle(Color(Palette.marker))
         case .properties(let props):
             PropertiesBlock(props: props, prefs: prefs)
         }
     }
 
+    private var codeLineSpacing: CGFloat {
+        let f = Fonts.nsFont(family: "IBM Plex Mono", size: style.codeSize) ?? NSFont.monospacedSystemFont(ofSize: style.codeSize, weight: .regular)
+        return max(0, style.codeSize * style.codeLeading - (f.ascender - f.descender + f.leading))
+    }
+
+    /// Serif: a bullet 0.2 em in. Sans: a 5 px dot, centred on the first line. Numbers and task boxes sit in the same gutter.
     @ViewBuilder private func marker(ordered: Bool, number: Int, item: VItem) -> some View {
+        let lineH = size * lead
         if let on = item.checkbox {
             Image(systemName: on ? "checkmark.square.fill" : "square")
-                .font(.system(size: size * 0.85))
+                .font(.system(size: size * 0.8))
                 .foregroundStyle(on ? Color(Palette.green) : Color(Palette.muted))
+                .frame(width: style.itemIndent + size * 0.2, height: lineH, alignment: .leading)
                 .accessibilityLabel(on ? "Done" : "Not done")
         } else if ordered {
-            Text("\(number).").font(prefs.viewerFont(size: size)).monospacedDigit().foregroundStyle(Color(Palette.muted))
-                .frame(minWidth: size * 1.3, alignment: .trailing)
+            Text("\(number).").font(style.font(size, figures: .table)).foregroundStyle(Color(style.bulletInk))
+                .frame(width: size * 1.7, alignment: .leading).frame(height: lineH, alignment: .center)
+        } else if style.isSerif {
+            Text("•").font(style.font(size)).foregroundStyle(Color(style.bulletInk))
+                .padding(.leading, size * 0.2).frame(width: style.itemIndent, height: lineH, alignment: .leading)
         } else {
-            Text("•").font(prefs.viewerFont(size: size)).foregroundStyle(Color(Palette.muted)).frame(width: size * 0.6)
+            Circle().fill(Color(style.bulletInk)).frame(width: 5, height: 5)
+                .padding(.leading, size * 0.25).frame(width: style.itemIndent, height: lineH, alignment: .leading)
         }
     }
 
+    /// Links in the link colour with a thin faint underline; inline code in Plex Mono on a light chip.
     func styled(_ a: AttributedString, size: CGFloat) -> AttributedString {
         var out = a
         for run in a.runs {
             if let i = run.inlinePresentationIntent, i.contains(.code) {
-                out[run.range].font = prefs.monoFont(size * 0.85)
-                out[run.range].backgroundColor = Color(Palette.chip)
+                out[run.range].font = style.mono(size * style.inlineCodeScale)
+                out[run.range].backgroundColor = Color(Palette.vChip)
+                out[run.range].foregroundColor = Color(Palette.codeInk)
             }
             if run.link != nil {
-                out[run.range].foregroundColor = Color(Palette.link)
-                out[run.range].underlineStyle = .single
+                out[run.range].foregroundColor = Color(Palette.linkText)
+                out[run.range].underlineStyle = Text.LineStyle(pattern: .solid, color: Color(Palette.linkText).opacity(0.35))
             }
         }
         return out
     }
 }
 
+/// Horizontal hairlines only, generous padding, small tracked capitals for the headers.
 struct TableBlock: View {
     let header: [AttributedString]
     let aligns: [Markdown.Table.ColumnAlignment?]
@@ -157,24 +193,32 @@ struct TableBlock: View {
     }
 
     var body: some View {
-        let size = CGFloat(prefs.viewerSize) * 0.9
+        let st = prefs.viewerStyle
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
-            GridRow { ForEach(Array(header.enumerated()), id: \.offset) { i, c in cell(c, i, size, bold: true) } }
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                Divider().gridCellColumns(max(header.count, 1))
-                GridRow { ForEach(Array(row.enumerated()), id: \.offset) { i, c in cell(c, i, size, bold: false) } }
+            GridRow {
+                ForEach(Array(header.enumerated()), id: \.offset) { i, c in
+                    Text(String(c.characters).uppercased())
+                        .font(.system(size: st.tableLabelSize, weight: .semibold)).tracking(st.tableLabelSize * st.tableLabelTracking)
+                        .foregroundStyle(Color(Palette.vLabel))
+                        .padding(.trailing, i == header.count - 1 ? 0 : 16).padding(.bottom, 9)
+                        .frame(maxWidth: .infinity, alignment: alignment(i))
+                }
+            }
+            Rectangle().fill(Color(Palette.vRule)).frame(height: 1).gridCellColumns(max(header.count, 1))
+            ForEach(Array(rows.enumerated()), id: \.offset) { r, row in
+                GridRow {
+                    ForEach(Array(row.enumerated()), id: \.offset) { i, c in
+                        Text(c).font(st.font(st.tableSize, weight: !st.isSerif && i == 0 ? .medium : .regular, figures: .table))
+                            .foregroundStyle(Color(i == 1 ? Palette.vSecondary : st.ink))
+                            .lineSpacing(st.lineSpacing(size: st.tableSize, leading: st.tableLeading))
+                            .padding(.trailing, i == row.count - 1 ? 0 : 16).padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: alignment(i))
+                    }
+                }
+                if r < rows.count - 1 { Rectangle().fill(Color(Palette.vRowLine)).frame(height: 1).gridCellColumns(max(header.count, 1)) }
             }
         }
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(Palette.rule)))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func cell(_ t: AttributedString, _ col: Int, _ size: CGFloat, bold: Bool) -> some View {
-        Text(t).font(prefs.viewerFont(size: size, weight: bold ? .semibold : .regular))
-            .foregroundStyle(Color(Palette.text))
-            .padding(.horizontal, 12).padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: alignment(col))
-            .background(bold ? Color(Palette.chip) : .clear)
+        .padding(.top, 0)
     }
 }
 
@@ -252,26 +296,27 @@ struct PropertiesBlock: View {
     }
 
     var body: some View {
-        let size = CGFloat(prefs.viewerSize) * 0.78
+        // Inter 14 px in a card: rows 40 px high, the key column 150 px, chips for lists
+        let size = 14 * prefs.viewerStyle.scale
         VStack(spacing: 0) {
             ForEach(Array(props.enumerated()), id: \.offset) { i, p in
-                if i > 0 { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
-                HStack(alignment: .firstTextBaseline, spacing: 14) {
-                    HStack(spacing: 7) {
-                        Image(systemName: symbol(p)).font(.system(size: size * 0.9)).frame(width: size * 1.2)
+                if i > 0 { Rectangle().fill(Color(Palette.vRowLine)).frame(height: 1) }
+                HStack(alignment: .center, spacing: 0) {
+                    HStack(spacing: 10) {
+                        Image(systemName: symbol(p)).font(.system(size: size * 0.95)).frame(width: size * 1.2)
                         Text(p.key).lineLimit(1)
                     }
-                    .foregroundStyle(Color(Palette.muted))
-                    .frame(width: size * 10, alignment: .leading)
+                    .foregroundStyle(Color(Palette.vLabel))
+                    .frame(width: 150, alignment: .leading)
                     value(p.value, size: size).frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .font(prefs.viewerFont(size: size))
-                .padding(.horizontal, 14).padding(.vertical, 7)
+                .font(.system(size: size))
+                .padding(.horizontal, 16).frame(minHeight: 40)
                 .accessibilityElement(children: .combine)
             }
         }
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(Palette.rule)))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(Palette.vCard)))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .accessibilityLabel("Properties")
     }
 
@@ -285,9 +330,9 @@ struct PropertiesBlock: View {
         case .list(let items):
             FlowLayout(spacing: 6) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, t in
-                    Text(link(t)).foregroundStyle(Color(Palette.text))
-                        .padding(.horizontal, 9).padding(.vertical, 2)
-                        .background(Capsule().fill(Color(Palette.chip)))
+                    Text(link(t)).font(.system(size: size * 13 / 14)).foregroundStyle(Color(Palette.text))
+                        .padding(.horizontal, 10).padding(.vertical, 3)
+                        .background(Capsule().fill(Color(Palette.vChip)))
                 }
             }
         }
@@ -296,8 +341,8 @@ struct PropertiesBlock: View {
     private func link(_ a: AttributedString) -> AttributedString {
         var out = a
         for run in a.runs where run.link != nil {
-            out[run.range].foregroundColor = Color(Palette.link)
-            out[run.range].underlineStyle = .single
+            out[run.range].foregroundColor = Color(Palette.linkText)
+            out[run.range].underlineStyle = Text.LineStyle(pattern: .solid, color: Color(Palette.linkText).opacity(0.35))
         }
         return out
     }
