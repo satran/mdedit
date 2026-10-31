@@ -3,6 +3,7 @@ import SwiftUI
 struct BinderView: View {
     @EnvironmentObject var ws: Workspace
     @FocusState private var searchFocused: Bool
+    @FocusState private var treeFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,14 +22,20 @@ struct BinderView: View {
         .foregroundStyle(Color(Palette.binderText))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Binder")
-        .onAppear { takeSearchFocus() }
-        .onChange(of: ws.wantsSearchFocus) { _, _ in takeSearchFocus() }
+        .onAppear { takeFocus() }
+        .onChange(of: ws.wantsSearchFocus) { _, _ in takeFocus() }
+        .onChange(of: ws.wantsTreeFocus) { _, _ in takeFocus() }
     }
 
-    private func takeSearchFocus() {
-        guard ws.wantsSearchFocus else { return }
-        ws.wantsSearchFocus = false
-        DispatchQueue.main.async { searchFocused = true }
+    /// Asked for by Search Binder (the search field) or by showing the binder (the list, for the arrow keys).
+    private func takeFocus() {
+        if ws.wantsSearchFocus {
+            ws.wantsSearchFocus = false; ws.wantsTreeFocus = false
+            DispatchQueue.main.async { searchFocused = true }
+        } else if ws.wantsTreeFocus {
+            ws.wantsTreeFocus = false
+            DispatchQueue.main.async { treeFocused = true }
+        }
     }
 
     private var searchField: some View {
@@ -36,6 +43,7 @@ struct BinderView: View {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
             TextField("Search", text: $ws.search).textFieldStyle(.plain).font(.system(size: 13))
                 .focused($searchFocused)
+                .onKeyPress(.downArrow) { treeFocused = true; ws.moveSelection(1); return .handled }
                 .accessibilityLabel("Search binder")
             if !ws.search.isEmpty {
                 Button { ws.search = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12)) }
@@ -49,7 +57,7 @@ struct BinderView: View {
 
     private var tree: some View {
         let rows = ws.rows
-        return ScrollView {
+        return ScrollViewReader { proxy in ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                     BinderRowView(row: row, selected: ws.selection == row.node.url, gap: row.depth == 0 && i > 0 ? 8 : 0)
@@ -61,7 +69,20 @@ struct BinderView: View {
             }
             .padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 12)
         }
+        .onChange(of: ws.selection) { _, sel in if let sel { proxy.scrollTo(sel) } }
+        }
         .frame(maxHeight: .infinity)
+        // showing the binder puts the caret here, and the arrow keys walk it; Return or Tab goes on to the note
+        .focusable().focused($treeFocused).focusEffectDisabled()
+        .onChange(of: treeFocused) { _, now in ws.editor.keepFocusElsewhere = now }
+        .onKeyPress(.upArrow) { ws.moveSelection(-1); return .handled }
+        .onKeyPress(.downArrow) { ws.moveSelection(1); return .handled }
+        .onKeyPress(.rightArrow) { ws.expandSelection(); return .handled }
+        .onKeyPress(.leftArrow) { ws.collapseSelection(); return .handled }
+        .onKeyPress(.return) { ws.focusEditor(); return .handled }
+        .onKeyPress(.tab) { ws.focusEditor(); return .handled }
+        .onKeyPress(.space) { ws.toggleQuickLook(); return .handled }
+        .onKeyPress(.escape) { QuickView.shared.hide(); return .handled }
         .dropDestination(for: URL.self) { urls, _ in
             guard let root = ws.rootURL else { return false }
             ws.drop(urls, into: root)
@@ -148,7 +169,11 @@ struct BinderRowView: View {
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture(count: 2) { if ws.renaming == nil { ws.renaming = node.url } }
-        .simultaneousGesture(TapGesture().onEnded { if ws.renaming != node.url { ws.select(node.url) } })
+        .simultaneousGesture(TapGesture().onEnded {
+            guard ws.renaming != node.url else { return }
+            ws.select(node.url)
+            if node.isDocument { ws.editor.keepFocusElsewhere = false; DispatchQueue.main.async { ws.focusEditor() } }
+        })
         .draggable(node.url)
         .dropDestination(for: URL.self) { urls, _ in
             // on a file, it goes into the folder that file is in

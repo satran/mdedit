@@ -86,7 +86,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
             tv.undoManager?.removeAllActions()
             tv.setSelectedRange(NSRange(location: 0, length: 0))
             tv.scrollToBeginningOfDocument(nil)
-            if documentID != nil { DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) } }
+            if documentID != nil, bridge?.keepFocusElsewhere != true { DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) } }
         }
     }
 
@@ -175,4 +175,6 @@ struct MarkdownTextEditor: NSViewRepresentable {
 /// Lets the rest of the app reach the editor (jump to a heading).
 final class EditorBridge {
     weak var textView: EditorTextView?
+    /// The binder is being walked with the arrow keys: opening a note must not pull the caret away.
+    var keepFocusElsewhere = false
 }

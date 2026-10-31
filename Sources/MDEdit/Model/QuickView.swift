@@ -11,8 +11,11 @@ final class QuickView: NSObject, QLPreviewPanelDataSource {
         guard let panel = QLPreviewPanel.shared() else { return }
         panel.dataSource = self
         panel.reloadData()
-        if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
+        // in front but not key, so the arrow keys keep walking the binder
+        if !panel.isVisible { panel.orderFront(nil) }
     }
+
+    var isShowing: Bool { QLPreviewPanel.sharedPreviewPanelExists() && (QLPreviewPanel.shared()?.isVisible ?? false) }
 
     /// Opening a note puts the panel away.
     func hide() {

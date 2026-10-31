@@ -21,6 +21,8 @@ final class Workspace: ObservableObject {
     @Published var paletteVisible = false
     /// Set by "Search Binder"; the binder's search field takes it when it can.
     @Published var wantsSearchFocus = false
+    /// Set when the binder is shown; the list takes the keyboard focus.
+    @Published var wantsTreeFocus = false
     private var enteredFullScreen = false
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
@@ -55,6 +57,7 @@ final class Workspace: ObservableObject {
         let width = CGFloat(UserDefaults.standard.object(forKey: "binderWidth") as? Double ?? 272) + 1
         binderVisible.toggle()
         defaults.set(binderVisible, forKey: "binderVisible")
+        if binderVisible { wantsTreeFocus = true }
         let delta = binderVisible ? width : -width
         guard let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
         var f = w.frame
@@ -93,6 +96,7 @@ final class Workspace: ObservableObject {
         if focus { toggleFocus() }
         if !binderVisible { toggleBinder() }
         wantsSearchFocus = true
+        wantsTreeFocus = false
     }
 
     func toggleFocus() {
@@ -204,6 +208,48 @@ final class Workspace: ObservableObject {
             defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()
         }
+    }
+
+    // MARK: keyboard
+
+    /// Up or down one row. Notes open as you pass them; folders and other files are only highlighted.
+    func moveSelection(_ delta: Int) {
+        let rows = self.rows
+        guard !rows.isEmpty else { return }
+        let i = rows.firstIndex { $0.node.url == selection } ?? (delta > 0 ? -1 : rows.count)
+        let n = rows[min(rows.count - 1, max(0, i + delta))].node
+        if n.isFolder { selection = n.url }
+        else if n.isDocument { select(n.url) }
+        else {
+            // a file the editor cannot open is only highlighted; Space previews it (and a preview already up follows along)
+            selection = n.url
+            if QuickView.shared.isShowing { QuickView.shared.show(n.url) }
+        }
+    }
+
+    /// Right opens a folder; on an open one it steps into it.
+    func expandSelection() {
+        guard search.isEmpty, let s = selection, let node = root?.find(s), node.isFolder else { return }
+        if !expanded.contains(s) { expanded.insert(s) } else if !node.children.isEmpty { moveSelection(1) }
+    }
+
+    /// Left closes an open folder; otherwise it goes up to the folder this is in.
+    func collapseSelection() {
+        guard search.isEmpty, let s = selection else { return }
+        if expanded.contains(s), root?.find(s)?.isFolder == true { expanded.remove(s); return }
+        let parent = s.deletingLastPathComponent()
+        if parent.standardizedFileURL != rootURL?.standardizedFileURL, root?.find(parent)?.isFolder == true { selection = parent }
+    }
+
+    func focusEditor() {
+        guard let tv = editor.textView else { return }
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    /// Space shows or hides the preview of a file the editor cannot open.
+    func toggleQuickLook() {
+        guard let s = selection, let n = root?.find(s), !n.isFolder, !n.isDocument else { return }
+        if QuickView.shared.isShowing { QuickView.shared.hide() } else { QuickView.shared.show(s) }
     }
 
     func toggle(_ url: URL) {
