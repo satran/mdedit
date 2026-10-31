@@ -174,4 +174,4 @@ I'd build M0 through M4 first (a usable viewer/editor), then stop for your feedb
 
 ## 13. Status
 
-M0–M8 are built. Not done: bundled IBM Plex Mono / Source Serif 4 font files (the app falls back and says "not installed" in Settings), full-text search, embeds `![[…]]`, heading completion after `[[Note#`, rename-updates-links, manual binder ordering.
+M0–M8 are built. IBM Plex Mono and Source Serif 4 ship in the app (OFL, `Sources/MDEdit/Resources/Fonts`). Not done: full-text search, embeds `![[…]]`, heading completion after `[[Note#`, rename-updates-links, manual binder ordering.

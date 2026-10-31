@@ -28,7 +28,7 @@ final class EditorTextView: NSTextView {
     // MARK: fonts
 
     var baseFont: NSFont {
-        NSFont(name: style.fontName, size: style.size) ?? NSFont(name: "SFMono-Regular", size: style.size) ?? .monospacedSystemFont(ofSize: style.size, weight: .regular)
+        Fonts.nsFont(family: style.fontName, size: style.size) ?? .monospacedSystemFont(ofSize: style.size, weight: .regular)
     }
     var charWidth: CGFloat { NSAttributedString(string: "0", attributes: [.font: baseFont]).size().width }
 

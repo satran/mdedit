@@ -76,14 +76,14 @@ struct SettingsView: View {
     private func fontPicker(_ sel: Binding<String>, _ fonts: [String], label: String) -> some View {
         Picker(label, selection: sel) {
             ForEach(fonts, id: \.self) { f in
-                Text(Self.thirdParty.contains(f) && NSFont(name: f, size: 12) == nil ? "\(f) (not installed)" : f).tag(f)
+                Text(Self.thirdParty.contains(f) && !Fonts.installed(f) ? "\(f) (not installed)" : f).tag(f)
             }
         }
         .labelsHidden().frame(width: 250)
     }
 
-    /// Fonts that are not part of macOS; the app falls back when one is missing.
-    static let thirdParty: Set<String> = ["IBM Plex Mono", "JetBrains Mono", "Source Serif 4", "Literata", "Inter"]
+    /// Fonts that neither ship in the app nor come with macOS; the app falls back when one is missing.
+    static let thirdParty: Set<String> = ["JetBrains Mono", "Literata", "Inter"]
 
     private func stepper(_ v: Binding<Double>, _ range: ClosedRange<Double>, label: String) -> some View {
         HStack(spacing: 0) {

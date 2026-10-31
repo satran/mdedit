@@ -26,13 +26,13 @@ final class Preferences: ObservableObject {
     /// The editor's body font: the chosen family, else SF Mono / the system monospaced font.
     func editorNSFont(size: CGFloat? = nil) -> NSFont {
         let s = size ?? CGFloat(editorSize)
-        return NSFont(name: editorFont, size: s) ?? NSFont(name: "SFMono-Regular", size: s) ?? .monospacedSystemFont(ofSize: s, weight: .regular)
+        return Fonts.nsFont(family: editorFont, size: s) ?? .monospacedSystemFont(ofSize: s, weight: .regular)
     }
 
     var viewerBase: Font { Self.viewerFont(viewerFont, size: viewerSize) }
 
     static func viewerFont(_ name: String, size: CGFloat) -> Font {
-        if NSFont(name: name, size: size) != nil { return .custom(name, size: size) }
+        if Fonts.installed(name) { return .custom(name, size: size) }
         switch name {
         case "SF Pro", "Inter": return .system(size: size)
         default: return .system(size: size, design: .serif)    // New York
@@ -42,5 +42,5 @@ final class Preferences: ObservableObject {
         Self.viewerFont(viewerFont, size: size).weight(weight)
     }
     var monoFont: (CGFloat) -> Font { { [self] s in
-        NSFont(name: editorFont, size: s) != nil ? .custom(editorFont, size: s) : .system(size: s, design: .monospaced) } }
+        Fonts.installed(editorFont) ? .custom(editorFont, size: s) : .system(size: s, design: .monospaced) } }
 }
