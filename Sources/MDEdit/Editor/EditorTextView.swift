@@ -149,8 +149,11 @@ final class EditorTextView: NSTextView {
         for line in syntax.lines where NSMaxRange(line.prefix) <= storage.length {
             let lead = NSRange(location: line.prefix.location, length: line.lead)
             let leadW = line.lead > 0 ? storage.attributedSubstring(from: lead).size().width : 0
-            let markerW = storage.attributedSubstring(from: line.prefix).size().width - leadW
-            let p = paragraph(first: max(0, g + leadW - markerW), head: g + leadW)
+            // only the bullet or number hangs in the margin; a task's box starts where a plain item's text would
+            let boxW = line.box > 0 && line.box <= line.prefix.length
+                ? storage.attributedSubstring(from: NSRange(location: NSMaxRange(line.prefix) - line.box, length: line.box)).size().width : 0
+            let markerW = storage.attributedSubstring(from: line.prefix).size().width - leadW - boxW
+            let p = paragraph(first: max(0, g + leadW - markerW), head: g + leadW + boxW)
             storage.addAttribute(.paragraphStyle, value: p, range: NSRange(location: line.range.location, length: line.range.length))
         }
         if focusDim {

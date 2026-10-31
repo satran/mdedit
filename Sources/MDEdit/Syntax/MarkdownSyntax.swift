@@ -30,6 +30,8 @@ struct MDLine: Equatable {
     var prefix: NSRange     // leading spaces, the marker and the space after it
     var lead: Int           // how many characters of the prefix are indentation
     var kind: Kind
+    /// Length of a task's "[ ] " inside the prefix; it sits in the text, only the bullet hangs in the margin.
+    var box = 0
 }
 
 enum MarkdownSyntax {
@@ -107,7 +109,8 @@ enum MarkdownSyntax {
             }
             body = NSRange(location: NSMaxRange(m.range), length: NSMaxRange(line) - NSMaxRange(m.range))
             if checked { spans.append(MDSpan(range: body, kind: .done)) }
-            lines.append(MDLine(range: line, prefix: m.range, lead: lead.length, kind: .list))
+            let boxLen = m.range(at: 3).location != NSNotFound ? m.range(at: 3).length : 0
+            lines.append(MDLine(range: line, prefix: m.range, lead: lead.length, kind: .list, box: boxLen))
         } else if ns.substring(with: line).trimmingCharacters(in: .whitespaces).hasPrefix("|") {
             spans.append(MDSpan(range: line, kind: .tableRow))
         }

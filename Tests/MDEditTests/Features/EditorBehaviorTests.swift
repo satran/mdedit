@@ -76,6 +76,22 @@ final class EditorBehaviorTests: XCTestCase {
         XCTAssertEqual(flat, 16)
     }
 
+    func testATaskLineHangsItsBulletInTheSameColumnAsAPlainItem() {
+        let tv = EditorTextView(frame: NSRect(x: 0, y: 0, width: 700, height: 500))
+        tv.string = "- plain\n- [ ] task\n- [x] done\n  - nested\n  - [ ] nested task\n"
+        tv.restyle()
+        func style(_ needle: String) -> NSParagraphStyle {
+            let r = (tv.string as NSString).range(of: needle)
+            return tv.textStorage!.attribute(.paragraphStyle, at: r.location, effectiveRange: nil) as! NSParagraphStyle
+        }
+        let plain = style("plain"), task = style("task"), done = style("done"), nested = style("nested\n"), nestedTask = style("nested task")
+        XCTAssertEqual(task.firstLineHeadIndent, plain.firstLineHeadIndent, accuracy: 0.5, "the dashes line up")
+        XCTAssertEqual(done.firstLineHeadIndent, plain.firstLineHeadIndent, accuracy: 0.5)
+        XCTAssertGreaterThan(task.headIndent, plain.headIndent, "wrapped lines sit under the task text, after the box")
+        XCTAssertEqual(nestedTask.firstLineHeadIndent, nested.firstLineHeadIndent, accuracy: 0.5)
+        XCTAssertGreaterThan(nested.firstLineHeadIndent, plain.firstLineHeadIndent, "nesting still indents")
+    }
+
     func testMarkdownIsStyledNotChanged() {
         let text = "# H\n\n**bold** *it* `code` [[Link]] [a](https://x.y) ~~s~~\n\n- [ ] t\n> q\n"
         let tv = EditorTextView(frame: NSRect(x: 0, y: 0, width: 700, height: 500))
