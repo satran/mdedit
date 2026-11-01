@@ -42,6 +42,7 @@ make coverage                  # per-file line coverage of the last test run
 | Windows | One window per folder (no tabs); File ▸ Open Recent; "New Window with This Folder" |
 | Command palette | ⇧⌘P: every menu command, built from the same list as the menus |
 | Export | HTML (sanitised), Print / PDF, Copy as Markdown |
+| Help | Help ▸ MDEdit Help (⌘?) opens the manual: `Resources/Manual.md` cut into pages at its `##` headings (searchable), plus a shortcuts page generated from the command list. Edit the manual there; `HelpTests` checks that the keys it names match the menus. Not an Apple Help Book: those need an indexed bundle that the Help Viewer caches and does not reliably open for unnotarised apps |
 | Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer template/size/width, remote pictures (off by default), status bar, distraction-free behaviour |
 
 Original design intent is in `plan/PLAN.md` (historical: some details have moved on) and `plan/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Viewer/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.

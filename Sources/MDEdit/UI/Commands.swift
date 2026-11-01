@@ -91,6 +91,9 @@ struct AppCommands: Commands {
         CommandGroup(after: .newItem) { items(all, .fileMore) }
         CommandGroup(after: .sidebar) { items(all, .view) }
         CommandMenu("Format") { items(all, .format) }
+        CommandGroup(replacing: .help) {
+            Button("MDEdit Help") { openWindow(id: "help") }.keyboardShortcut("?", modifiers: .command)
+        }
     }
 
     @ViewBuilder private func items(_ all: [Cmd], _ place: Cmd.Place) -> some View {

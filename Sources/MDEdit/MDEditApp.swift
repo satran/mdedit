@@ -17,6 +17,10 @@ struct MDEditApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 820)
         .commands { AppCommands(prefs: prefs) }
+        Window("MDEdit Help", id: "help") {
+            HelpView().environmentObject(prefs)
+        }
+        .defaultSize(width: 900, height: 680)
         Settings {
             SettingsView().environmentObject(prefs)
         }
