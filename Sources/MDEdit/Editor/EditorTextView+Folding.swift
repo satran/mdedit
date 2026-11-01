@@ -255,9 +255,12 @@ extension EditorTextView: NSLayoutManagerDelegate {
 
     // MARK: the chevron and the ellipsis
 
-    private var chevronX: CGFloat {
-        let o = textContainerOrigin.x
-        return o >= 22 ? o - 15 : o + 1
+    /// The chevron sits just left of the marker that hangs in the margin (the `#` or the bullet), so it is always next to
+    /// what it folds, whatever the width of the window.
+    private func chevronX(for first: Int) -> CGFloat {
+        guard let lm = layoutManager else { return textContainerOrigin.x }
+        let markerLeft = lm.location(forGlyphAt: first).x + lm.lineFragmentRect(forGlyphAt: first, effectiveRange: nil).minX
+        return max(2, textContainerOrigin.x + markerLeft - 20)
     }
 
     /// Where the chevron of a block sits, and (for a folded block) the ellipsis after its header. nil when not laid out or hidden.
@@ -267,7 +270,7 @@ extension EditorTextView: NSLayoutManagerDelegate {
         let first = lm.glyphIndexForCharacter(at: b.header.location)
         guard first < lm.numberOfGlyphs else { return nil }
         let used = lm.lineFragmentUsedRect(forGlyphAt: first, effectiveRange: nil)
-        let chevron = NSRect(x: chevronX - 3, y: used.midY + origin.y - 8, width: 16, height: 16)
+        let chevron = NSRect(x: chevronX(for: first) - 3, y: used.midY + origin.y - 8, width: 16, height: 16)
         guard isFolded(b) else { return (chevron, nil, .zero) }
         let g = lm.glyphRange(forCharacterRange: b.header, actualCharacterRange: nil)
         let last = max(first, NSMaxRange(g) - 1)
@@ -291,7 +294,7 @@ extension EditorTextView: NSLayoutManagerDelegate {
             let b = fold.blocks[i]; i += 1
             guard let geo = foldGeometry(b) else { continue }
             let folded = isFolded(b), hot = fold.hover == b.header.location
-            let alpha: CGFloat = hot ? 0.95 : folded ? 0.7 : 0.3
+            let alpha: CGFloat = hot ? 1 : folded ? 0.9 : 0.55
             let r = geo.chevron.insetBy(dx: 4, dy: 4)                  // an 8 pt box
             let path = NSBezierPath()
             if folded {
@@ -300,7 +303,7 @@ extension EditorTextView: NSLayoutManagerDelegate {
                 path.move(to: NSPoint(x: r.minX, y: r.minY + 2)); path.line(to: NSPoint(x: r.midX, y: r.minY + 6)); path.line(to: NSPoint(x: r.maxX, y: r.minY + 2))
             }
             path.lineWidth = 1.4; path.lineCapStyle = .round; path.lineJoinStyle = .round
-            Palette.marker.withAlphaComponent(alpha).setStroke()
+            Palette.muted.withAlphaComponent(alpha).setStroke()
             path.stroke()
             if folded {
                 ("…" as NSString).draw(at: geo.ellipsisOrigin, withAttributes: [.font: baseFont, .foregroundColor: Palette.marker.withAlphaComponent(hot ? 0.95 : 0.7)])

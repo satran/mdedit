@@ -18,7 +18,8 @@ final class Workspace: ObservableObject {
     @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
     @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
     @Published var binderVisible: Bool
-    @Published var paletteVisible = false
+    /// Closing the palette gives the keyboard back to the note, so the caret is not left without a home.
+    @Published var paletteVisible = false { didSet { if oldValue, !paletteVisible, mode == .write { DispatchQueue.main.async { [weak self] in self?.focusEditor() } } } }
     /// Set by "Search Binder"; the binder's search field takes it when it can.
     @Published var wantsSearchFocus = false
     /// Set when the binder is shown; the list takes the keyboard focus.

@@ -159,6 +159,8 @@ struct MarkdownTextEditor: NSViewRepresentable {
             let indent: String
             if let m = ListMarker(line: line) { indent = String(repeating: " ", count: (m.prefix as NSString).length) }
             else if line.hasPrefix("> ") { indent = "> " }
+            // a continuation line (already indented under an item, with no marker of its own) keeps its indentation
+            else if line.first == " " || line.first == "\t" { indent = String(line.prefix { $0 == " " || $0 == "\t" }) }
             else { return false }
             guard caret >= para.location + (indent as NSString).length else { return false }
             tv.insertText("\n" + indent, replacementRange: tv.selectedRange())

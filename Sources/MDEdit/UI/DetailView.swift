@@ -128,7 +128,7 @@ struct DetailView: View {
             if document.url != nil {
                 if ws.mode == .write {
                     IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
-                    IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle() }
+                    IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle(); DispatchQueue.main.async { ws.focusEditor() } }
                         .foregroundStyle(Color(ws.typewriter ? Palette.link : Palette.muted))
                 } else {
                     IconButton(symbol: "printer", label: "Print") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }

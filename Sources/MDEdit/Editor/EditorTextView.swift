@@ -19,7 +19,7 @@ final class EditorTextView: NSTextView {
     /// Turns files dropped on the editor into Markdown (copying them in first); empty means nothing was done.
     var dropText: (([URL]) -> String)?
     /// Keeps the line being written in the middle of the pane.
-    var typewriter = false { didSet { if typewriter != oldValue { updateInsets(); if typewriter { centerCaret(); DispatchQueue.main.async { [weak self] in if self?.typewriter == true { self?.centerCaret() } } } } } }
+    var typewriter = false { didSet { if typewriter != oldValue { typewriterChanged() } } }
     /// Everything but the paragraph being written is dimmed.
     var focusDim = false { didSet { if focusDim != oldValue { restyle() } } }
     private(set) var isRestyling = false
@@ -91,6 +91,7 @@ final class EditorTextView: NSTextView {
         paneObserver = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
             guard let self, self.typewriter else { return }
             self.updateInsets()
+            self.fitToContent()
         }
     }
 
@@ -99,9 +100,9 @@ final class EditorTextView: NSTextView {
         updateInsets()
     }
 
-    /// Scrolls so the caret's line is in the vertical middle of the pane.
-    func centerCaret() {
-        guard let lm = layoutManager, let tc = textContainer, let scroll = enclosingScrollView else { return }
+    /// The caret's line in the text view's own coordinates (its vertical middle).
+    private func caretMidY() -> CGFloat {
+        guard let lm = layoutManager, let tc = textContainer else { return 0 }
         lm.ensureLayout(for: tc)
         let loc = selectedRange().location
         var rect = NSRect.zero
@@ -111,15 +112,74 @@ final class EditorTextView: NSTextView {
         } else {
             rect = lm.lineFragmentRect(forGlyphAt: lm.glyphIndexForCharacter(at: loc), effectiveRange: nil)
         }
+        return rect.midY + textContainerOrigin.y
+    }
+
+    /// Makes the view exactly as tall as its text and padding (and never shorter than the pane). A text view only grows
+    /// by itself, so after the padding shrinks it would stay tall, and the pane could sit scrolled over empty space.
+    func fitToContent() {
+        guard let lm = layoutManager, let tc = textContainer else { return }
+        lm.ensureLayout(for: tc)
+        let pane = enclosingScrollView?.contentSize.height ?? 0
+        let h = max(lm.usedRect(for: tc).maxY + 2 * textContainerInset.height, pane)
+        if abs(frame.height - h) > 0.5 { setFrameSize(NSSize(width: frame.width, height: h)) }
+    }
+
+    /// Turning typewriter mode on centres the caret; turning it off keeps the caret where it was on the screen.
+    /// Either way the caret ends up in view, and the pane moves no more than it has to.
+    private func typewriterChanged() {
+        guard let scroll = enclosingScrollView else { updateInsets(); return }
         let clip = scroll.contentView
-        // The text view's frame may not have grown for the new insets yet, so size the document from the layout.
-        let docHeight = max(frame.height, lm.usedRect(for: tc).maxY + 2 * textContainerInset.height)
-        let maxY = max(0, docHeight - clip.bounds.height)
-        let y = min(maxY, max(0, rect.midY + textContainerOrigin.y - clip.bounds.height / 2))
+        let before = caretMidY() - clip.bounds.origin.y           // where the caret is on the screen now
+        updateInsets()
+        fitToContent()
+        if typewriter {
+            centerCaret()
+            DispatchQueue.main.async { [weak self] in if self?.typewriter == true { self?.fitToContent(); self?.centerCaret() } }
+        } else {
+            scrollCaret(toScreenY: before)
+        }
+        updateInsertionPointStateAndRestartTimer(true)
+        needsDisplay = true
+    }
+
+    /// Scrolls so the caret's line is at `y` from the top of the pane if the document allows, and always in view.
+    private func scrollCaret(toScreenY y: CGFloat) {
+        guard let scroll = enclosingScrollView else { return }
+        let clip = scroll.contentView
+        let caret = caretMidY()
+        let maxOrigin = max(0, frame.height - clip.bounds.height)
+        var origin = min(maxOrigin, max(0, caret - y))
+        // a caret near the edge of the pane is brought a little way in
+        let margin = min(60, clip.bounds.height / 4)
+        if caret - origin < margin { origin = max(0, caret - margin) }
+        if caret - origin > clip.bounds.height - margin { origin = min(maxOrigin, caret - clip.bounds.height + margin) }
+        guard abs(clip.bounds.origin.y - origin) > 0.5 else { return }
+        clip.scroll(to: NSPoint(x: 0, y: origin))
+        scroll.reflectScrolledClipView(clip)
+    }
+
+    /// Scrolls so the caret's line is in the vertical middle of the pane.
+    func centerCaret() {
+        guard let scroll = enclosingScrollView else { return }
+        let clip = scroll.contentView
+        fitToContent()
+        let maxY = max(0, frame.height - clip.bounds.height)
+        let y = min(maxY, max(0, caretMidY() - clip.bounds.height / 2))
         guard abs(clip.bounds.origin.y - y) > 1 else { return }
-        if frame.height < docHeight { setFrameSize(NSSize(width: frame.width, height: docHeight)) }
         clip.scroll(to: NSPoint(x: 0, y: y))
         scroll.reflectScrolledClipView(clip)
+    }
+
+    // MARK: Shift-Return
+
+    /// Shift-Return arrives at a text view as a plain Return (`insertNewline:`), so the list code could not tell the two apart.
+    /// In a list item it continues the same item, indented under its text; elsewhere it behaves as Return.
+    override func keyDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if (event.keyCode == 36 || event.keyCode == 76), flags.contains(.shift), !flags.contains(.command), !hasMarkedText(),
+           let coordinator = delegate as? MarkdownTextEditor.Coordinator, coordinator.softBreak(self) { return }
+        super.keyDown(with: event)
     }
 
     // MARK: styling
