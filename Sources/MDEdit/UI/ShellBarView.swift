@@ -10,13 +10,16 @@ struct ShellBarView: View {
     @State private var history: [String] = []
     @FocusState private var focused: Bool
 
-    private enum Pick: Hashable { case script(String), recent(String) }
+    enum Pick: Hashable { case script(String), recent(String) }
 
-    private var picks: [Pick] {
+    /// Saved scripts first (all of them, up to 20), then the most recent commands (up to 8); typed words narrow both.
+    static func picks(scripts: [String], history: [String], query: String) -> [Pick] {
         let words = query.lowercased().split(separator: " ")
         func hit(_ s: String) -> Bool { words.allSatisfy { s.lowercased().contains($0) } }
-        return Array((scripts.filter(hit).map(Pick.script) + history.reversed().filter(hit).map(Pick.recent)).prefix(8))
+        return scripts.filter(hit).prefix(20).map(Pick.script) + history.reversed().filter(hit).prefix(8).map(Pick.recent)
     }
+
+    private var picks: [Pick] { Self.picks(scripts: scripts, history: history, query: query) }
 
     var body: some View {
         let list = picks, running = ws.shellJob != nil
@@ -34,7 +37,7 @@ struct ShellBarView: View {
                     .onChange(of: query) { _, _ in selected = nil }
                 if running {
                     ProgressView().controlSize(.small)
-                    Button("Cancel") { ws.cancelShell() }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Color(Palette.link))
+                    Button("Cancel") { ws.cancelShell() }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Color(Palette.link)).pointerCursor()
                 }
             }
             .padding(.horizontal, 9).frame(height: 30)
@@ -46,14 +49,14 @@ struct ShellBarView: View {
                         Text(d.title).font(.system(size: 12)).frame(maxWidth: .infinity, minHeight: 22)
                             .background(RoundedRectangle(cornerRadius: 6).fill(ws.shellDestination == d ? Color(Palette.segmentOn) : .clear))
                             .foregroundStyle(Color(ws.shellDestination == d ? Palette.binderText : Palette.segmentText))
-                    }.buttonStyle(.plain).disabled(running)
+                    }.buttonStyle(.plain).disabled(running).pointerCursor()
                 }
             }
             .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
             Text(running ? "Running… ⎋ cancels" : ws.shellDestination.detail + ". The selection, or the whole note, goes in on stdin.")
                 .font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted)).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
             if !list.isEmpty && !running {
-                VStack(spacing: 0) {
+                ScrollView { VStack(spacing: 0) {
                     ForEach(Array(list.enumerated()), id: \.offset) { i, pick in
                         HStack(spacing: 6) {
                             switch pick {
@@ -69,8 +72,10 @@ struct ShellBarView: View {
                         .overlay(RoundedRectangle(cornerRadius: 6).stroke(i == selected ? Color(Palette.binderBorder) : .clear, lineWidth: 1))
                         .contentShape(Rectangle())
                         .onTapGesture { selected = i; submit(list) }
+                        .pointerCursor()
                     }
-                }
+                } }
+                .frame(maxHeight: 240)
             }
         }
         .padding(6)
@@ -130,9 +135,9 @@ struct ShellLogView: View {
                 }
                 Spacer(minLength: 8)
                 Button("Copy") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
-                    .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Color(Palette.link))
+                    .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Color(Palette.link)).pointerCursor()
                 Button { close() } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
-                    .buttonStyle(.plain).foregroundStyle(Color(Palette.muted)).accessibilityLabel("Close log")
+                    .buttonStyle(.plain).foregroundStyle(Color(Palette.muted)).accessibilityLabel("Close log").pointerCursor()
             }
             if let n = log.note { Text(n).font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted)) }
             ScrollView {
@@ -148,5 +153,17 @@ struct ShellLogView: View {
         .onExitCommand(perform: close)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Command log")
+    }
+}
+
+extension View {
+    /// The pointing hand over something clickable. The note under an overlay asks for an I-beam, so it is asked for twice.
+    func pointerCursor() -> some View {
+        onContinuousHover { phase in
+            if case .active = phase {
+                NSCursor.pointingHand.set()
+                DispatchQueue.main.async { NSCursor.pointingHand.set() }
+            }
+        }
     }
 }

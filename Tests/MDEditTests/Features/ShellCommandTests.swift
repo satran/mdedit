@@ -340,3 +340,27 @@ final class ShellCommandTests: XCTestCase {
         XCTAssertEqual(r.shellTimeout, 600); XCTAssertEqual(r.shellHistory, 0); XCTAssertLessThanOrEqual(r.shellEnvironment.count, 16 * 1024)
     }
 }
+
+/// The suggestions under the ⌘R box: saved scripts on top, then recent commands, newest first.
+final class ShellSuggestionTests: XCTestCase {
+    func testScriptsComeFirstThenRecentCommandsNewestFirst() {
+        let p = ShellBarView.picks(scripts: ["a.sh", "b.sh"], history: ["old", "newer", "newest"], query: "")
+        XCTAssertEqual(p, [.script("a.sh"), .script("b.sh"), .recent("newest"), .recent("newer"), .recent("old")])
+    }
+
+    func testTypedWordsNarrowBothAndManyCommandsNeverHideScripts() {
+        let history = (1...30).map { "echo \($0)" }
+        let p = ShellBarView.picks(scripts: ["tidy.sh", "export.sh"], history: history, query: "")
+        XCTAssertEqual(Array(p.prefix(2)), [.script("tidy.sh"), .script("export.sh")])
+        XCTAssertEqual(p.count, 2 + 8)
+        XCTAssertEqual(ShellBarView.picks(scripts: ["tidy.sh", "export.sh"], history: ["git status", "ls"], query: "ti"), [.script("tidy.sh")])
+        XCTAssertEqual(ShellBarView.picks(scripts: ["tidy.sh"], history: ["git status", "ls"], query: "GIT st"), [.recent("git status")])
+    }
+
+    func testScriptsAddedToTheFolderAreListed() throws {
+        let s = try Scratch([".mdedit/scripts/one.sh": "echo 1", "Note.md": "x"]); defer { s.remove() }
+        try s.write(".mdedit/history", "echo hi\n")
+        let p = ShellBarView.picks(scripts: ShellFiles.scripts(in: s.url), history: ShellFiles.history(in: s.url), query: "")
+        XCTAssertEqual(p, [.script("one.sh"), .recent("echo hi")])
+    }
+}
