@@ -376,7 +376,8 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(shortcuts["Heading 1"], "⌥⌘1"); XCTAssertEqual(shortcuts["Heading 6"], "⌥⌘6"); XCTAssertEqual(shortcuts["Body Text"], "⌥⌘0")
         XCTAssertEqual(shortcuts["Bulleted List"], "⇧⌘8"); XCTAssertEqual(shortcuts["Numbered List"], "⇧⌘7"); XCTAssertEqual(shortcuts["Task List"], "⇧⌘T")
         XCTAssertEqual(shortcuts["Quote"], "⇧⌘."); XCTAssertEqual(shortcuts["Code Block"], "⌥⌘K"); XCTAssertEqual(shortcuts["Horizontal Rule"], "⌥⌘-")
-        let found = PaletteView.filter(cmds, "heading").map(\.title)
+        // "Fold All Headings" and friends also match the word, so look for the six "Heading N" commands themselves
+        let found = PaletteView.filter(cmds, "heading").map(\.title).filter { $0.hasPrefix("Heading ") }
         XCTAssertEqual(found.count, 6)
     }
 
