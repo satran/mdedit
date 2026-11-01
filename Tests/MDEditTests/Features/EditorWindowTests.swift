@@ -202,46 +202,7 @@ final class EditorWindowTests: XCTestCase {
         XCTAssertTrue(w.firstResponder === tv, "the note has the keyboard again, so its caret shows")
     }
 
-    // MARK: fold chevrons
-
-    /// Dark pixels in a strip of the text view's left margin on the line that starts with `of`, left of where its hanging marker starts
-    /// (so the marker itself, the `#` or the bullet, is not counted).
-    private func ink(left of: String, in text: String, tv: EditorTextView, w: NSWindow) -> Int {
-        let lm = tv.layoutManager!
-        let r = (text as NSString).range(of: of)
-        let g = lm.glyphIndexForCharacter(at: r.location)
-        let frag = lm.lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
-        let markerLeft = tv.textContainerOrigin.x + frag.minX + lm.location(forGlyphAt: g).x
-        let strip = NSRect(x: 0, y: frag.minY + tv.textContainerOrigin.y, width: max(0, markerLeft - 2), height: frag.height)
-        guard strip.width > 4, let rep = tv.bitmapImageRepForCachingDisplay(in: tv.bounds) else { return 0 }
-        tv.cacheDisplay(in: tv.bounds, to: rep)
-        var count = 0
-        let scale = CGFloat(rep.pixelsWide) / tv.bounds.width
-        for px in Int(strip.minX * scale)..<Int(strip.maxX * scale) {
-            for py in Int(strip.minY * scale)..<min(rep.pixelsHigh, Int(strip.maxY * scale)) {
-                if let c = rep.colorAt(x: px, y: py)?.usingColorSpace(.sRGB), c.alphaComponent > 0.1, c.brightnessComponent < 0.85 { count += 1 }
-            }
-        }
-        return count
-    }
-
-    func testFoldableHeadingsAndListItemsShowAChevronAndOthersDoNot() {
-        let text = "# Title\nbody under the title\n\n## Sub\nmore body\n\n- item\n  - child\n\n## Empty\n"
-        let (w, tv, _, _) = make(text, size: NSSize(width: 1000, height: 700))
-        XCTAssertGreaterThan(ink(left: "# Title", in: text, tv: tv, w: w), 6, "a heading with text under it shows a chevron")
-        XCTAssertGreaterThan(ink(left: "## Sub", in: text, tv: tv, w: w), 6)
-        XCTAssertGreaterThan(ink(left: "- item", in: text, tv: tv, w: w), 6, "a list item with children shows one")
-        XCTAssertEqual(ink(left: "## Empty", in: text, tv: tv, w: w), 0, "a heading with nothing under it does not")
-        XCTAssertEqual(ink(left: "  - child", in: text, tv: tv, w: w), 0, "an item without children does not")
-    }
-
-    func testTheChevronIsVisibleInANarrowWindowToo() {
-        let text = "# Title\nbody\n"
-        let (w, tv, _, _) = make(text, size: NSSize(width: 520, height: 500))
-        XCTAssertGreaterThan(ink(left: "# Title", in: text, tv: tv, w: w), 6)
-    }
-
-    // MARK: folded text must not leave its styling behind
+    // MARK: code blocks are one tinted band
 
     /// The colour of the pixel at the right-hand end of the line that starts with `needle`, inside the text column.
     private func pixel(onLineStarting needle: String, text: String, tv: EditorTextView, fromRight inset: CGFloat) -> NSColor? {
@@ -256,27 +217,11 @@ final class EditorWindowTests: XCTestCase {
         return rep.colorAt(x: Int(x), y: Int(y))?.usingColorSpace(.sRGB)
     }
 
-    func testAFoldedHeadingDoesNotShowTheCodeBlockOrCodeChipsHiddenUnderIt() {
-        let text = "## Architecture\n\nprose with `inline code` here\n\n```swift\nlet hidden = 1\n```\n\n## Next\n\ntext\n"
+    func testACodeBlockHasItsBandAndOrdinaryTextHasNone() {
+        let text = "## Heading\n\nprose with `inline code` here\n\n```swift\nlet x = 1\n```\n\ntext\n"
         let (_, tv, _, _) = make(text, size: NSSize(width: 1000, height: 700))
-        // unfolded, the code block has its tinted band
-        let band = pixel(onLineStarting: "let hidden", text: text, tv: tv, fromRight: 30)
-        XCTAssertNotNil(band); XCTAssertGreaterThan(band!.alphaComponent, 0.9, "the band is drawn behind the code")
-        tv.setFolded([0], true); tv.layoutManager!.ensureLayout(for: tv.textContainer!)
-        tv.display()
-        let header = pixel(onLineStarting: "## Architecture", text: text, tv: tv, fromRight: 30)
-        XCTAssertNotNil(header)
-        XCTAssertEqual(header!.alphaComponent, 0, accuracy: 0.01, "nothing is painted behind the folded heading: no band from the code under it")
-        XCTAssertEqual(tv.string, text, "folding does not change the text")
-    }
-
-    func testFoldedHeadingKeepsTheHeadingLooksNotTheCodeLooks() {
-        let text = "## Architecture\n\n```swift\nlet hidden = 1\n```\n\n## Next\n\ntext\n"
-        let (_, tv, _, _) = make(text)
-        tv.setFolded([0], true)
-        let r = (text as NSString).range(of: "Architecture")
-        let colour = tv.textStorage!.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? NSColor
-        XCTAssertEqual(colour, Palette.strongText, "a heading stays in the heading colour whether folded or not")
-        XCTAssertNil(tv.textStorage!.attribute(.backgroundColor, at: r.location, effectiveRange: nil))
+        XCTAssertGreaterThan(pixel(onLineStarting: "let x", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 0, 0.9, "the band is drawn behind the code")
+        XCTAssertEqual(pixel(onLineStarting: "## Heading", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 1, 0, accuracy: 0.01, "nothing behind a heading")
+        XCTAssertEqual(pixel(onLineStarting: "text", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 1, 0, accuracy: 0.01, "nothing behind a paragraph")
     }
 }

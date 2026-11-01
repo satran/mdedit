@@ -27,8 +27,6 @@ final class EditorTextView: NSTextView {
     /// What is drawn behind the text: code blocks as one tinted band, inline code as chips.
     private var codeBlocks: [NSRange] = []
     private var inlineCode: [NSRange] = []
-    /// Folded headings and list items; see EditorTextView+Folding.swift.
-    let fold = FoldState()
 
     static let gutter: CGFloat = 72
     static let verticalInset: CGFloat = 48
@@ -282,7 +280,6 @@ final class EditorTextView: NSTextView {
         }
         storage.endEditing()
         if selectedRange() != selection { setSelectedRange(selection) }
-        applyFolding()
         typingAttributes = baseAttributes
         insertionPointColor = Palette.caret
         selectedTextAttributes = [.backgroundColor: Palette.selectionText]
@@ -332,7 +329,6 @@ final class EditorTextView: NSTextView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        drawFoldIndicators(dirtyRect)
         guard string.isEmpty, !placeholder.isEmpty, let container = textContainer else { return }
         let x = textContainerOrigin.x + container.lineFragmentPadding + Self.gutter
         (placeholder as NSString).draw(at: NSPoint(x: x, y: textContainerOrigin.y), withAttributes: [.font: baseFont, .foregroundColor: Palette.marker])
@@ -347,8 +343,7 @@ final class EditorTextView: NSTextView {
         let origin = textContainerOrigin, ch = charWidth
         let columnLeft = origin.x + Self.gutter, columnWidth = max(0, tc.size.width - Self.gutter)
         Palette.codeBand.setFill()
-        // text folded away has no height: a band or chip for it would be drawn over the line that folds it
-        for r in codeBlocks where NSMaxRange(r) <= (string as NSString).length && !Folding.contains(r.location, in: fold.hidden) {
+        for r in codeBlocks where NSMaxRange(r) <= (string as NSString).length {
             let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
             var union = NSRect.null
             lm.enumerateLineFragments(forGlyphRange: g) { frag, _, _, _, _ in union = union.union(frag) }
@@ -358,7 +353,7 @@ final class EditorTextView: NSTextView {
         }
         Palette.inlineCode.setFill()
         let natural = baseFont.ascender - baseFont.descender
-        for r in inlineCode where NSMaxRange(r) <= (string as NSString).length && !Folding.contains(r.location, in: fold.hidden) {
+        for r in inlineCode where NSMaxRange(r) <= (string as NSString).length {
             let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
             lm.enumerateEnclosingRects(forGlyphRange: g, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: tc) { box, _ in
                 let chip = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)
@@ -383,7 +378,6 @@ final class EditorTextView: NSTextView {
     // MARK: ticking boxes and opening links
 
     override func mouseDown(with event: NSEvent) {
-        if foldMouseDown(event) { return }
         let point = convert(event.locationInWindow, from: nil)
         let idx = characterIndexForInsertion(at: point)
         let ns = string as NSString

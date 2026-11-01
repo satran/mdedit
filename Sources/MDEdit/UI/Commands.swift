@@ -60,13 +60,6 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "typewriter", title: ws?.typewriter == true ? "Turn Off Typewriter Mode" : "Typewriter Mode", place: .view, key: "t", modifiers: [.command, .control], enabled: ws != nil) { ws?.typewriter.toggle() },
         Cmd(id: "palette", title: "Command Palette…", place: .view, key: "p", modifiers: [.command, .shift], enabled: ws != nil, dividerBefore: true) { ws?.paletteVisible.toggle() },
 
-        // folding (Write mode)
-        Cmd(id: "fold", title: "Fold", place: .view, key: "[", modifiers: [.command, .option], enabled: ws?.mode == .write, dividerBefore: true) { ws?.editor.textView?.foldAtCaret() },
-        Cmd(id: "unfold", title: "Unfold", place: .view, key: "]", modifiers: [.command, .option], enabled: ws?.mode == .write) { ws?.editor.textView?.unfoldAtCaret() },
-        Cmd(id: "fold-toggle-all", title: "Fold or Unfold All Headings", place: .view, key: "\\", modifiers: [.command, .option], enabled: ws?.mode == .write) { ws?.editor.textView?.toggleFoldAll() },
-        Cmd(id: "fold-all", title: "Fold All Headings", enabled: ws?.mode == .write) { ws?.editor.textView?.foldAll() },
-        Cmd(id: "unfold-all", title: "Unfold All", enabled: ws?.mode == .write) { ws?.editor.textView?.unfoldAll() },
-
         // only in the palette
         Cmd(id: "reveal", title: "Reveal Folder in Finder", enabled: hasRoot) { ws?.revealInFinder() },
         Cmd(id: "collapse", title: "Collapse All Folders", enabled: hasRoot) { ws?.collapseAll() },

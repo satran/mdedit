@@ -1,6 +1,6 @@
 # MDEdit
 
-A native macOS Markdown editor and reader, written in SwiftUI + AppKit. It opens a **folder** as a project (the *binder*, a tree like Scrivener's), edits notes in a live-styled monospaced **Write** mode, and shows them typeset in a serif or sans **View** mode. Wiki links (`[[Note]]`), GitHub-flavoured Markdown, front matter as a properties table, folding, formatting shortcuts, a command palette, and several windows (one folder each).
+A native macOS Markdown editor and reader, written in SwiftUI + AppKit. It opens a **folder** as a project (the *binder*, a tree like Scrivener's), edits notes in a live-styled monospaced **Write** mode, and shows them typeset in a serif or sans **View** mode. Wiki links (`[[Note]]`), GitHub-flavoured Markdown, front matter as a properties table, formatting shortcuts, a command palette, and several windows (one folder each).
 
 The notes are plain `.md` / `.txt` files on disk. **The app is meant to hold important documents, so stability, speed and safety come before features.** Read [Rules for changes](#rules-for-changes) before editing.
 
@@ -38,7 +38,6 @@ make coverage                  # per-file line coverage of the last test run
 | View mode | Typeset reading templates: **Serif** (Literata 20 px) and **Sans** (Inter 18 px), switch in the footer; configurable line width; real punctuation (curly quotes, dashes, ellipses) in the viewer only; front matter as a Properties card; local images centred; links open through `LinkPolicy` |
 | Wiki links | `[[Note]]`, `[[Note\|alias]]`, `[[Note#Heading]]`, `[[folder/Note]]`; nearest-folder resolution; completion after `[[`; backlinks and outline in the right panel |
 | Formatting | Format menu + shortcuts: bold ⌘B, italic ⌘I, link ⌘K, code ⌘E, headings ⌥⌘1–6, lists, task, quote, code block, rule (all toggle) |
-| Folding | Chevron in the margin folds a heading's section or a list item's children; ⌥⌘[ fold, ⌥⌘] unfold, ⌥⌘\ all |
 | Modes | Typewriter (caret line stays centred), Distraction free (full screen or in-window, setting), Outline panel |
 | Windows | One window per folder (no tabs); File ▸ Open Recent; "New Window with This Folder" |
 | Command palette | ⇧⌘P: every menu command, built from the same list as the menus |
@@ -72,12 +71,10 @@ Sources/MDEdit/
   Syntax/                  Pure text logic, no UI
     MarkdownSyntax.swift   Line/inline analyser for the editor (spans, hanging-marker lines)
     MarkdownLimits.swift   Clamps nesting/line length BEFORE any parser runs (stack-overflow guard)
-    Folding.swift          Which blocks are foldable and what range folding hides
     FrontMatter.swift, ListMarker.swift
   Editor/                  Write mode (TextKit 1)
     EditorTextView.swift   NSTextView subclass: styling (restyle()), hanging markers, drawing (code bands, caret),
                            typewriter, drops, Shift-Return, mouse
-    EditorTextView+Folding.swift   Hidden glyphs (NSLayoutManagerDelegate), chevrons, fold tracking
     MarkdownTextEditor.swift       NSViewRepresentable + Coordinator (Return/Tab/Backspace list behaviour, selection), EditorBridge
     MarkdownFormatting.swift       PURE format transformations (text + selection -> edit); EditorFormatting.swift applies them
   Viewer/                  View mode (SwiftUI)
@@ -97,8 +94,8 @@ Key ideas:
 
 - **One `Workspace` per window**, created in `WindowRoot` and shared with menus via `.focusedSceneObject`. Per-window state is keyed by a window id in `UserDefaults` (`folderBookmark.<uuid>`, `lastFile.<uuid>`); `id == nil` is the original single-window state.
 - **One command list.** `makeCommands(...)` in `UI/Commands.swift` returns `[Cmd]` (id, title, shortcut, enabled, action). `AppCommands` builds the **menu bar** from it and `PaletteView` builds the **command palette** from it. Add a command once; it appears in both. `AppFeatureTests` fails if two commands share a shortcut or use a system one.
-- **Editor = TextKit 1.** `EditorTextView.restyle()` re-styles the whole text on every edit (notes are short; hostile/huge input is capped). Markers hang by giving list/heading lines a negative first-line indent into a 72 pt gutter. Code bands and inline-code chips are **drawn** in `drawBackground`, not set as text backgrounds. Folding hides glyphs by marking them `.null` in the layout-manager delegate.
-- **Pure logic is separated and tested directly**: `MarkdownFormatting`, `Folding`, `MarkdownSyntax`, `LinkPolicy`, `ViewerStyle`, `SafeHTML`. Prefer adding logic there over inside views.
+- **Editor = TextKit 1.** `EditorTextView.restyle()` re-styles the whole text on every edit (notes are short; hostile/huge input is capped). Markers hang by giving list/heading lines a negative first-line indent into a 72 pt gutter. Code bands and inline-code chips are **drawn** in `drawBackground`, not set as text backgrounds.
+- **Pure logic is separated and tested directly**: `MarkdownFormatting`, `MarkdownSyntax`, `LinkPolicy`, `ViewerStyle`, `SafeHTML`. Prefer adding logic there over inside views.
 - **Viewer** is SwiftUI `Text` blocks; selection is enabled, which makes macOS draw an I-beam over links, so `LinkCursor` hit-tests links with TextKit and sets the pointing hand.
 - **Sandbox + security-scoped bookmarks.** The opened folder is reached through a bookmark (`NSOpenPanel` pick, or Open Recent). Anything that creates a bookmark from a URL must have **access open** (`startAccessingSecurityScopedResource`) — or reuse the saved bookmark data (see `Workspace.openRecent`).
 - Settings live in `Preferences` (`UserDefaults`); `AppEnvironment.defaults` is the scratch domain used under XCTest so a test run never touches your real folders, recents or preferences.
@@ -111,7 +108,7 @@ About 320 tests, ~100 s. `make test` must pass before any change is called done.
 
 | Folder | Purpose |
 |---|---|
-| `Features/` | One test per user-visible feature (formatting, folding, typewriter, typography numbers, Open Recent, editor behaviour, **EditorWindowTests**) |
+| `Features/` | One test per user-visible feature (formatting, typewriter, typography numbers, Open Recent, editor behaviour, **EditorWindowTests**) |
 | `Safety/` | Files are never changed unless the user changed them; fuzzing; hostile input must not hang or crash |
 | `Security/` | Link policy, exported-HTML escaping, entitlements |
 | `Performance/` | Loose time budgets that catch order-of-magnitude slowdowns |
@@ -147,7 +144,6 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 - **Shift-Return** arrives as `insertNewline:` (same as Return). `EditorTextView.keyDown` intercepts Shift/Enter and calls `Coordinator.softBreak` (plain new line + the line's existing indentation only).
 - **Typewriter mode** changes the text view's top/bottom padding to half the pane; a text view only *grows* by itself, so `fitToContent()` resizes it explicitly and `typewriterChanged()` keeps the caret's screen position when turning it off.
 - **Closing the command palette** returns the keyboard to the editor (`Workspace.paletteVisible` didSet) — otherwise the caret disappears.
-- **Folded text has no height**: anything drawn per range (code bands, chips) must skip `fold.hidden` ranges.
 - `NSTextView.drawBackground` is where bands/chips are drawn; `needsDisplay` is set at the end of `restyle()`.
 - **Window buttons**: `TrafficLights` repositions the three buttons after every window update (AppKit resets them on appearance change).
 - `swift-markdown`'s `Document(parsing:)` enables smart punctuation by default; the viewer passes `.disableSmartOpts` and applies its own `SmartPunctuation` so code, URLs and front matter are untouched.
