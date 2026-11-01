@@ -178,3 +178,14 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 | The binder, files, drops | `Model/Workspace.swift`, `Model/BinderNode.swift`, `UI/BinderView.swift` |
 | Windows, recents, bookmarks | `MDEditApp.swift`, `Model/Workspace.swift`, `Model/RecentFolders.swift` |
 | Anything touching untrusted input | `Model/LinkPolicy.swift`, `Model/SafeHTML.swift`, `Syntax/MarkdownLimits.swift`, `Security/` tests |
+
+## Releasing
+
+`make release` audits the app and writes `build/MDEdit-<version>.dmg` (version from `MARKETING_VERSION` in `project.yml`; bump it, and `CURRENT_PROJECT_VERSION`, first).
+
+| Command | Result | Runs on |
+| --- | --- | --- |
+| `make release` | ad hoc signed | your own Macs; on another Mac the first launch needs right-click ▸ Open (or `xattr -dr com.apple.quarantine /Applications/MDEdit.app`) |
+| `make release SIGN="Developer ID Application: Name (TEAMID)" NOTARY=profile` | signed, notarised, stapled | any Mac, no warning (needs the paid Apple Developer Program; make the profile once with `xcrun notarytool store-credentials profile`) |
+
+The Mac App Store is a separate path: an "Apple Distribution" certificate, an app record in App Store Connect, a signed `.pkg` (`productbuild`) uploaded with Transporter. The app is already sandboxed with only the entitlements the store allows.
