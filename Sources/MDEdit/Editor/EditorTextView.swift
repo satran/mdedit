@@ -16,6 +16,8 @@ final class EditorTextView: NSTextView {
     var onOpenWiki: ((String) -> Void)?
     var wikiResolves: (String) -> Bool = { _ in true }
     var wikiNames: () -> [String] = { [] }
+    /// The list of notes shown while a `[[` link is typed.
+    lazy var wikiList: WikiCompletion = { let c = WikiCompletion(); c.textView = self; return c }()
     /// Where a request for the keyboard is kept; see `EditorBridge.requestFocus`.
     weak var bridge: EditorBridge?
     /// Turns files dropped on the editor into Markdown (copying them in first); empty means nothing was done.
@@ -430,7 +432,7 @@ final class EditorTextView: NSTextView {
     // MARK: [[ completion
 
     /// The text between an open "[[" and the caret, when the caret is inside one.
-    private var openWikiRange: NSRange? {
+    var openWikiRange: NSRange? {
         let ns = string as NSString
         let caret = selectedRange().location
         guard selectedRange().length == 0, caret >= 2 else { return nil }
@@ -442,32 +444,20 @@ final class EditorTextView: NSTextView {
         return NSRange(location: caret - (typed as Substring).utf16.count, length: (typed as Substring).utf16.count)
     }
 
-    override var rangeForUserCompletion: NSRange { openWikiRange ?? super.rangeForUserCompletion }
+    /// Set while a `[` is being typed (as opposed to deleted or pasted), so the list of notes opens only then.
+    private var typedBracket = false
 
-    override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
-        guard openWikiRange != nil else { return super.completions(forPartialWordRange: charRange, indexOfSelectedItem: index) }
-        let typed = (string as NSString).substring(with: charRange).lowercased()
-        index.pointee = 0
-        let all = wikiNames()
-        let starts = all.filter { $0.lowercased().hasPrefix(typed) }
-        let contains = all.filter { !$0.lowercased().hasPrefix(typed) && $0.lowercased().contains(typed) }
-        return Array((starts + contains).prefix(12))
+    override func insertText(_ insertString: Any, replacementRange: NSRange) {
+        let s = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
+        typedBracket = s == "["
+        super.insertText(insertString, replacementRange: replacementRange)
     }
 
-    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
-        guard openWikiRange != nil || flag else { return super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag) }
-        // choosing a note closes the link; Esc leaves what was typed
-        let chosen = movement == NSCancelTextMovement ? nil : word
-        guard flag, let chosen else { return super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag) }
-        let ns = string as NSString
-        let after = NSMaxRange(charRange) + 2 <= ns.length ? ns.substring(with: NSRange(location: NSMaxRange(charRange), length: 2)) : ""
-        super.insertCompletion(after == "]]" ? chosen : chosen + "]]", forPartialWordRange: charRange, movement: movement, isFinal: flag)
-    }
-
-    /// Called after typing: a second "[" opens the list of notes.
-    func offerNotesIfTypingLink() {
-        guard let r = openWikiRange, r.length == 0 else { return }
-        DispatchQueue.main.async { [weak self] in self?.complete(nil) }
+    /// The list of notes follows the text: opened by a second "[", filtered by what is typed, closed when the link is.
+    func updateWikiCompletion() {
+        let typed = typedBracket
+        typedBracket = false
+        wikiList.update(justTypedBracket: typed)
     }
 
     // MARK: dropped files

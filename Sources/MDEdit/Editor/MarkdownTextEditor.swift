@@ -103,16 +103,18 @@ struct MarkdownTextEditor: NSViewRepresentable {
             tv.restyle()
             parent.text = tv.string
             tv.needsDisplay = true
-            tv.offerNotesIfTypingLink()
+            tv.updateWikiCompletion()
         }
 
         func textViewDidChangeSelection(_ n: Notification) {
             guard let tv = n.object as? EditorTextView, !tv.isRestyling else { return }
             if tv.focusDim { tv.restyle() }
+            if tv.wikiList.isOpen { tv.updateWikiCompletion() }
             if tv.typewriter { DispatchQueue.main.async { tv.centerCaret() } }
         }
 
         func textView(_ tv: NSTextView, doCommandBy sel: Selector) -> Bool {
+            if let editor = tv as? EditorTextView, editor.wikiList.handle(sel) { return true }
             switch sel {
             case #selector(NSResponder.cancelOperation(_:)):
                 if parent.onEscape?() == true { return true }
