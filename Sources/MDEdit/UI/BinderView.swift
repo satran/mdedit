@@ -7,13 +7,20 @@ struct BinderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            WindowDragArea().frame(height: Metrics.headerHeight)
-            if let root = ws.rootURL {
-                Text(root.lastPathComponent).font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1).truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18).padding(.bottom, 10)
+            // the folder's name sits in the title row, to the right of the traffic lights: small capitals, quiet
+            ZStack(alignment: .leading) {
+                WindowDragArea()
+                if let root = ws.rootURL {
+                    Text(Self.headerTitle(root))
+                        .font(.system(size: 11, weight: .semibold)).tracking(0.7)
+                        .foregroundStyle(Color(Palette.muted).opacity(0.8))
+                        .lineLimit(1).truncationMode(.middle)
+                        .padding(.leading, Self.titleInset).padding(.trailing, 14)
+                        .allowsHitTesting(false)                // a drag on the name still moves the window
+                        .accessibilityLabel("Folder: \(root.lastPathComponent)")
+                }
             }
+            .frame(height: Metrics.headerHeight)
             searchField
             if ws.root == nil { emptyState } else { tree }
             footer
@@ -37,6 +44,11 @@ struct BinderView: View {
             DispatchQueue.main.async { treeFocused = true }
         }
     }
+
+    /// Room for the three traffic lights (they start 20 pt in and take about 52 pt) and a gap.
+    static let titleInset: CGFloat = 92
+
+    static func headerTitle(_ folder: URL) -> String { folder.lastPathComponent.uppercased() }
 
     private var searchField: some View {
         HStack(spacing: 6) {

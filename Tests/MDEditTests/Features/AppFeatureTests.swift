@@ -287,4 +287,10 @@ final class AppFeatureTests: XCTestCase {
         QuickView.shared.hide()
         XCTAssertFalse(QuickView.shared.isShowing)
     }
+
+    func testTheBinderTitleIsTheFolderNameInCapitals() {
+        XCTAssertEqual(BinderView.headerTitle(URL(fileURLWithPath: "/Users/me/notes")), "NOTES")
+        XCTAssertEqual(BinderView.headerTitle(URL(fileURLWithPath: "/Users/me/My Écrits")), "MY ÉCRITS")
+        XCTAssertGreaterThan(BinderView.titleInset, 72, "it starts to the right of the traffic lights")
+    }
 }
