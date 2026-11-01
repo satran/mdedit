@@ -108,7 +108,7 @@ struct BlockView: View {
         case .list(let ordered, let start, let items):
             VStack(alignment: .leading, spacing: style.itemGap) {
                 ForEach(Array(items.enumerated()), id: \.offset) { i, item in
-                    HStack(alignment: .top, spacing: 0) {
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
                         marker(ordered: ordered, number: start + i, item: item)
                         BlockList(blocks: item.blocks, prefs: prefs, baseURL: baseURL, textSize: textSize, leading: leading, ink: ink)
                             .strikethrough(item.checkbox == true)
@@ -146,24 +146,26 @@ struct BlockView: View {
         return max(0, style.codeSize * style.codeLeading - (f.ascender - f.descender + f.leading))
     }
 
-    /// Serif: a bullet 0.2 em in. Sans: a 5 px dot, centred on the first line. Numbers and task boxes sit in the same gutter.
+    /// Markers hang on the first line's baseline, so they track the text in every font. Serif: a bullet 0.2 em in.
+    /// Sans: a 5 px dot centred on the x-height. Numbers and task boxes sit in the same gutter.
     @ViewBuilder private func marker(ordered: Bool, number: Int, item: VItem) -> some View {
-        let lineH = size * lead
         if let on = item.checkbox {
             Image(systemName: on ? "checkmark.square.fill" : "square")
                 .font(.system(size: size * 0.8))
                 .foregroundStyle(on ? Color(Palette.green) : Color(Palette.muted))
-                .frame(width: style.itemIndent + size * 0.2, height: lineH, alignment: .leading)
+                .frame(width: style.itemIndent + size * 0.2, alignment: .leading)
                 .accessibilityLabel(on ? "Done" : "Not done")
         } else if ordered {
             Text("\(number).").font(style.font(size, figures: .table)).foregroundStyle(Color(style.bulletInk))
-                .frame(width: size * 1.7, alignment: .leading).frame(height: lineH, alignment: .center)
+                .frame(width: size * 1.7, alignment: .leading)
         } else if style.isSerif {
             Text("•").font(style.font(size)).foregroundStyle(Color(style.bulletInk))
-                .padding(.leading, size * 0.2).frame(width: style.itemIndent, height: lineH, alignment: .leading)
+                .padding(.leading, size * 0.2).frame(width: style.itemIndent, alignment: .leading)
         } else {
+            let middle = style.nsFont(size).xHeight / 2
             Circle().fill(Color(style.bulletInk)).frame(width: 5, height: 5)
-                .padding(.leading, size * 0.25).frame(width: style.itemIndent, height: lineH, alignment: .leading)
+                .alignmentGuide(.firstTextBaseline) { d in d.height / 2 + middle }
+                .padding(.leading, size * 0.25).frame(width: style.itemIndent, alignment: .leading)
         }
     }
 
