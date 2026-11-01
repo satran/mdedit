@@ -33,7 +33,7 @@ make coverage                  # per-file line coverage of the last test run
 
 | Area | What |
 |---|---|
-| Binder | Folder tree of the opened folder; folders first, natural order; `.md/.markdown/.txt` open as notes, other files show with their extension and preview in Quick Look (Space); search; rename (double click / ⌘R), move (drag), copy in (drop from Finder), trash; ↑↓←→ keyboard navigation; folder name shown beside the traffic lights |
+| Binder | Folder tree of the opened folder; folders first, natural order; `.md/.markdown/.txt` open as notes, other files show with their extension and preview in Quick Look (Space); search; rename (double click / ⌥⌘R), move (drag), copy in (drop from Finder), trash; ↑↓←→ keyboard navigation; folder name shown beside the traffic lights; Back (‹ in the header, ⌘[) returns to the previous note, up to 100 deep, skipping notes that were deleted |
 | Write mode | Live-styled Markdown in IBM Plex Mono 17 pt, 1.65 line height, 72-character column; markers (`#`, `>`, `-`) hang in a 72 pt left gutter; code blocks as one tinted band; front matter in three quiet shades; image / file drops become links |
 | View mode | Typeset reading templates: **Serif** (Literata 20 px) and **Sans** (Inter 18 px), switch in the footer; configurable line width; real punctuation (curly quotes, dashes, ellipses) in the viewer only; front matter as a Properties card; local images centred; links open through `LinkPolicy` |
 | Wiki links | `[[Note]]`, `[[Note\|alias]]`, `[[Note#Heading]]`, `[[folder/Note]]`; nearest-folder resolution; completion after `[[`; backlinks and outline in the right panel |

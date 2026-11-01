@@ -27,6 +27,8 @@ struct DetailView: View {
         HStack(spacing: 12) {
             IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
                 .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
+            IconButton(symbol: "chevron.left", label: "Back to previous note") { ws.goBack() }
+                .foregroundStyle(Color(Palette.muted)).opacity(ws.visited.isEmpty ? 0.35 : 1).disabled(ws.visited.isEmpty)
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
             IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
                 .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))

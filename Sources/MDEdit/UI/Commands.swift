@@ -51,6 +51,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
 
         Cmd(id: "shell", title: "Run Shell Command…", place: .fileMore, key: "r", enabled: hasDoc && ws?.mode == .write, dividerBefore: true) { ws?.openShellBar(prefs: prefs) },
 
+        Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "f", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
         Cmd(id: "outline", title: ws?.outlineVisible == true ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },

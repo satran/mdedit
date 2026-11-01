@@ -10,6 +10,8 @@ final class Workspace: ObservableObject {
     @Published private(set) var root: BinderNode?
     @Published var expanded: Set<URL> = [] { didSet { saveExpanded() } }
     @Published var selection: URL?
+    /// Notes opened before this one, oldest first; Back walks it from the end.
+    @Published private(set) var visited: [URL] = []
     @Published var search = ""
     /// Going back to Write gives the caret back to the note, so typing can start at once.
     @Published var mode: Mode = .write { didSet { if mode == .write, oldValue == .view { focusEditor() } } }
@@ -220,6 +222,7 @@ final class Workspace: ObservableObject {
         search = ""
         document.open(nil)
         selection = nil
+        visited = []
         expanded = Set((defaults.stringArray(forKey: expandedKey(url)) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         reload()
         watcher = FolderWatcher(url: url) { [weak self] in self?.reload() }
@@ -239,13 +242,28 @@ final class Workspace: ObservableObject {
 
     // MARK: selection
 
-    func select(_ url: URL) {
+    func select(_ url: URL) { select(url, recording: true) }
+
+    /// Back to the note that was open before this one. Notes that were deleted or renamed since are skipped.
+    func goBack() {
+        while let last = visited.popLast() {
+            guard root?.find(last)?.isDocument == true else { continue }
+            reveal(last); select(last, recording: false)
+            return
+        }
+    }
+
+    private func select(_ url: URL, recording: Bool) {
         selection = url
         guard let node = root?.find(url) else { return }
         if node.isFolder { toggle(url) }
         else if !node.isDocument { QuickView.shared.show(url) }
         else {
             QuickView.shared.hide()
+            if recording, let from = document.url, from.standardizedFileURL != url.standardizedFileURL, visited.last != from {
+                visited.append(from)
+                if visited.count > 100 { visited.removeFirst(visited.count - 100) }
+            }
             document.open(url)
             defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()
