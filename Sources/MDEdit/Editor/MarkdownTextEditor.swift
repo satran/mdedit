@@ -76,6 +76,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         if context.coordinator.linksVersion != linksVersion { context.coordinator.linksVersion = linksVersion; tv.restyle() }
         tv.style = style                                    // restyles itself when it changed
         let switched = context.coordinator.documentID != documentID
+        if switched { tv.fold.folded.removeAll() }           // folds belong to one note
         if tv.string != text || switched {
             tv.string = text
             tv.restyle()

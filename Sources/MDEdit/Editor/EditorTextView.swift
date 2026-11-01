@@ -27,6 +27,8 @@ final class EditorTextView: NSTextView {
     /// What is drawn behind the text: code blocks as one tinted band, inline code as chips.
     private var codeBlocks: [NSRange] = []
     private var inlineCode: [NSRange] = []
+    /// Folded headings and list items; see EditorTextView+Folding.swift.
+    let fold = FoldState()
 
     static let gutter: CGFloat = 72
     static let verticalInset: CGFloat = 48
@@ -220,6 +222,7 @@ final class EditorTextView: NSTextView {
         }
         storage.endEditing()
         if selectedRange() != selection { setSelectedRange(selection) }
+        applyFolding()
         typingAttributes = baseAttributes
         insertionPointColor = Palette.caret
         selectedTextAttributes = [.backgroundColor: Palette.selectionText]
@@ -269,6 +272,7 @@ final class EditorTextView: NSTextView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        drawFoldIndicators(dirtyRect)
         guard string.isEmpty, !placeholder.isEmpty, let container = textContainer else { return }
         let x = textContainerOrigin.x + container.lineFragmentPadding + Self.gutter
         (placeholder as NSString).draw(at: NSPoint(x: x, y: textContainerOrigin.y), withAttributes: [.font: baseFont, .foregroundColor: Palette.marker])
@@ -318,6 +322,7 @@ final class EditorTextView: NSTextView {
     // MARK: ticking boxes and opening links
 
     override func mouseDown(with event: NSEvent) {
+        if foldMouseDown(event) { return }
         let point = convert(event.locationInWindow, from: nil)
         let idx = characterIndexForInsertion(at: point)
         let ns = string as NSString
