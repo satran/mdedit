@@ -218,4 +218,40 @@ final class WikiCompletionTests: XCTestCase {
         let edge = NSRect(x: visible.maxX - 5, y: visible.maxY - 100, width: 0, height: 20)
         XCTAssertLessThanOrEqual(WikiCompletion.origin(forPanelOf: size, under: edge, on: NSScreen.main).x + size.width, visible.maxX, "not off the right edge")
     }
+
+    // MARK: light and dark
+
+    private func brightness(_ c: NSColor) -> CGFloat { c.usingColorSpace(.sRGB)?.brightnessComponent ?? -1 }
+
+    func testTheListIsDarkInDarkModeAndLightInLightMode() throws {
+        for (name, dark) in [("dark", true), ("light", false)] {
+            let (w, tv) = make()
+            w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            type("[[", in: tv)
+            let c = try XCTUnwrap(tv.wikiList.resolvedColours, "\(name): the list is open")
+            if dark {
+                XCTAssertLessThan(brightness(c.background), 0.3, "dark mode: a dark panel")
+                XCTAssertLessThan(brightness(c.highlight), 0.4, "dark mode: a dark highlight, not a pale one")
+                XCTAssertGreaterThan(brightness(c.text), 0.7, "dark mode: light text")
+            } else {
+                XCTAssertGreaterThan(brightness(c.background), 0.9, "light mode: a light panel")
+                XCTAssertGreaterThan(brightness(c.highlight), 0.8)
+                XCTAssertLessThan(brightness(c.text), 0.4, "light mode: dark text")
+            }
+            XCTAssertGreaterThan(abs(brightness(c.background) - brightness(c.text)), 0.5, "\(name): the text can be read against the panel")
+            w.close()
+        }
+    }
+
+    func testTheListFollowsAThemeChangeBetweenOpenings() throws {
+        let (w, tv) = make()
+        w.appearance = NSAppearance(named: .aqua)
+        type("[[", in: tv)
+        let light = try XCTUnwrap(tv.wikiList.resolvedColours).background
+        escape(w)
+        w.appearance = NSAppearance(named: .darkAqua)
+        type(" x [[", in: tv)
+        let dark = try XCTUnwrap(tv.wikiList.resolvedColours).background
+        XCTAssertGreaterThan(brightness(light), brightness(dark) + 0.5)
+    }
 }

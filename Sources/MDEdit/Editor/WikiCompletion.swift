@@ -128,8 +128,13 @@ final class WikiCompletion: NSObject {
         let content = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         content.wantsLayer = true
         content.layer?.cornerRadius = 10; content.layer?.borderWidth = 1
-        content.layer?.backgroundColor = Palette.binderBg.cgColor
-        content.layer?.borderColor = Palette.binderBorder.cgColor
+        // The panel is its own window, so it must be told the editor's appearance: a dynamic colour turned into a CGColor takes
+        // whatever appearance happens to be current, which is light, and that made light text on a light panel in dark mode.
+        p.appearance = tv.effectiveAppearance
+        tv.effectiveAppearance.performAsCurrentDrawingAppearance {
+            content.layer?.backgroundColor = Palette.binderBg.cgColor
+            content.layer?.borderColor = Palette.binderBorder.cgColor
+        }
         rows = items.enumerated().map { i, name in
             let r = RowView(frame: NSRect(x: 4, y: height - 4 - CGFloat(i + 1) * Self.rowHeight, width: width - 8, height: Self.rowHeight))
             r.label.stringValue = name
@@ -179,9 +184,21 @@ final class WikiCompletion: NSObject {
     var panelFrame: NSRect? { isOpen ? panel?.frame : nil }
 
     private func refreshHighlight() {
-        for (i, r) in rows.enumerated() {
-            r.layer?.backgroundColor = (i == selected ? Palette.selection : .clear).cgColor
+        let appearance = panel?.effectiveAppearance ?? textView?.effectiveAppearance ?? NSApp.effectiveAppearance
+        appearance.performAsCurrentDrawingAppearance {
+            for (i, r) in rows.enumerated() {
+                r.layer?.backgroundColor = (i == selected ? Palette.selection : NSColor.clear).cgColor
+            }
         }
+    }
+
+    /// For tests: the colours the list is drawn with, resolved in the list's own appearance.
+    var resolvedColours: (background: NSColor, highlight: NSColor, text: NSColor)? {
+        guard let p = panel, isOpen, let content = p.contentView, rows.indices.contains(selected) else { return nil }
+        func ns(_ cg: CGColor?) -> NSColor { cg.flatMap { NSColor(cgColor: $0) } ?? .clear }
+        var text = NSColor.clear
+        p.effectiveAppearance.performAsCurrentDrawingAppearance { text = rows[selected].label.textColor?.usingColorSpace(.sRGB) ?? .clear }
+        return (ns(content.layer?.backgroundColor), ns(rows[selected].layer?.backgroundColor), text)
     }
 
     deinit { if let p = panel { p.parent?.removeChildWindow(p); p.orderOut(nil) } }
