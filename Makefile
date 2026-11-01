@@ -1,4 +1,4 @@
-.PHONY: project app run test audit check coverage release clean
+.PHONY: project icon app run test audit check coverage release clean
 # Signing: ad hoc by default so it builds anywhere; `make app SIGN=-` is the same, or pass your own identity.
 SIGN ?= -
 XC = xcodebuild -project MDEdit.xcodeproj -scheme MDEdit -derivedDataPath build/DerivedData CODE_SIGN_IDENTITY="$(SIGN)" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
@@ -7,8 +7,12 @@ XC = xcodebuild -project MDEdit.xcodeproj -scheme MDEdit -derivedDataPath build/
 project:
 	xcodegen generate
 
+# The app icon lives in icons/AppIcon.appiconset; the asset catalog gets a copy (edit the icons/ one, then `make icon` or `make app`).
+icon:
+	rsync -a --delete icons/AppIcon.appiconset/ Sources/MDEdit/Assets.xcassets/AppIcon.appiconset/
+
 # Builds build/MDEdit.app
-app: project
+app: icon project
 	$(XC) -configuration Release build | grep -E "error:|warning: .*Sources|BUILD (SUCCEEDED|FAILED)" || true
 	rm -rf build/MDEdit.app && cp -R build/DerivedData/Build/Products/Release/MDEdit.app build/MDEdit.app
 	@echo "Built build/MDEdit.app"

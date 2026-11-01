@@ -86,7 +86,7 @@ Sources/MDEdit/
   Resources/               Fonts (IBM Plex Mono, Source Serif 4, Literata, Inter + OFL licences), Assets.xcassets
 Tests/MDEditTests/         See Testing
 Fixtures/Sample/           Small sample notes
-scripts/                   test.sh, audit.sh, new-test.sh (+ template), make-icon.swift
+scripts/                   test.sh, audit.sh, release.sh, new-test.sh (+ template)
 plan/                      PLAN.md, design.html, bugs/bugs.md, features/features.md
 ```
 
@@ -178,6 +178,10 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 | The binder, files, drops | `Model/Workspace.swift`, `Model/BinderNode.swift`, `UI/BinderView.swift` |
 | Windows, recents, bookmarks | `MDEditApp.swift`, `Model/Workspace.swift`, `Model/RecentFolders.swift` |
 | Anything touching untrusted input | `Model/LinkPolicy.swift`, `Model/SafeHTML.swift`, `Syntax/MarkdownLimits.swift`, `Security/` tests |
+
+## Icon
+
+The icon is `icons/AppIcon.appiconset` (with the 1024 px PNG, SVG and `.icns` beside it). `make app` copies the set into the asset catalog, so change the icon in `icons/` only.
 
 ## Releasing
 
