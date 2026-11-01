@@ -12,6 +12,8 @@ final class Workspace: ObservableObject {
     @Published var selection: URL?
     /// Notes opened before this one, oldest first; Back walks it from the end.
     @Published private(set) var visited: [URL] = []
+    /// Notes Back stepped away from, nearest last; Forward walks it. Opening any other note empties it.
+    @Published private(set) var ahead: [URL] = []
     @Published var search = ""
     /// Going back to Write gives the caret back to the note, so typing can start at once.
     @Published var mode: Mode = .write { didSet { if mode == .write, oldValue == .view { focusEditor() } } }
@@ -222,7 +224,7 @@ final class Workspace: ObservableObject {
         search = ""
         document.open(nil)
         selection = nil
-        visited = []
+        visited = []; ahead = []
         expanded = Set((defaults.stringArray(forKey: expandedKey(url)) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         reload()
         watcher = FolderWatcher(url: url) { [weak self] in self?.reload() }
@@ -248,7 +250,18 @@ final class Workspace: ObservableObject {
     func goBack() {
         while let last = visited.popLast() {
             guard root?.find(last)?.isDocument == true else { continue }
+            if let here = document.url { ahead.append(here) }
             reveal(last); select(last, recording: false)
+            return
+        }
+    }
+
+    /// Undoes a Back: on to the note Back came from.
+    func goForward() {
+        while let next = ahead.popLast() {
+            guard root?.find(next)?.isDocument == true else { continue }
+            if let here = document.url { visited.append(here) }
+            reveal(next); select(next, recording: false)
             return
         }
     }
@@ -260,6 +273,7 @@ final class Workspace: ObservableObject {
         else if !node.isDocument { QuickView.shared.show(url) }
         else {
             QuickView.shared.hide()
+            if recording, document.url?.standardizedFileURL != url.standardizedFileURL { ahead = [] }
             if recording, let from = document.url, from.standardizedFileURL != url.standardizedFileURL, visited.last != from {
                 visited.append(from)
                 if visited.count > 100 { visited.removeFirst(visited.count - 100) }

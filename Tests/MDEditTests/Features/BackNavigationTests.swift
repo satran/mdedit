@@ -77,4 +77,40 @@ final class BackNavigationTests: XCTestCase {
         XCTAssertTrue(back().enabled)
         back().run(); XCTAssertEqual(open, "A.md")
     }
+
+    func testForwardRetracesBack() {
+        ws.select(s.path("B.md")); ws.select(s.path("C.md"))
+        ws.goBack(); ws.goBack()
+        XCTAssertEqual(open, "A.md")
+        ws.goForward(); XCTAssertEqual(open, "B.md"); XCTAssertEqual(ws.selection?.lastPathComponent, "B.md")
+        ws.goForward(); XCTAssertEqual(open, "C.md")
+        ws.goForward(); XCTAssertEqual(open, "C.md", "nothing after the last note")
+        ws.goBack(); XCTAssertEqual(open, "B.md", "Back still works after Forward")
+    }
+
+    func testOpeningAnotherNoteEmptiesForward() {
+        ws.select(s.path("B.md")); ws.goBack()
+        XCTAssertFalse(ws.ahead.isEmpty)
+        ws.select(s.path("C.md"))
+        XCTAssertTrue(ws.ahead.isEmpty)
+    }
+
+    func testForwardSkipsDeletedNotesAndClearsWithTheFolder() throws {
+        ws.select(s.path("B.md")); ws.select(s.path("C.md")); ws.goBack(); ws.goBack()
+        try FileManager.default.removeItem(at: s.path("B.md")); ws.reload()
+        ws.goForward()
+        XCTAssertEqual(open, "C.md")
+        ws.goBack()
+        let t = try Scratch(["Z.md": "z"]); addTeardownBlock { t.remove() }
+        ws.open(t.url)
+        XCTAssertTrue(ws.ahead.isEmpty)
+    }
+
+    func testForwardCommand() {
+        func fwd() -> Cmd { makeCommands(ws: ws, prefs: Preferences(), recents: RecentFolders(), newWindow: { _ in }).first { $0.id == "forward" }! }
+        XCTAssertFalse(fwd().enabled); XCTAssertEqual(fwd().shortcut, "⌘]")
+        ws.select(s.path("B.md")); ws.goBack()
+        XCTAssertTrue(fwd().enabled)
+        fwd().run(); XCTAssertEqual(open, "B.md")
+    }
 }
