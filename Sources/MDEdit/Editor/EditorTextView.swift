@@ -355,7 +355,12 @@ final class EditorTextView: NSTextView {
         let natural = baseFont.ascender - baseFont.descender
         for r in inlineCode where NSMaxRange(r) <= (string as NSString).length {
             let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
-            lm.enumerateEnclosingRects(forGlyphRange: g, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: tc) { box, _ in
+            // one chip per line the code sits on, as wide as its own glyphs there. (The "enclosing rects" TextKit offers run from
+            // the container's left edge on wrapped lines, which painted the chip across the margin and the list's hanging indent.)
+            lm.enumerateLineFragments(forGlyphRange: g) { _, _, _, fragmentGlyphs, _ in
+                let part = NSIntersectionRange(g, fragmentGlyphs)
+                guard part.length > 0 else { return }
+                let box = lm.boundingRect(forGlyphRange: part, in: tc)
                 let chip = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)
                 if chip.intersects(rect) { NSBezierPath(roundedRect: chip, xRadius: 3, yRadius: 3).fill() }
             }

@@ -224,4 +224,29 @@ final class EditorWindowTests: XCTestCase {
         XCTAssertEqual(pixel(onLineStarting: "## Heading", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 1, 0, accuracy: 0.01, "nothing behind a heading")
         XCTAssertEqual(pixel(onLineStarting: "text", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 1, 0, accuracy: 0.01, "nothing behind a paragraph")
     }
+
+    /// A chip stays under its own words: a wrapped inline-code span must not paint into the margin or the list's hanging indent.
+    func testAWrappedInlineCodeChipStaysUnderItsWords() {
+        let code = (0..<22).map { "word\($0)" }.joined(separator: " ")             // long enough to wrap in a 72-character column
+        let text = "- see `\(code)` and then more text\n"
+        let (_, tv, _, _) = make(text, size: NSSize(width: 1000, height: 700))
+        let lm = tv.layoutManager!
+        lm.ensureLayout(for: tv.textContainer!)
+        let secondLine = (text as NSString).range(of: "word15")                        // on a wrapped line of the span
+        let g = lm.glyphIndexForCharacter(at: secondLine.location)
+        var fragmentRange = NSRange()
+        let frag = lm.lineFragmentRect(forGlyphAt: g, effectiveRange: &fragmentRange)
+        XCTAssertGreaterThan(fragmentRange.location, 0, "the code really wraps onto a second line")
+        guard let rep = tv.bitmapImageRepForCachingDisplay(in: tv.bounds) else { return XCTFail() }
+        tv.cacheDisplay(in: tv.bounds, to: rep)
+        let scale = CGFloat(rep.pixelsWide) / tv.bounds.width
+        func alpha(atX x: CGFloat) -> CGFloat {
+            rep.colorAt(x: Int(x * scale), y: Int((frag.minY + tv.textContainerOrigin.y + 8) * scale))?.alphaComponent ?? -1
+        }
+        let origin = tv.textContainerOrigin.x
+        let textStart = origin + lm.location(forGlyphAt: fragmentRange.location).x + frag.minX
+        XCTAssertEqual(alpha(atX: origin + 6), 0, accuracy: 0.01, "nothing in the left margin")
+        XCTAssertEqual(alpha(atX: origin + EditorTextView.gutter - 8), 0, accuracy: 0.01, "nothing in the gutter where the list marker hangs")
+        XCTAssertGreaterThan(alpha(atX: textStart + 14), 0.9, "the chip is behind the words on the wrapped line")
+    }
 }
