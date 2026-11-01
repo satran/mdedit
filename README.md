@@ -102,6 +102,10 @@ Key ideas:
 
 ---
 
+## Shell commands (⌘R)
+
+Off until enabled in Settings → Shell. `Model/ShellRunner.swift` is the only place that starts a program (`posix_spawn`, own process group, no inherited files, killed with its whole group when done), plus `ShellEnvironment` (clean env + `MD_*`, `KEY=value` extras) and `ShellOutput.clean` (strips escapes/bidi/NUL). `Model/Workspace+Shell.swift` is the flow: save the note, selection (or whole note) to stdin, run off the main thread, apply the output as one undo step (insert / replace / new file / panel) only if the note is unchanged. Saved scripts live in `<folder>/.mdedit/scripts` and need approval of their exact text; history is `<folder>/.mdedit/history` (0600, hidden from the binder). Tests: `ShellRunnerTests` (security), `ShellCommandTests` (feature). Plan and decisions: `plan/features/shell-scripting.md`.
+
 ## Testing — read `TESTING.md`
 
 About 320 tests, ~100 s. `make test` must pass before any change is called done. Layout:
@@ -131,7 +135,7 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 1. **Files are sacred.** Never write to a file the user did not change. All saving goes through `DocumentStore` (keeps encoding/BOM/symlink/permissions/Finder tags, refuses to overwrite an outside change, saves on close/quit/switch, makes an `(unsaved changes)` copy on conflict). Files that are not text or > 10 MB are shown as an error and never written.
 2. **Treat every note, file name, link and dropped file as hostile.** File names go through `Workspace.cleanName`; links through `LinkPolicy.decide`; exported HTML through `SafeHTML` (swift-markdown's own `HTMLFormatter` does **not** escape anything — never use it); Markdown goes through `MarkdownLimits.clamp` before parsing.
 3. **Nothing recursive or quadratic without a limit.** Scans stop at `BinderNode.maxDepth`; inline styling skips lines over `MarkdownSyntax.maxInlineLength`; parsers have time budgets in `HostileInputTests`.
-4. **No new entitlement.** Exactly four are allowed (sandbox, user-selected read-write, app-scope bookmarks, network client); `make audit` and `ProjectPolicyTests` fail otherwise. Release builds must not carry `get-task-allow` (`CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false`). There is no URL scheme, no AppleScript, no external processes.
+4. **No new entitlement.** Exactly four are allowed (sandbox, user-selected read-write, app-scope bookmarks, network client); `make audit` and `ProjectPolicyTests` fail otherwise. Release builds must not carry `get-task-allow` (`CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false`). There is no URL scheme and no AppleScript. The only external programs are the shell commands a person types (⌘R), and only `Model/ShellRunner.swift` may start one (`make audit` checks): sandboxed, clean environment, own process group, timeout, output cap, never from note content.
 5. **Add the test first for a bug**, and one for each new feature (`scripts/new-test.sh`). Add commands to `Commands.swift`, not to individual views.
 6. **Don't edit generated things**: `MDEdit.xcodeproj`, `Info.plist`. Change `project.yml`.
 7. **Match the surrounding code**: comment density, naming, idiom. Comments explain *why*. Keep views thin and logic in `Model/` / `Syntax/` / `Editor/Markdown*`.

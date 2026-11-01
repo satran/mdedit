@@ -31,7 +31,10 @@ fi
 # 3. No loosened transport security, no JavaScript switched on, no unsafe APIs.
 grep -q "NSAllowsArbitraryLoads" Sources/MDEdit/Info.plist && bad "Info.plist allows arbitrary loads"
 grep -rn "allowsContentJavaScript *= *true\|javaScriptEnabled *= *true" Sources && bad "JavaScript enabled in a web view"
-grep -rnE "NSAppleScript|Process\(\)|NSTask|popen\(|(^|[^.A-Za-z])system\(" Sources && bad "runs external programs"
+grep -rnE "NSAppleScript|Process\(\)|NSTask|popen\(|execv|fork\(\)|(^|[^.A-Za-z])system\(" Sources && bad "runs external programs"
+# the one place that starts a program is the shell runner, and it starts exactly one
+grep -rn "posix_spawn(" Sources | grep -v "Model/ShellRunner.swift" && bad "starts a program outside ShellRunner"
+[ "$(grep -c "posix_spawn(" Sources/MDEdit/Model/ShellRunner.swift)" = "1" ] || bad "ShellRunner must start programs in exactly one place"
 grep -rn "loadFileURL\|allowFileAccessFromFileURLs\|NSWorkspace.shared.open(.*launch" Sources && bad "web view file access or launching"
 grep -rn "WKWebView(" Sources | grep -v "configuration" && bad "WKWebView created without a configuration (JavaScript would be on)"
 # every call that opens something must be one of the vetted ones below (links go through LinkPolicy first)

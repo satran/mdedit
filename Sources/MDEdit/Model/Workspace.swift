@@ -26,6 +26,13 @@ final class Workspace: ObservableObject {
     /// Set when the binder is shown; the list takes the keyboard focus.
     @Published var wantsTreeFocus = false
     private var enteredFullScreen = false
+    // Shell commands (⌘R); the work is in Workspace+Shell.swift
+    @Published var shellBarVisible = false { didSet { if oldValue, !shellBarVisible, mode == .write { DispatchQueue.main.async { [weak self] in self?.focusEditor() } } } }
+    @Published var shellLog: ShellLog?
+    @Published var shellJob: ShellJob?
+    @Published var shellDestination: ShellDestination { didSet { defaults.set(shellDestination.rawValue, forKey: "shellDestination") } }
+    /// Asks the person a yes/no question (title, detail, button). The tests replace it.
+    var shellConfirm: (String, String, String) -> Bool = ShellPrompts.confirm
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
     private var backlinkTask: Task<Void, Never>?
@@ -41,7 +48,7 @@ final class Workspace: ObservableObject {
     let document = DocumentStore()
     private var watcher: FolderWatcher?
     private var scoped: URL?
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     private let recents: RecentFolders
 
     /// Suffix for the per-window defaults keys; nil is the original, single-window state.
@@ -50,6 +57,8 @@ final class Workspace: ObservableObject {
     var newWindow: ((UUID) -> Void)?
     private static var lastExternal: (url: URL, at: Date)?
 
+    deinit { shellJob?.cancel() }
+
     init(id: UUID? = nil, defaults: UserDefaults = AppEnvironment.defaults, recents: RecentFolders = .shared) {
         self.defaults = defaults
         self.recents = recents
@@ -57,6 +66,7 @@ final class Workspace: ObservableObject {
         typewriter = defaults.bool(forKey: "typewriter")
         outlineVisible = defaults.bool(forKey: "outlineVisible")
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
+        shellDestination = defaults.string(forKey: "shellDestination").flatMap(ShellDestination.init(rawValue:)) ?? .insert
         restore()
     }
 

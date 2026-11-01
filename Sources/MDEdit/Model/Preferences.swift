@@ -28,6 +28,19 @@ final class Preferences: ObservableObject {
     /// The serif template's body size in points (20 by default); the sans template runs 2 points smaller, as in the type specs.
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
 
+    /// Shell commands from the editor (⌘R). Off until turned on here.
+    @Published var shellEnabled: Bool { didSet { d.set(shellEnabled, forKey: "shellEnabled") } }
+    /// The program that runs a command: `shell -c "command"`.
+    @Published var shellPath: String { didSet { d.set(shellPath, forKey: "shellPath") } }
+    /// The PATH commands get. Nothing else of the app's own environment is passed on.
+    @Published var shellSearchPath: String { didSet { d.set(shellSearchPath, forKey: "shellSearchPath") } }
+    /// Extra variables for commands, one `KEY=value` per line.
+    @Published var shellEnvironment: String { didSet { d.set(shellEnvironment, forKey: "shellEnvironment") } }
+    /// Seconds before a command is stopped.
+    @Published var shellTimeout: Int { didSet { d.set(shellTimeout, forKey: "shellTimeout") } }
+    /// Commands kept in `.mdedit/history` in the folder; 0 keeps none.
+    @Published var shellHistory: Int { didSet { d.set(shellHistory, forKey: "shellHistory") } }
+
     init(defaults: UserDefaults = AppEnvironment.defaults) {
         d = defaults
         editorFont = d.string(forKey: "editorFont") ?? "IBM Plex Mono"
@@ -43,6 +56,12 @@ final class Preferences: ObservableObject {
         viewerWidthCustom = d.bool(forKey: "viewerWidthCustom")
         viewerTemplate = d.string(forKey: "viewerTemplate") == "sans" ? "sans" : "serif"
         viewerSize = min(32, max(14, d.object(forKey: "viewerSize") as? Double ?? 20))
+        shellEnabled = d.bool(forKey: "shellEnabled")
+        shellPath = String((d.string(forKey: "shellPath") ?? ShellEnvironment.defaultShell).prefix(1024))
+        shellSearchPath = String((d.string(forKey: "shellSearchPath") ?? ShellEnvironment.defaultPath).prefix(4096))
+        shellEnvironment = String((d.string(forKey: "shellEnvironment") ?? "").prefix(16 * 1024))
+        shellTimeout = min(600, max(1, d.object(forKey: "shellTimeout") as? Int ?? 30))
+        shellHistory = min(500, max(0, d.object(forKey: "shellHistory") as? Int ?? 50))
     }
 
     func applyTheme() {

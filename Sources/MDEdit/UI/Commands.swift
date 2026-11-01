@@ -39,7 +39,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "new-doc", title: "New Document", place: .file, key: "n", enabled: hasRoot, dividerBefore: true) { ws?.newDocument() },
         Cmd(id: "new-folder", title: "New Folder", place: .file, key: "n", modifiers: [.command, .shift], enabled: hasRoot) { ws?.newFolder() },
 
-        Cmd(id: "rename", title: "Rename", place: .fileMore, key: "r", enabled: ws?.selection != nil) { if let s = ws?.selection { ws?.renaming = s } },
+        Cmd(id: "rename", title: "Rename", place: .fileMore, key: "r", modifiers: [.command, .option], enabled: ws?.selection != nil) { if let s = ws?.selection { ws?.renaming = s } },
         Cmd(id: "trash", title: "Move to Trash", place: .fileMore, enabled: ws?.selection != nil) { if let s = ws?.selection { ws?.trash(s) } },
         Cmd(id: "export-html", title: "Export as HTML…", place: .fileMore, enabled: hasDoc, dividerBefore: true) {
             if let ws { Exporter.shared.saveHTML(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
@@ -48,6 +48,8 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "print", title: "Print…", place: .fileMore, key: "p", enabled: hasDoc) {
             if let ws { Exporter.shared.print(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
+
+        Cmd(id: "shell", title: "Run Shell Command…", place: .fileMore, key: "r", enabled: hasDoc && ws?.mode == .write, dividerBefore: true) { ws?.openShellBar(prefs: prefs) },
 
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "f", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },

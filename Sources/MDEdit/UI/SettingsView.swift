@@ -66,6 +66,38 @@ struct SettingsView: View {
                     divider
                     viewerPreview
                 }
+                section("Shell") {
+                    row("Run shell commands", note: "⌘R in the editor. Commands only reach the open folder") {
+                        Toggle("Run shell commands", isOn: $prefs.shellEnabled).labelsHidden().toggleStyle(.switch)
+                    }
+                    divider
+                    row("Shell", note: "Runs as shell -c command") {
+                        TextField("/bin/sh", text: $prefs.shellPath).textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced)).frame(width: 250)
+                    }
+                    divider
+                    row("PATH", note: "Nothing else of the app's environment is passed on") {
+                        TextField(ShellEnvironment.defaultPath, text: $prefs.shellSearchPath).textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced)).frame(width: 250)
+                    }
+                    divider
+                    row("Time limit", note: "Seconds before a command is stopped") {
+                        Stepper("\(prefs.shellTimeout) s", value: $prefs.shellTimeout, in: 1...600, step: 5).monospacedDigit()
+                    }
+                    divider
+                    row("History", note: "Commands kept in .mdedit/history in the folder; 0 keeps none") {
+                        Stepper("\(prefs.shellHistory)", value: $prefs.shellHistory, in: 0...500, step: 10).monospacedDigit()
+                    }
+                    divider
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("More variables").font(.system(size: 13))
+                        Text("One KEY=value per line. MD_ names and variables that change how programs load are ignored.").font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted))
+                        TextEditor(text: $prefs.shellEnvironment)
+                            .font(.system(size: 12, design: .monospaced)).scrollContentBackground(.hidden)
+                            .padding(6).frame(height: 90)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color(Palette.field)))
+                            .accessibilityLabel("Extra environment variables")
+                    }
+                    .padding(.leading, 16).padding(.trailing, 14).padding(.vertical, 10)
+                }
             }
             .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 24)
         }
