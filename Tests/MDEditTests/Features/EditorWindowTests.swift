@@ -249,4 +249,69 @@ final class EditorWindowTests: XCTestCase {
         XCTAssertEqual(alpha(atX: origin + EditorTextView.gutter - 8), 0, accuracy: 0.01, "nothing in the gutter where the list marker hangs")
         XCTAssertGreaterThan(alpha(atX: textStart + 14), 0.9, "the chip is behind the words on the wrapped line")
     }
+
+    // MARK: the caret comes back when the editor view is replaced
+
+    /// A new editor view in a new window, attached to `bridge` the way the app's wrapper does it.
+    private func newEditor(bridge: EditorBridge, text: String = "text") -> (NSWindow, EditorTextView) {
+        let (w, tv, _, _) = make(text)
+        tv.bridge = bridge
+        bridge.textView = tv
+        return (w, tv)
+    }
+
+    func testARequestForTheKeyboardWaitsForTheEditorThatReplacesTheOldOne() {
+        let bridge = EditorBridge()
+        let (w1, old) = newEditor(bridge: bridge)
+        w1.makeFirstResponder(nil)
+        bridge.requestFocus()
+        XCTAssertTrue(w1.firstResponder === old, "an editor that is already there gets the keyboard at once")
+        // the view is swapped (distraction free, or Write after View): the new editor arrives in a window
+        let tv2 = EditorTextView()
+        tv2.bridge = bridge
+        let w2 = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        w2.isReleasedWhenClosed = false; windows.append(w2)
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 600, height: 400)); scroll.documentView = tv2
+        w2.contentView = scroll
+        settle()
+        XCTAssertTrue(w2.firstResponder === tv2, "the new editor has the keyboard, so its caret shows and typing starts at once")
+    }
+
+    func testAnUnansweredRequestDoesNotStealTheKeyboardLater() {
+        let bridge = EditorBridge()
+        bridge.requestFocus()                       // no editor: nobody answers
+        settle(1.0)
+        XCTAssertFalse(bridge.wantsFocus, "the request expires")
+        let tv = EditorTextView(); tv.bridge = bridge
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false; windows.append(w)
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 600, height: 400)); scroll.documentView = tv
+        w.contentView = scroll
+        settle()
+        XCTAssertFalse(w.firstResponder === tv)
+    }
+
+    func testToggleDistractionFreeAsksForTheCaretBack() throws {
+        let s = try Scratch(["a.md": "text"]); defer { s.remove() }
+        let ws = makeWorkspace(open: s.url)
+        ws.select(s.path("a.md"))
+        let was = Preferences.shared.focusFullScreen
+        Preferences.shared.focusFullScreen = false          // do not take a window full screen from a test
+        defer { Preferences.shared.focusFullScreen = was }
+        XCTAssertFalse(ws.editor.wantsFocus)
+        ws.toggleFocus()
+        XCTAssertTrue(ws.editor.wantsFocus, "entering distraction free: the new editor gets the caret")
+        ws.toggleFocus()
+        XCTAssertTrue(ws.editor.wantsFocus, "and leaving it")
+    }
+
+    func testGoingBackToWriteFromViewAsksForTheCaretBack() throws {
+        let s = try Scratch(["a.md": "text"]); defer { s.remove() }
+        let ws = makeWorkspace(open: s.url)
+        ws.mode = .view
+        settle(0.9)                                          // let any earlier request expire
+        XCTAssertFalse(ws.editor.wantsFocus)
+        ws.mode = .write
+        XCTAssertTrue(ws.editor.wantsFocus)
+    }
 }

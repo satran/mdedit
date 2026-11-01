@@ -16,6 +16,8 @@ final class EditorTextView: NSTextView {
     var onOpenWiki: ((String) -> Void)?
     var wikiResolves: (String) -> Bool = { _ in true }
     var wikiNames: () -> [String] = { [] }
+    /// Where a request for the keyboard is kept; see `EditorBridge.requestFocus`.
+    weak var bridge: EditorBridge?
     /// Turns files dropped on the editor into Markdown (copying them in first); empty means nothing was done.
     var dropText: (([URL]) -> String)?
     /// Keeps the line being written in the middle of the pane.
@@ -167,6 +169,13 @@ final class EditorTextView: NSTextView {
         guard abs(clip.bounds.origin.y - y) > 1 else { return }
         clip.scroll(to: NSPoint(x: 0, y: y))
         scroll.reflectScrolledClipView(clip)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, bridge?.wantsFocus == true else { return }
+        // once the view is in place: the window is still arranging its views at this moment
+        DispatchQueue.main.async { [weak self] in if let self { self.bridge?.fulfil(self) } }
     }
 
     // MARK: Shift-Return

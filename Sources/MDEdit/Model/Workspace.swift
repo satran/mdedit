@@ -11,7 +11,8 @@ final class Workspace: ObservableObject {
     @Published var expanded: Set<URL> = [] { didSet { saveExpanded() } }
     @Published var selection: URL?
     @Published var search = ""
-    @Published var mode: Mode = .write
+    /// Going back to Write gives the caret back to the note, so typing can start at once.
+    @Published var mode: Mode = .write { didSet { if mode == .write, oldValue == .view { focusEditor() } } }
     @Published var focus = false
     /// The row being renamed in the binder.
     @Published var renaming: URL?
@@ -111,6 +112,7 @@ final class Workspace: ObservableObject {
         guard focus || document.url != nil else { return }
         focus.toggle()
         mode = .write
+        focusEditor()                       // the editor view is replaced; its caret must come back
         guard let w = NSApp.keyWindow ?? NSApp.windows.first else { return }
         let fullScreen = Preferences.shared.focusFullScreen
         if focus, fullScreen, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil); enteredFullScreen = true }
@@ -271,10 +273,9 @@ final class Workspace: ObservableObject {
         if parent.standardizedFileURL != rootURL?.standardizedFileURL, root?.find(parent)?.isFolder == true { selection = parent }
     }
 
-    func focusEditor() {
-        guard let tv = editor.textView else { return }
-        tv.window?.makeFirstResponder(tv)
-    }
+    /// Puts the caret in the note so typing can start at once, also when the editor is about to be replaced (Write/View,
+    /// distraction free): the request waits for the new editor.
+    func focusEditor() { editor.requestFocus() }
 
     /// Space shows or hides the preview of a file the editor cannot open.
     func toggleQuickLook() {

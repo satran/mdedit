@@ -42,6 +42,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
         tv.typewriter = typewriter; tv.focusDim = focusDim
         tv.dropText = dropText
+        tv.bridge = bridge
         bridge?.textView = tv
 
         let scroll = NSScrollView()
@@ -72,6 +73,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.wikiResolves = wikiResolves; tv.wikiNames = wikiNames
         tv.typewriter = typewriter; tv.focusDim = focusDim
         tv.dropText = dropText
+        tv.bridge = bridge
         bridge?.textView = tv
         if context.coordinator.linksVersion != linksVersion { context.coordinator.linksVersion = linksVersion; tv.restyle() }
         tv.style = style                                    // restyles itself when it changed
@@ -188,6 +190,23 @@ struct MarkdownTextEditor: NSViewRepresentable {
 /// Lets the rest of the app reach the editor (jump to a heading).
 final class EditorBridge {
     weak var textView: EditorTextView?
+    /// The keyboard should land in the editor as soon as there is one in a window. Switching Write/View or distraction-free
+    /// replaces the editor view, so asking the current one is not enough: the new one takes the request when it arrives.
+    private(set) var wantsFocus = false
+
+    func requestFocus() {
+        wantsFocus = true
+        if let tv = textView { tv.window?.makeFirstResponder(tv) }
+        // a request that nobody picks up must not stay armed and surprise a later editor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in self?.wantsFocus = false }
+    }
+
+    /// A new editor view has reached a window: give it the keyboard if one was asked for.
+    func fulfil(_ tv: EditorTextView) {
+        guard wantsFocus, tv.window != nil else { return }
+        wantsFocus = false
+        tv.window?.makeFirstResponder(tv)
+    }
     /// The binder is being walked with the arrow keys: opening a note must not pull the caret away.
     var keepFocusElsewhere = false
 }
