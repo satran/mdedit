@@ -140,14 +140,43 @@ final class WikiCompletion: NSObject {
         }
         p.contentView = content
         p.setContentSize(NSSize(width: width, height: height))
-        // under the caret (the caret's own rect is in screen coordinates)
-        let caret = tv.firstRect(forCharacterRange: NSRange(location: tv.selectedRange().location, length: 0), actualRange: nil)
-        let origin = caret.isEmpty ? window.frame.origin : NSPoint(x: caret.minX - 12, y: caret.minY - height - 6)
-        p.setFrameOrigin(origin)
+        p.setFrameOrigin(Self.origin(forPanelOf: NSSize(width: width, height: height), under: caretRect(in: tv), on: window.screen))
         if p.parent !== window { window.addChildWindow(p, ordered: .above) }
         p.orderFront(nil)
         refreshHighlight()
     }
+
+    /// The line the caret is on, in screen coordinates: the character just before the caret (the `[` that was typed, or the last
+    /// letter), because an empty range gives a zero-width rect that cannot be told from "no answer".
+    private func caretRect(in tv: EditorTextView) -> NSRect {
+        let loc = tv.selectedRange().location
+        let ask = NSRange(location: max(0, loc - 1), length: loc > 0 ? 1 : 0)
+        let r = tv.firstRect(forCharacterRange: ask, actualRange: nil)
+        var screenRect = NSRect(x: r.maxX, y: r.minY, width: 0, height: r.height)
+        if r.height <= 0 || r == .zero, let lm = tv.layoutManager, let tc = tv.textContainer, loc > 0 {
+            // ask the layout instead: where the previous character ends, converted view -> window -> screen
+            let g = NSRange(location: lm.glyphIndexForCharacter(at: loc - 1), length: 1)
+            let box = lm.boundingRect(forGlyphRange: g, in: tc).offsetBy(dx: tv.textContainerOrigin.x, dy: tv.textContainerOrigin.y)
+            let inWindow = tv.convert(box, to: nil)
+            let onScreen = tv.window?.convertToScreen(inWindow) ?? inWindow
+            screenRect = NSRect(x: onScreen.maxX, y: onScreen.minY, width: 0, height: onScreen.height)
+        }
+        return screenRect
+    }
+
+    /// Below the line the caret is on, a little to the left of it; above the line when there is no room below, and always on screen.
+    static func origin(forPanelOf size: NSSize, under caret: NSRect, on screen: NSScreen?) -> NSPoint {
+        var x = caret.maxX - 14, y = caret.minY - size.height - 4
+        if let visible = (screen ?? NSScreen.main)?.visibleFrame {
+            if y < visible.minY { y = caret.maxY + 4 }                          // no room below: above the line
+            x = min(max(visible.minX + 4, x), visible.maxX - size.width - 4)
+            y = min(max(visible.minY + 4, y), visible.maxY - size.height - 4)
+        }
+        return NSPoint(x: x, y: y)
+    }
+
+    /// For tests: where the list is on screen.
+    var panelFrame: NSRect? { isOpen ? panel?.frame : nil }
 
     private func refreshHighlight() {
         for (i, r) in rows.enumerated() {

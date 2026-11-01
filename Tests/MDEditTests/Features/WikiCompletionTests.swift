@@ -178,4 +178,44 @@ final class WikiCompletionTests: XCTestCase {
         XCTAssertFalse(tv.wikiList.isOpen, "no notes, nothing to list")
         XCTAssertEqual(tv.string, "[[")
     }
+
+    // MARK: where the list appears
+
+    func testTheListAppearsBelowTheLineBeingTyped() throws {
+        let (_, tv) = make("First line of the note.\n\nIt has a link and ")
+        type("[[", in: tv)
+        let frame = try XCTUnwrap(tv.wikiList.panelFrame, "the list is open")
+        let loc = tv.selectedRange().location
+        let caret = tv.firstRect(forCharacterRange: NSRange(location: loc - 1, length: 1), actualRange: nil)
+        XCTAssertGreaterThan(caret.height, 0)
+        XCTAssertLessThanOrEqual(frame.maxY, caret.minY + 1, "the list hangs below the text line, not over it")
+        XCTAssertGreaterThan(frame.maxY, caret.minY - 40, "and close to it, not at the bottom of the window")
+        XCTAssertEqual(frame.minX, caret.maxX - 14, accuracy: 40, "starting about where the caret is")
+        let window = try XCTUnwrap(tv.window).frame
+        XCTAssertTrue(window.insetBy(dx: -2, dy: -2).intersects(frame), "next to the text it belongs to")
+    }
+
+    func testTheListFollowsTheCaretDownTheNote() throws {
+        let body = (0..<12).map { "Line \($0) of the note" }.joined(separator: "\n") + "\n"
+        let (_, tv) = make(body)
+        type("[[", in: tv)
+        let low = try XCTUnwrap(tv.wikiList.panelFrame)
+        let (_, tv2) = make("short\n")
+        type("[[", in: tv2)
+        let high = try XCTUnwrap(tv2.wikiList.panelFrame)
+        XCTAssertLessThan(low.maxY, high.maxY, "the list for a line lower in the note is lower on the screen")
+    }
+
+    func testThePanelPositionRulesKeepItOnScreenAndBelowWhenThereIsRoom() {
+        let size = NSSize(width: 300, height: 200)
+        let visible = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
+        let high = NSRect(x: visible.minX + 400, y: visible.maxY - 100, width: 0, height: 20)
+        let below = WikiCompletion.origin(forPanelOf: size, under: high, on: NSScreen.main)
+        XCTAssertLessThanOrEqual(below.y + size.height, high.minY, "room below: it goes below")
+        let low = NSRect(x: visible.minX + 400, y: visible.minY + 30, width: 0, height: 20)
+        let above = WikiCompletion.origin(forPanelOf: size, under: low, on: NSScreen.main)
+        XCTAssertGreaterThanOrEqual(above.y, low.maxY, "no room below: it goes above the line")
+        let edge = NSRect(x: visible.maxX - 5, y: visible.maxY - 100, width: 0, height: 20)
+        XCTAssertLessThanOrEqual(WikiCompletion.origin(forPanelOf: size, under: edge, on: NSScreen.main).x + size.width, visible.maxX, "not off the right edge")
+    }
 }
