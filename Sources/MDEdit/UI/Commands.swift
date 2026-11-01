@@ -28,9 +28,6 @@ struct Cmd: Identifiable {
 func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, newWindow: @escaping (UUID) -> Void) -> [Cmd] {
     let hasRoot = ws?.root != nil, hasDoc = ws?.document.url != nil
     func docName(_ w: Workspace) -> String { w.document.url?.deletingPathExtension().lastPathComponent ?? "" }
-    func openFolderElsewhere(_ url: URL) {
-        if let ws { ws.openFolder(url) } else if let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { newWindow(id) }
-    }
 
     var c: [Cmd] = [
         Cmd(id: "open", title: "Open Folder…", place: .file, key: "o") {
@@ -78,7 +75,8 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
     c += formatCommands(ws: ws)
     for item in recents.items {
         c.append(Cmd(id: "recent-" + item.path, title: "Open Recent: " + item.name) {
-            if let url = recents.resolve(item) { openFolderElsewhere(url) }
+            if let ws { ws.openRecent(item) }
+            else if recents.resolve(item) != nil { newWindow(Workspace.stash(bookmark: item.bookmark, defaults: AppEnvironment.defaults)) }
         })
     }
     return c
@@ -118,9 +116,8 @@ struct AppCommands: Commands {
         Menu("Open Recent") {
             ForEach(recents.items) { item in
                 Button(item.name) {
-                    guard let url = recents.resolve(item) else { return }
-                    if let ws { ws.openFolder(url) }
-                    else if let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { openWindow(id: "main", value: id) }
+                    if let ws { ws.openRecent(item) }
+                    else if recents.resolve(item) != nil { openWindow(id: "main", value: Workspace.stash(bookmark: item.bookmark, defaults: AppEnvironment.defaults)) }
                 }
             }
             Divider()

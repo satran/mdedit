@@ -132,8 +132,16 @@ final class Workspace: ObservableObject {
 
     /// Remembers a folder for a window that does not exist yet; returns the id to open it with.
     static func stash(_ url: URL, defaults: UserDefaults = AppEnvironment.defaults) -> UUID? {
-        let id = UUID()
+        // a bookmark can only be made while access to the folder is open (it is not for a folder that came from a saved bookmark)
+        let opened = url.startAccessingSecurityScopedResource()
+        defer { if opened { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) else { return nil }
+        return stash(bookmark: data, defaults: defaults)
+    }
+
+    /// Hands a saved bookmark to a window that does not exist yet.
+    static func stash(bookmark data: Data, defaults: UserDefaults = AppEnvironment.defaults) -> UUID {
+        let id = UUID()
         defaults.set(data, forKey: "folderBookmark.\(id.uuidString)")
         return id
     }
@@ -145,12 +153,26 @@ final class Workspace: ObservableObject {
     /// Opens in this window when it is empty, otherwise in a new one.
     func openFolder(_ url: URL) {
         if root == nil {
+            let opened = url.startAccessingSecurityScopedResource()
             if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
                 defaults.set(data, forKey: "folderBookmark" + windowKey)
             }
+            if opened { url.stopAccessingSecurityScopedResource() }
             open(url)
         } else if let id = Workspace.stash(url, defaults: defaults) {
             newWindow?(id)
+        }
+    }
+
+    /// File > Open Recent: here when this window is empty, otherwise in a window of its own. It reuses the saved bookmark,
+    /// so nothing has to be made from a folder the app has not opened yet in this run.
+    func openRecent(_ item: RecentFolders.Item) {
+        guard let url = recents.resolve(item) else { message = "“\(item.name)” is no longer there, so it was taken off the list."; return }
+        if root == nil {
+            defaults.set(item.bookmark, forKey: "folderBookmark" + windowKey)
+            open(url)
+        } else {
+            newWindow?(Workspace.stash(bookmark: item.bookmark, defaults: defaults))
         }
     }
 
