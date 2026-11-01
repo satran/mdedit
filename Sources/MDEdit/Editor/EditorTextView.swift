@@ -347,7 +347,8 @@ final class EditorTextView: NSTextView {
         let origin = textContainerOrigin, ch = charWidth
         let columnLeft = origin.x + Self.gutter, columnWidth = max(0, tc.size.width - Self.gutter)
         Palette.codeBand.setFill()
-        for r in codeBlocks where NSMaxRange(r) <= (string as NSString).length {
+        // text folded away has no height: a band or chip for it would be drawn over the line that folds it
+        for r in codeBlocks where NSMaxRange(r) <= (string as NSString).length && !Folding.contains(r.location, in: fold.hidden) {
             let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
             var union = NSRect.null
             lm.enumerateLineFragments(forGlyphRange: g) { frag, _, _, _, _ in union = union.union(frag) }
@@ -357,7 +358,7 @@ final class EditorTextView: NSTextView {
         }
         Palette.inlineCode.setFill()
         let natural = baseFont.ascender - baseFont.descender
-        for r in inlineCode where NSMaxRange(r) <= (string as NSString).length {
+        for r in inlineCode where NSMaxRange(r) <= (string as NSString).length && !Folding.contains(r.location, in: fold.hidden) {
             let g = lm.glyphRange(forCharacterRange: r, actualCharacterRange: nil)
             lm.enumerateEnclosingRects(forGlyphRange: g, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: tc) { box, _ in
                 let chip = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)

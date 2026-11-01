@@ -149,21 +149,14 @@ struct MarkdownTextEditor: NSViewRepresentable {
             return true
         }
 
-        /// Shift-Return (insertLineBreak) in a list item stays in the same item: a newline plus spaces as wide as the
-        /// marker, so the wrapped line sits under the item's text. No new bullet, number or checkbox, and an empty item
-        /// does not end the list. In a quote the `> ` carries on (a quote line without it would leave the quote), which
-        /// is the same as Return. Plain paragraphs fall through to the text view's normal newline.
+        /// Shift-Return: just a new line. It never starts a bullet, number, task or quote; the only thing it carries over is
+        /// the indentation the current line already has (the spaces or tabs it starts with), so indented text stays indented.
         func softBreak(_ tv: NSTextView) -> Bool {
-            guard tv.selectedRange().length == 0 else { return false }
             let (para, line, caret) = currentLine(tv)
-            let indent: String
-            if let m = ListMarker(line: line) { indent = String(repeating: " ", count: (m.prefix as NSString).length) }
-            else if line.hasPrefix("> ") { indent = "> " }
-            // a continuation line (already indented under an item, with no marker of its own) keeps its indentation
-            else if line.first == " " || line.first == "\t" { indent = String(line.prefix { $0 == " " || $0 == "\t" }) }
-            else { return false }
-            guard caret >= para.location + (indent as NSString).length else { return false }
-            tv.insertText("\n" + indent, replacementRange: tv.selectedRange())
+            let lead = String(line.prefix { $0 == " " || $0 == "\t" })
+            // with the caret inside the indentation, only the part before it is carried over
+            let carried = String(lead.prefix(max(0, min((lead as NSString).length, caret - para.location))))
+            tv.insertText("\n" + carried, replacementRange: tv.selectedRange())
             return true
         }
 

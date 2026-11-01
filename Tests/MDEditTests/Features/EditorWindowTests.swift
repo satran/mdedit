@@ -57,43 +57,44 @@ final class EditorWindowTests: XCTestCase {
         return tv.string
     }
 
-    func testShiftReturnNeverStartsANewItemInAnyKindOfList() {
-        XCTAssertEqual(shiftReturn(on: "- [ ] task one"), "- [ ] task one\n      ", "a task: indented under its text, no new task")
-        XCTAssertEqual(shiftReturn(on: "- [x] done"), "- [x] done\n      ")
-        XCTAssertEqual(shiftReturn(on: "- bullet"), "- bullet\n  ")
-        XCTAssertEqual(shiftReturn(on: "* star"), "* star\n  ")
-        XCTAssertEqual(shiftReturn(on: "+ plus"), "+ plus\n  ")
-        XCTAssertEqual(shiftReturn(on: "• dot"), "• dot\n  ")
-        XCTAssertEqual(shiftReturn(on: "1. numbered"), "1. numbered\n   ")
-        XCTAssertEqual(shiftReturn(on: "10. ten"), "10. ten\n    ")
-        XCTAssertEqual(shiftReturn(on: "9) paren"), "9) paren\n   ")
-        XCTAssertEqual(shiftReturn(on: "  - nested"), "  - nested\n    ", "a nested item keeps its own indentation")
-        XCTAssertEqual(shiftReturn(on: "    - [ ] deep task"), "    - [ ] deep task\n          ")
+    func testShiftReturnIsJustANewLineInEveryKindOfList() {
+        XCTAssertEqual(shiftReturn(on: "- [ ] task one"), "- [ ] task one\n", "a task: a new line, no new task")
+        XCTAssertEqual(shiftReturn(on: "- [x] done"), "- [x] done\n")
+        XCTAssertEqual(shiftReturn(on: "- bullet"), "- bullet\n")
+        XCTAssertEqual(shiftReturn(on: "* star"), "* star\n")
+        XCTAssertEqual(shiftReturn(on: "+ plus"), "+ plus\n")
+        XCTAssertEqual(shiftReturn(on: "• dot"), "• dot\n")
+        XCTAssertEqual(shiftReturn(on: "1. numbered"), "1. numbered\n")
+        XCTAssertEqual(shiftReturn(on: "10. ten"), "10. ten\n")
+        XCTAssertEqual(shiftReturn(on: "> quote"), "> quote\n")
+        XCTAssertEqual(shiftReturn(on: "plain text"), "plain text\n")
+        XCTAssertEqual(shiftReturn(on: "# Heading"), "# Heading\n")
     }
 
-    func testShiftReturnInTheMiddleOfAnItemKeepsTheRestUnderTheText() {
-        XCTAssertEqual(shiftReturn(on: "- [ ] one two", caret: 10), "- [ ] one \n      two")
+    func testShiftReturnOnlyAddsIndentWhenTheLineWasAlreadyIndented() {
+        XCTAssertEqual(shiftReturn(on: "  - nested"), "  - nested\n  ")
+        XCTAssertEqual(shiftReturn(on: "    - [ ] deep task"), "    - [ ] deep task\n    ")
+        XCTAssertEqual(shiftReturn(on: "      continuation"), "      continuation\n      ")
+        XCTAssertEqual(shiftReturn(on: "\tcode"), "\tcode\n\t")
+    }
+
+    func testShiftReturnInTheMiddleOfAnItemSplitsTheLine() {
+        XCTAssertEqual(shiftReturn(on: "- [ ] one two", caret: 10), "- [ ] one \ntwo")
     }
 
     func testShiftReturnOnAnEmptyItemDoesNotEndTheList() {
-        XCTAssertEqual(shiftReturn(on: "- [ ] "), "- [ ] \n      ")
-        XCTAssertEqual(shiftReturn(on: "- "), "- \n  ")
-    }
-
-    func testShiftReturnKeepsAQuoteAndLeavesPlainTextAlone() {
-        XCTAssertEqual(shiftReturn(on: "> quote"), "> quote\n> ")
-        XCTAssertEqual(shiftReturn(on: "plain text"), "plain text\n")
-        XCTAssertEqual(shiftReturn(on: "# Heading"), "# Heading\n")
+        XCTAssertEqual(shiftReturn(on: "- [ ] "), "- [ ] \n")
+        XCTAssertEqual(shiftReturn(on: "- "), "- \n")
     }
 
     func testShiftEnterOnTheKeypadDoesTheSame() {
         let (w, tv, _, _) = make("- [ ] a")
         tv.setSelectedRange(NSRange(location: 7, length: 0))
         press(w, code: 76, chars: "\u{3}", flags: .shift)
-        XCTAssertEqual(tv.string, "- [ ] a\n      ")
+        XCTAssertEqual(tv.string, "- [ ] a\n")
     }
 
-    func testPlainReturnStillContinuesTheListAndOptionReturnStillIndents() {
+    func testPlainReturnStillContinuesTheListAndOptionReturnDoesTheSameAsShift() {
         let (w, tv, _, _) = make("- [ ] a")
         tv.setSelectedRange(NSRange(location: 7, length: 0))
         press(w, code: 36, chars: "\r")
@@ -101,16 +102,16 @@ final class EditorWindowTests: XCTestCase {
         let (w2, tv2, _, _) = make("- b")
         tv2.setSelectedRange(NSRange(location: 3, length: 0))
         press(w2, code: 36, chars: "\r", flags: .option)
-        XCTAssertEqual(tv2.string, "- b\n  ")
+        XCTAssertEqual(tv2.string, "- b\n")
     }
 
-    func testShiftReturnTwiceKeepsIndentingTheSameItem() {
+    func testShiftReturnTwiceNeverAddsAnItem() {
         let (w, tv, _, _) = make("- [ ] a")
         tv.setSelectedRange(NSRange(location: 7, length: 0))
         press(w, code: 36, chars: "\r", flags: .shift)
         tv.insertText("b", replacementRange: tv.selectedRange())
         press(w, code: 36, chars: "\r", flags: .shift)
-        XCTAssertEqual(tv.string, "- [ ] a\n      b\n      ", "no second task appears")
+        XCTAssertEqual(tv.string, "- [ ] a\nb\n", "no second task, no marker")
     }
 
     // MARK: typewriter mode
@@ -238,5 +239,44 @@ final class EditorWindowTests: XCTestCase {
         let text = "# Title\nbody\n"
         let (w, tv, _, _) = make(text, size: NSSize(width: 520, height: 500))
         XCTAssertGreaterThan(ink(left: "# Title", in: text, tv: tv, w: w), 6)
+    }
+
+    // MARK: folded text must not leave its styling behind
+
+    /// The colour of the pixel at the right-hand end of the line that starts with `needle`, inside the text column.
+    private func pixel(onLineStarting needle: String, text: String, tv: EditorTextView, fromRight inset: CGFloat) -> NSColor? {
+        let lm = tv.layoutManager!
+        let g = lm.glyphIndexForCharacter(at: (text as NSString).range(of: needle).location)
+        let frag = lm.lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
+        guard let rep = tv.bitmapImageRepForCachingDisplay(in: tv.bounds) else { return nil }
+        tv.cacheDisplay(in: tv.bounds, to: rep)
+        let scale = CGFloat(rep.pixelsWide) / tv.bounds.width
+        let x = (tv.textContainerOrigin.x + tv.textContainer!.size.width - inset) * scale
+        let y = (frag.midY + tv.textContainerOrigin.y) * scale
+        return rep.colorAt(x: Int(x), y: Int(y))?.usingColorSpace(.sRGB)
+    }
+
+    func testAFoldedHeadingDoesNotShowTheCodeBlockOrCodeChipsHiddenUnderIt() {
+        let text = "## Architecture\n\nprose with `inline code` here\n\n```swift\nlet hidden = 1\n```\n\n## Next\n\ntext\n"
+        let (_, tv, _, _) = make(text, size: NSSize(width: 1000, height: 700))
+        // unfolded, the code block has its tinted band
+        let band = pixel(onLineStarting: "let hidden", text: text, tv: tv, fromRight: 30)
+        XCTAssertNotNil(band); XCTAssertGreaterThan(band!.alphaComponent, 0.9, "the band is drawn behind the code")
+        tv.setFolded([0], true); tv.layoutManager!.ensureLayout(for: tv.textContainer!)
+        tv.display()
+        let header = pixel(onLineStarting: "## Architecture", text: text, tv: tv, fromRight: 30)
+        XCTAssertNotNil(header)
+        XCTAssertEqual(header!.alphaComponent, 0, accuracy: 0.01, "nothing is painted behind the folded heading: no band from the code under it")
+        XCTAssertEqual(tv.string, text, "folding does not change the text")
+    }
+
+    func testFoldedHeadingKeepsTheHeadingLooksNotTheCodeLooks() {
+        let text = "## Architecture\n\n```swift\nlet hidden = 1\n```\n\n## Next\n\ntext\n"
+        let (_, tv, _, _) = make(text)
+        tv.setFolded([0], true)
+        let r = (text as NSString).range(of: "Architecture")
+        let colour = tv.textStorage!.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(colour, Palette.strongText, "a heading stays in the heading colour whether folded or not")
+        XCTAssertNil(tv.textStorage!.attribute(.backgroundColor, at: r.location, effectiveRange: nil))
     }
 }

@@ -39,15 +39,14 @@ final class EditorBehaviorTests: XCTestCase {
         XCTAssertFalse(c.continueList(tv), "before the text there is nothing to continue")
     }
 
-    // MARK: Shift-Return (insertLineBreak) continues the same item, never starts a new one
+    // MARK: Shift-Return is only a new line: no bullet, number, task or quote; it keeps the indentation the line already has
 
-    func testShiftReturnIndentsUnderTheMarkerInsteadOfStartingANewItem() {
+    func testShiftReturnIsAPlainNewLineThatKeepsOnlyExistingIndentation() {
         for sel in [#selector(NSResponder.insertLineBreak(_:)), #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:))] {
-            for (text, expected) in [("- one", "- one\n  "), ("* one", "* one\n  "), ("+ one", "+ one\n  "), ("\u{2022} one", "\u{2022} one\n  "),
-                                     ("1. one", "1. one\n   "), ("9) nine", "9) nine\n   "), ("10. ten", "10. ten\n    "),
-                                     ("- [ ] task", "- [ ] task\n      "), ("- [x] done", "- [x] done\n      "),
-                                     ("  - nested", "  - nested\n    "), ("    - [ ] deep", "    - [ ] deep\n          "),
-                                     ("> quote", "> quote\n> ")] {
+            for (text, expected) in [("- one", "- one\n"), ("* one", "* one\n"), ("1. one", "1. one\n"), ("- [ ] task", "- [ ] task\n"), ("- [x] done", "- [x] done\n"),
+                                     ("> quote", "> quote\n"), ("# Heading", "# Heading\n"), ("plain text", "plain text\n"),
+                                     ("  - nested", "  - nested\n  "), ("    - [ ] deep", "    - [ ] deep\n    "), ("\tindented", "\tindented\n\t"),
+                                     ("      continuation", "      continuation\n      ")] {
                 let (tv, c) = make(text)
                 XCTAssertTrue(c.textView(tv, doCommandBy: sel), text)
                 XCTAssertEqual(tv.string, expected, text)
@@ -55,32 +54,26 @@ final class EditorBehaviorTests: XCTestCase {
         }
     }
 
-    func testShiftReturnInTheMiddleOfATaskSplitsTheTextUnderTheMarker() {
-        let (tv, c) = make("- [ ] one two", caret: 10)
-        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
-        XCTAssertEqual(tv.string, "- [ ] one \n      two")
+    func testShiftReturnInTheMiddleSplitsTheLineAndCarriesOnlyTheIndent() {
+        let (tv, c) = make("  - [ ] one two", caret: 12)
+        XCTAssertTrue(c.softBreak(tv))
+        XCTAssertEqual(tv.string, "  - [ ] one \n  two")
+        let (inside, c2) = make("    text", caret: 2)
+        XCTAssertTrue(c2.softBreak(inside))
+        XCTAssertEqual(inside.string, "  \n    text", "only the part of the indentation before the caret is carried")
     }
 
-    func testShiftReturnOnAnEmptyItemDoesNotEndTheList() {
+    func testShiftReturnReplacesASelection() {
+        let (tv, c) = make("- a b c")
+        tv.setSelectedRange(NSRange(location: 3, length: 2))
+        XCTAssertTrue(c.softBreak(tv))
+        XCTAssertEqual(tv.string, "- a\n c")
+    }
+
+    func testShiftReturnOnAnEmptyItemIsStillJustANewLine() {
         let (tv, c) = make("- one\n- ")
-        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
-        XCTAssertEqual(tv.string, "- one\n- \n  ")
-    }
-
-    func testShiftReturnInPlainTextIsLeftToTheTextView() {
-        let (tv, c) = make("just text")
-        XCTAssertFalse(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
-        XCTAssertEqual(tv.string, "just text")
-    }
-
-    func testShiftReturnIsOneUndoStep() {
-        let (tv, c) = make("- [ ] one")
-        tv.allowsUndo = true
-        XCTAssertTrue(c.textView(tv, doCommandBy: #selector(NSResponder.insertLineBreak(_:))))
-        XCTAssertEqual(tv.string, "- [ ] one\n      ")
-        // One insertText call: the newline and the indent are a single edit.
-        tv.undoManager?.undo()
-        if tv.undoManager != nil { XCTAssertEqual(tv.string, "- [ ] one") }
+        XCTAssertTrue(c.softBreak(tv))
+        XCTAssertEqual(tv.string, "- one\n- \n")
     }
 
     func testPlainReturnStillContinuesTheListThroughDoCommand() {
