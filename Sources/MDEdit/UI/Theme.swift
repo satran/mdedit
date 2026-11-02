@@ -33,6 +33,10 @@ enum Palette {
     static let segmentOn = dyn(0xFFFFFF, 0x42454C)
     static let segmentText = dyn(0x5F656D, 0xB3B8BF)
     static let highlight = dyn(0xFFE58A, 0x6B5A1E)
+    static let findMatch = dyn(0xFCEFB4, 0x4D4322)           // a find match in the note
+    static let findCurrent = dyn(0xFAD551, 0x7A6624)         // the one the panel is on
+    static let removedBg = dyn(0xFBE2DF, 0x4A2A2A), removedInk = dyn(0x9B2C2C, 0xF0A0A0)
+    static let addedBg = dyn(0xDCF2E3, 0x1F3D2B), addedInk = dyn(0x1E6B3A, 0x8EDBA8)
     static let done = dyn(0x8A9099, 0x7B8089)
     static let unresolved = dyn(0x9AA0A8, 0x7C828B)
     static let focusDim = dyn(0xC3C8CE, 0x4A4E55)

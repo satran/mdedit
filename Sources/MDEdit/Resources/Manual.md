@@ -16,7 +16,7 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 - **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
 - **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free, typewriter and export buttons.
-- **Outline** (right, optional): the headings of the note, and the notes that link to it. Show or hide it with the button at the top right, or ⌥⌘O.
+- **Outline** (right, optional): the headings of the note, and the notes that link to it. Show or hide it with the button at the top right, or ⌥⌘O. The magnifying-glass button next to it opens find and replace in the same place.
 - The **status bar** at the bottom can be hidden with ⌥⌘B.
 
 ## Working with notes and folders
@@ -31,7 +31,7 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 **Trash.** File ▸ Move to Trash moves the selected item to the Trash. It is not deleted for good, so you can still get it back from there.
 
-**Search.** Type in the search box (⇧⌘F jumps there). The binder narrows to the files and folders whose name contains what you typed, with the folders that hold them. Clear the box to see the whole tree again.
+**Search.** Type in the search box (⇧⌘B jumps there). To search inside the notes, use Find and Replace below. The binder narrows to the files and folders whose name contains what you typed, with the folders that hold them. Clear the box to see the whole tree again.
 
 **Keyboard in the binder.** ↑ and ↓ move through the rows, and notes open as you pass them. → opens a folder, ← closes it or steps up to its parent. Space previews a file that MDEdit cannot edit, such as a picture or a PDF.
 
@@ -90,6 +90,39 @@ A block of `key: value` lines between `---` lines at the very top of a note is *
 
 - **Typewriter mode** (⌃⌘T, or the button in the bottom row) keeps the line you are typing in the middle of the window.
 - **Distraction free** (⌃⌘F) hides everything except the note. Settings decides whether it uses the full screen or just fills the window. Press Esc or the same shortcut to leave.
+
+## Find and replace
+
+The **magnifying-glass button** in the header, or ⌘F, opens the find and replace panel on the right, in the place of the outline. Close it with ✕ or Esc, and the outline comes back as it was. The panel has two scopes, chosen at the top.
+
+### This file
+
+- Type in **Find**. Every match is marked in the note, the one you are on in a stronger yellow, and the panel lists them with their line numbers. The count shows where you are (“2 of 5”).
+- Return or ⌘G goes to the next match, ⇧⌘G to the previous one. The ▲ ▼ buttons do the same. Clicking a line in the list selects that match in the note.
+- Type in **Replace with**. **Replace** changes the current match and moves on; **Replace all** changes every match. Either is a single Undo (⌘Z) step.
+- ⌘F also takes the selected text as the thing to find.
+- In the View, matches are counted but not marked; Replace switches to Write first.
+
+### Folder
+
+⇧⌘F, or the **Folder** button, searches every note in the opened folder.
+
+- **Search in** limits it to the whole project or just this note's folder (and the folders below it).
+- Results are grouped by note, with the folder beside the name and the number of matches. Click the arrow to open or close a note's group, or use **Expand all**. Click a match to open it in the editor.
+- Each match shows what it would become: the old text struck through in red, the new text in green.
+- Every match and every note has a **checkbox**. Untick what you want to keep, then press **Replace N in M files**. A match you left unticked is never touched.
+- The note you have open changes in the editor, and the others on disk. **⌘Z undoes the whole replace**, including the other files, as long as they have not been edited since. If a note changed after the search, MDEdit skips it and says so.
+
+### The options
+
+| Button | Meaning |
+| --- | --- |
+| **Aa** | Match case. |
+| **ab** | Whole word: “cat” does not match “concat”. |
+| **.\*** | Regular expression. In the replacement, `$1`, `$2` … stand for the groups you captured. |
+| **Preserve case** | The replacement follows the case of what it replaces: “time” gives “failed”, “Time” gives “Failed”, “TIME” gives “FAILED”. |
+
+An invalid pattern is shown in the field instead of searching. Very large results are cut off at 5,000 matches a note and 20,000 in all (the count then shows a +), and a pattern that takes too long is stopped.
 
 ## Viewing
 

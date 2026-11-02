@@ -8,7 +8,7 @@ final class HelpTests: XCTestCase {
 
     func testTheManualShipsInTheAppAndHasTheMainTopics() {
         let titles = pages.map(\.title)
-        for t in ["Getting started", "The window", "Writing", "Viewing", "Running shell commands", "Settings", "Keyboard shortcuts", "Troubleshooting"] {
+        for t in ["Getting started", "The window", "Writing", "Find and replace", "Viewing", "Running shell commands", "Settings", "Keyboard shortcuts", "Troubleshooting"] {
             XCTAssertTrue(titles.contains(t), "no page called \(t)")
         }
         XCTAssertGreaterThan(HelpManual.source.count, 8_000, "the manual file is missing or empty")

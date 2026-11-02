@@ -23,6 +23,9 @@ final class Workspace: ObservableObject {
     @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
     @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
     @Published var binderVisible: Bool
+    /// The find & replace panel takes the outline's place on the right while it is open.
+    @Published var findVisible = false
+    let find = FindModel()
     /// Closing the palette gives the keyboard back to the note, so the caret is not left without a home.
     @Published var paletteVisible = false { didSet { if oldValue, !paletteVisible, mode == .write { DispatchQueue.main.async { [weak self] in self?.focusEditor() } } } }
     /// Set by "Search Binder"; the binder's search field takes it when it can.
@@ -71,6 +74,7 @@ final class Workspace: ObservableObject {
         outlineVisible = defaults.bool(forKey: "outlineVisible")
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
         shellDestination = defaults.string(forKey: "shellDestination").flatMap(ShellDestination.init(rawValue:)) ?? .insert
+        find.ws = self
         restore()
     }
 
@@ -95,17 +99,9 @@ final class Workspace: ObservableObject {
 
     /// Same for the outline on the right: the window grows or shrinks, the writing pane stays as it is.
     func toggleOutline() {
-        outlineVisible.toggle()
-        let delta: CGFloat = outlineVisible ? 241 : -241
-        guard let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
-        var f = w.frame
-        f.size.width += delta
-        if let screen = w.screen?.visibleFrame, f.maxX > screen.maxX { f.origin.x = max(screen.minX, screen.maxX - f.width) }
-        NSAnimationContext.runAnimationGroup { c in
-            c.duration = 0.25
-            c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            w.animator().setFrame(f, display: true)
-        }
+        let before = rightPanelWidth
+        if findVisible { findVisible = false; find.highlight(); outlineVisible = true } else { outlineVisible.toggle() }
+        resizeWindow(by: rightPanelWidth - before)
     }
 
     /// Another window on the folder that is open here.
@@ -544,10 +540,11 @@ final class Workspace: ObservableObject {
     }
 
     /// Puts the caret on a heading of the open note.
-    func jump(to location: Int) {
+    func jump(to location: Int, length: Int = 0) {
         let go = { [weak self] in
             guard let tv = self?.editor.textView else { return }
-            let r = NSRange(location: min(location, (tv.string as NSString).length), length: 0)
+            let n = (tv.string as NSString).length
+            let r = NSRange(location: min(location, n), length: min(length, max(0, n - location)))
             tv.window?.makeFirstResponder(tv)
             tv.setSelectedRange(r)
             tv.scrollRangeToVisible(r)

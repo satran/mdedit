@@ -42,6 +42,7 @@ make coverage                  # per-file line coverage of the last test run
 | Windows | One window per folder (no tabs); File ▸ Open Recent; "New Window with This Folder" |
 | Command palette | ⇧⌘P: every menu command, built from the same list as the menus |
 | Export | HTML (sanitised), Print / PDF, Copy as Markdown |
+| Find & replace | ⌘F / ⌥⌘F / ⇧⌘F open the panel (`UI/FindPanel.swift`) in the outline's place: This file (marks in the editor via temporary attributes, one-undo replace) or Folder (grouped results with checkboxes, diff preview, replace on disk with a ⌘Z that restores every file if unchanged since). Engine: `Model/FindReplace.swift` (`FindEngine`, `FolderFind`; UTF-16 ranges, caps and a time limit); state: `Model/Workspace+Find.swift`. Tests: `FindEngineTests`, `FindReplaceTests`. Search Binder moved to ⇧⌘B |
 | Help | Help ▸ MDEdit Help (⌘?) opens the manual: `Resources/Manual.md` cut into pages at its `##` headings (searchable), plus a shortcuts page generated from the command list. Edit the manual there; `HelpTests` checks that the keys it names match the menus. Not an Apple Help Book: those need an indexed bundle that the Help Viewer caches and does not reliably open for unnotarised apps |
 | Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer template/size/width, remote pictures (off by default), status bar, distraction-free behaviour |
 

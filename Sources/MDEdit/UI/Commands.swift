@@ -2,7 +2,7 @@ import SwiftUI
 
 /// One thing the app can do. The menu bar and the command palette are both built from the same list.
 struct Cmd: Identifiable {
-    enum Place { case file, fileMore, view, format, paletteOnly }
+    enum Place { case file, fileMore, view, find, format, paletteOnly }
     let id: String
     let title: String
     var place: Place = .paletteOnly
@@ -53,8 +53,13 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
 
         Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "forward", title: "Forward to Next Note", place: .view, key: "]", enabled: ws?.ahead.isEmpty == false) { ws?.goForward() },
+        Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasDoc) { ws?.showFind(.file) },
+        Cmd(id: "replace", title: "Find and Replace…", place: .find, key: "f", modifiers: [.command, .option], enabled: hasDoc) { ws?.showFind(.file, field: .replace) },
+        Cmd(id: "find-folder", title: "Find in Folder…", place: .find, key: "f", modifiers: [.command, .shift], enabled: hasRoot) { ws?.showFind(.folder) },
+        Cmd(id: "find-next", title: "Find Next", place: .find, key: "g", enabled: hasDoc, dividerBefore: true) { ws?.findNext(1) },
+        Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasDoc) { ws?.findNext(-1) },
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
-        Cmd(id: "search", title: "Search Binder", place: .view, key: "f", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
+        Cmd(id: "search", title: "Search Binder", place: .view, key: "b", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
         Cmd(id: "outline", title: ws?.outlineVisible == true ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
         Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil, dividerBefore: true) { ws?.mode = .write },
@@ -90,6 +95,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .newItem) { items(all, .file) }
         CommandGroup(after: .newItem) { items(all, .fileMore) }
         CommandGroup(after: .sidebar) { items(all, .view) }
+        CommandMenu("Find") { items(all, .find) }
         CommandMenu("Format") { items(all, .format) }
         CommandGroup(replacing: .help) {
             Button("MDEdit Help") { openWindow(id: "help") }.keyboardShortcut("?", modifiers: .command)

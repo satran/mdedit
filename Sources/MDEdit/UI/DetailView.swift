@@ -13,7 +13,10 @@ struct DetailView: View {
                 content.frame(maxWidth: .infinity, maxHeight: .infinity)
                 if prefs.showStatusBar { footer }
             }
-            if ws.outlineVisible {
+            if ws.findVisible {
+                Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
+                FindPanel(find: ws.find, document: document).frame(width: 360)
+            } else if ws.outlineVisible {
                 Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
                 OutlineView(document: document).frame(width: 240)
             }
@@ -35,8 +38,13 @@ struct DetailView: View {
                 .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
             IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
                 .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
-            IconButton(symbol: "sidebar.right", label: ws.outlineVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
-                .foregroundStyle(Color(ws.outlineVisible ? Palette.link : Palette.muted))
+            HStack(spacing: 4) {
+                IconButton(symbol: "magnifyingglass", label: ws.findVisible ? "Close find and replace" : "Find and replace") { ws.toggleFindPanel() }
+                    .foregroundStyle(Color(ws.findVisible ? Palette.link : Palette.muted))
+                    .accessibilityAddTraits(ws.findVisible ? .isSelected : [])
+                IconButton(symbol: "sidebar.right", label: ws.outlineVisible && !ws.findVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
+                    .foregroundStyle(Color(ws.outlineVisible && !ws.findVisible ? Palette.link : Palette.muted))
+            }
         }
         .padding(.leading, ws.binderVisible ? 16 : 100).padding(.trailing, 16)
         .frame(height: Metrics.headerHeight)
