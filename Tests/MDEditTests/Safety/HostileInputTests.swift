@@ -30,7 +30,7 @@ final class HostileInputTests: XCTestCase {
         for (name, text) in Self.inputs {
             let start = Date()
             _ = MarkdownSyntax.analyze(text)
-            _ = ViewerParser.parse(text)
+            _ = PreviewPage.body(markdown: text)
             _ = Exporter.html(markdown: text, title: name)
             _ = Outline.headings(in: text)
             _ = DocumentStore.wordCount(text)
@@ -47,7 +47,7 @@ final class HostileInputTests: XCTestCase {
         let worst = ["link starts", "wiki pipes", "mixed marks", "image starts", "highlight", "stars", "long line", "one huge word"]
         for (name, text) in Self.inputs where worst.contains(name) {
             within(4, "analyze \(name)") { _ = MarkdownSyntax.analyze(text) }
-            within(4, "parse \(name)") { _ = ViewerParser.parse(text) }
+            within(4, "parse \(name)") { _ = PreviewPage.body(markdown: text) }
             within(4, "export \(name)") { _ = Exporter.html(markdown: text, title: "t") }
         }
     }
@@ -55,22 +55,22 @@ final class HostileInputTests: XCTestCase {
     func testDeepNestingIsFlattenedNotFollowed() {
         for n in [1_000, 5_000, 50_000, 500_000] {
             let src = String(repeating: ">", count: n) + " deep"
-            within(2, "quotes \(n)") { _ = ViewerParser.parse(src); _ = Exporter.html(markdown: src, title: "t") }
+            within(2, "quotes \(n)") { _ = PreviewPage.body(markdown: src); _ = Exporter.html(markdown: src, title: "t") }
             let spaced = String(repeating: "> ", count: n)
-            within(2, "spaced quotes \(n)") { _ = ViewerParser.parse(spaced) }
+            within(2, "spaced quotes \(n)") { _ = PreviewPage.body(markdown: spaced) }
         }
         var list = ""
         for i in 0..<3_000 { list += String(repeating: "  ", count: i) + "- item\n" }
-        within(10, "deep list") { _ = ViewerParser.parse(list); _ = Exporter.html(markdown: list, title: "t") }
+        within(10, "deep list") { _ = PreviewPage.body(markdown: list); _ = Exporter.html(markdown: list, title: "t") }
         let nested = String(repeating: "- ", count: 100_000) + "x"
-        within(4, "marker chain") { _ = ViewerParser.parse(nested); _ = Exporter.html(markdown: nested, title: "t") }
+        within(4, "marker chain") { _ = PreviewPage.body(markdown: nested); _ = Exporter.html(markdown: nested, title: "t") }
     }
 
     func testInlineNestingDoesNotOverflowTheStack() {
         for s in [String(repeating: "*a ", count: 50_000), String(repeating: "[", count: 100_000), String(repeating: "(", count: 100_000),
                   String(repeating: "**_~~", count: 20_000), String(repeating: "[a](", count: 30_000) + String(repeating: ")", count: 30_000),
                   String(repeating: "<", count: 100_000), String(repeating: "![a](", count: 30_000)] {
-            within(6, "inline nesting") { _ = ViewerParser.parse(s); _ = Exporter.html(markdown: s, title: "t"); _ = MarkdownSyntax.analyze(s) }
+            within(6, "inline nesting") { _ = PreviewPage.body(markdown: s); _ = Exporter.html(markdown: s, title: "t"); _ = MarkdownSyntax.analyze(s) }
         }
     }
 
@@ -102,7 +102,7 @@ final class HostileInputTests: XCTestCase {
             for _ in 0..<Int.random(in: 0...300, using: &rng) { s += alphabet.randomElement(using: &rng)! }
             _ = Exporter.plainWikiLinks(s); _ = FrontMatter.parse(s); _ = FrontMatter.body(of: s)
             _ = Outline.headings(in: s); _ = WikiLink.parse(s); _ = MarkdownSyntax.analyze(s)
-            _ = ViewerParser.parse(s); _ = Exporter.html(markdown: s, title: "x")
+            _ = PreviewPage.body(markdown: s); _ = Exporter.html(markdown: s, title: "x")
         }
     }
 

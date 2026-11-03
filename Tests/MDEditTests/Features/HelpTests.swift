@@ -18,7 +18,7 @@ final class HelpTests: XCTestCase {
     func testEveryPageHasContentAndParses() {
         for p in pages {
             XCTAssertGreaterThan(p.markdown.count, 60, p.title)
-            XCTAssertFalse(ViewerParser.parse(p.markdown).isEmpty, p.title)
+            XCTAssertFalse(PreviewPage.body(markdown: p.markdown).isEmpty, p.title)
         }
     }
 

@@ -74,5 +74,9 @@ struct HelpView: View {
 private struct HelpPage: View {
     let markdown: String
     @ObservedObject var prefs: Preferences
-    var body: some View { ViewerView(blocks: ViewerParser.parse(markdown), baseURL: nil, prefs: prefs) }
+    var body: some View {
+        PreviewWebView(request: PreviewRequest(source: .markdown(markdown), title: "MDEdit Help", noteFolder: nil, root: nil,
+                                               options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil)),
+                       open: { url in if ["http", "https"].contains(url.scheme) { NSWorkspace.shared.open(url) } })
+    }
 }

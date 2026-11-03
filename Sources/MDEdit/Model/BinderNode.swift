@@ -8,6 +8,10 @@ final class BinderNode: Identifiable {
     var id: URL { url }
     /// Notes show without their extension; other files keep it.
     var isDocument: Bool { !isFolder && Self.documentExtensions.contains(url.pathExtension.lowercased()) }
+    /// A web page: shown in the preview and never edited, so it is not a note (no wiki links, no search, no replace) and keeps its extension.
+    var isHTML: Bool { !isFolder && Self.htmlExtensions.contains(url.pathExtension.lowercased()) }
+    /// Opens in the writing pane rather than in Quick Look.
+    var opensInApp: Bool { isDocument || isHTML }
     var name: String { isFolder || !isDocument ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent }
 
     init(url: URL, isFolder: Bool, children: [BinderNode] = []) {
@@ -17,6 +21,7 @@ final class BinderNode: Identifiable {
     static let maxDepth = 40
     static let markdownExtensions: Set<String> = ["md", "markdown"]
     static let documentExtensions: Set<String> = markdownExtensions.union(["txt"])
+    static let htmlExtensions: Set<String> = ["html", "htm"]
 
     /// Reads the tree below `url`: folders first, then files, each in natural order. Hidden files are skipped.
     static func scan(_ url: URL, fileManager fm: FileManager = .default, depth: Int = 0) -> BinderNode {

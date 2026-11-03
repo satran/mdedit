@@ -254,33 +254,6 @@ final class AppFeatureTests: XCTestCase {
         XCTAssertNil(ws.index.resolve(WikiLink(target: "../../etc/passwd", alias: nil), from: nil))
     }
 
-    // MARK: viewer
-
-    func testViewerKeepsEveryBlockKindAndPropertiesFirst() {
-        let blocks = ViewerParser.parse("---\ntitle: T\n---\n# H\n\npara\n\n> q\n\n- a\n- b\n\n1. x\n\n```swift\nlet a = 1\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n---\n\n![alt](pic.png)\n")
-        guard case .properties = blocks.first else { return XCTFail("front matter comes first") }
-        var kinds: [String] = []
-        for b in blocks.dropFirst() {
-            switch b {
-            case .heading: kinds.append("h"); case .paragraph: kinds.append("p"); case .quote: kinds.append("q"); case .list: kinds.append("l")
-            case .code: kinds.append("c"); case .table: kinds.append("t"); case .rule: kinds.append("r"); case .image: kinds.append("i")
-            default: kinds.append("?")
-            }
-        }
-        XCTAssertEqual(kinds, ["h", "p", "q", "l", "l", "c", "t", "r", "i"])
-    }
-
-    func testRawHTMLInANoteIsNotRenderedAsHTMLInTheViewer() {
-        let blocks = ViewerParser.parse("<script>alert(1)</script>\n\ntext <b>bold</b> <img src=x onerror=1>")
-        for b in blocks {
-            switch b {
-            case .html(let raw): XCTAssertTrue(raw.contains("script"))   // kept as text
-            case .paragraph(let a): XCTAssertTrue(String(a.characters).contains("<b>"))
-            default: break
-            }
-        }
-    }
-
     // MARK: quick look
 
     func testQuickViewHidesWithoutAPanel() {

@@ -4,6 +4,8 @@ struct DetailView: View {
     @EnvironmentObject var ws: Workspace
     @EnvironmentObject var prefs: Preferences
     @ObservedObject var document: DocumentStore
+    /// `.mdedit/preview.css` of the opened folder, read again when the folder changes.
+    @State private var customCSS: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -22,6 +24,11 @@ struct DetailView: View {
             }
         }
         .background(Color(Palette.paneBg))
+        .onAppear { customCSS = CustomCSS.load(ws.rootURL) }
+        .onChange(of: ws.treeVersion) { _, _ in
+            let c = CustomCSS.load(ws.rootURL)
+            if c != customCSS { customCSS = c }
+        }
     }
 
     // MARK: header
@@ -33,8 +40,10 @@ struct DetailView: View {
             IconButton(symbol: "chevron.left", label: "Back to previous note") { ws.goBack() }
                 .foregroundStyle(Color(Palette.muted)).opacity(ws.visited.isEmpty ? 0.35 : 1).disabled(ws.visited.isEmpty)
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
+            // a web page can only be previewed: the button stays, dimmed
             IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
                 .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
+                .opacity(ws.showingHTML ? 0.35 : 1).disabled(ws.showingHTML)
                 .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
             IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
                 .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
@@ -107,35 +116,44 @@ struct DetailView: View {
                                linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor,
                                dropText: { ws.linkText(forDropped: $0) })
         } else {
-            ViewerContainer(text: document.text, baseURL: document.url?.deletingLastPathComponent(), prefs: prefs)
-                .environment(\.openURL, OpenURLAction { url in
-                    switch LinkPolicy.decide(url, noteFolder: document.url?.deletingLastPathComponent(), root: ws.rootURL) {
-                    case .wiki(let t): ws.openWiki(t)
-                    case .openWeb(let u): NSWorkspace.shared.open(u)
-                    case .selectNote(let u): ws.select(u)
-                    case .openFile(let u): NSWorkspace.shared.open(u)
-                    case .reveal(let u): NSWorkspace.shared.activateFileViewerSelecting([u])
-                    case .ignore: break
-                    }
-                    return .handled
-                })
+            PreviewWebView(request: previewRequest, open: openLink)
+        }
+    }
+
+    private var previewRequest: PreviewRequest {
+        let url = document.url
+        let source: PreviewRequest.Source = ws.showingHTML && url != nil ? .html(url!, text: document.text) : .markdown(document.text)
+        return PreviewRequest(source: source, title: url?.deletingPathExtension().lastPathComponent ?? "", noteFolder: url?.deletingLastPathComponent(),
+                              root: ws.rootURL, options: .init(style: prefs.viewerStyle, loadRemote: prefs.loadRemoteImages, customCSS: ws.showingHTML ? nil : customCSS))
+    }
+
+    /// A click in the preview: the same rules for notes and pages.
+    private func openLink(_ url: URL) {
+        switch LinkPolicy.decide(url, noteFolder: document.url?.deletingLastPathComponent(), root: ws.rootURL) {
+        case .wiki(let t): ws.openWiki(t)
+        case .openWeb(let u): NSWorkspace.shared.open(u)
+        case .selectNote(let u): ws.select(u)
+        case .openFile(let u): NSWorkspace.shared.open(u)
+        case .reveal(let u): NSWorkspace.shared.activateFileViewerSelecting([u])
+        case .ignore: break
         }
     }
 
     // MARK: footer
 
     private var footer: some View {
-        let words = DocumentStore.wordCount(document.text)
+        let page = ws.showingHTML
+        let words = DocumentStore.wordCount(page ? HTMLText.visible(document.text) : document.text)
         let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
         return HStack(spacing: 2) {
-            if document.url != nil, ws.mode == .view {
+            if document.url != nil, ws.mode == .view, !page {
                 TemplateSwitch(template: $prefs.viewerTemplate).padding(.trailing, 10)
             }
             if document.url != nil {
                 Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
             }
             Spacer()
-            if document.url != nil {
+            if document.url != nil, !page {
                 if ws.mode == .write {
                     IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
                     IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle(); DispatchQueue.main.async { ws.focusEditor() } }
@@ -160,21 +178,6 @@ struct DetailView: View {
         .overlay(alignment: .top) { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
     }
 }
-
-/// Parses once per change of text, not on every redraw.
-struct ViewerContainer: View {
-    let text: String
-    let baseURL: URL?
-    @ObservedObject var prefs: Preferences
-    @State private var blocks: [VBlock] = []
-
-    var body: some View {
-        ViewerView(blocks: blocks, baseURL: baseURL, prefs: prefs)
-            .onAppear { blocks = ViewerParser.parse(text) }
-            .onChange(of: text) { _, new in blocks = ViewerParser.parse(new) }
-    }
-}
-
 
 /// Serif | Sans, the two reading templates, in the footer while previewing.
 struct TemplateSwitch: View {

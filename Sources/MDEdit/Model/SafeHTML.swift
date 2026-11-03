@@ -32,26 +32,35 @@ enum SafeHTML {
         return escape(d)
     }
 
-    static func render(_ document: Document) -> String { render(document as Markup) }
+    /// What the preview needs while it walks a note: whether it is inside a link, and the character before the text at hand
+    /// (for curly quotes). Nil flow: plain output, as for export.
+    struct Ctx {
+        final class Flow { var last: Character? }
+        var flow: Flow?
+        var inLink = false
+    }
 
-    private static func kids(_ m: Markup) -> String { m.children.map(render).joined() }
+    static func render(_ document: Document, preview: Bool = false) -> String { render(document as Markup, Ctx(flow: preview ? Ctx.Flow() : nil)) }
 
-    private static func render(_ m: Markup) -> String {
+    private static func kids(_ m: Markup, _ pv: Ctx) -> String { m.children.map { render($0, pv) }.joined() }
+
+    private static func render(_ m: Markup, _ pv: Ctx) -> String {
         switch m {
-        case is Document: return kids(m)
+        case is Document: return kids(m, pv)
         case let h as Heading:
+            pv.flow?.last = nil
             let n = min(max(h.level, 1), 6)
-            return "<h\(n)>\(kids(h))</h\(n)>\n"
-        case let p as Paragraph: return "<p>\(kids(p))</p>\n"
-        case let q as BlockQuote: return "<blockquote>\n\(kids(q))</blockquote>\n"
-        case let l as UnorderedList: return "<ul>\n\(kids(l))</ul>\n"
+            return "<h\(n)>\(kids(h, pv))</h\(n)>\n"
+        case let p as Paragraph: pv.flow?.last = nil; return "<p>\(kids(p, pv))</p>\n"
+        case let q as BlockQuote: return "<blockquote>\n\(kids(q, pv))</blockquote>\n"
+        case let l as UnorderedList: return "<ul>\n\(kids(l, pv))</ul>\n"
         case let l as OrderedList:
             let start = l.startIndex != 1 ? " start=\"\(l.startIndex)\"" : ""
-            return "<ol\(start)>\n\(kids(l))</ol>\n"
+            return "<ol\(start)>\n\(kids(l, pv))</ol>\n"
         case let i as ListItem:
             var box = ""
             if let c = i.checkbox { box = "<input type=\"checkbox\" disabled=\"\"\(c == .checked ? " checked=\"\"" : "") /> " }
-            return "<li>\(box)\(kids(i))</li>\n"
+            return "<li>\(box)\(kids(i, pv))</li>\n"
         case let c as CodeBlock:
             // the language becomes a class name: letters, digits and a few symbols only
             let lang = (c.language ?? "").filter { $0.isLetter || $0.isNumber || "-_+#.".contains($0) }
@@ -59,20 +68,26 @@ enum SafeHTML {
             return "<pre><code\(attr)>\(escape(c.code))</code></pre>\n"
         case is ThematicBreak: return "<hr />\n"
         case let h as HTMLBlock: return "<pre><code>\(escape(h.rawHTML))</code></pre>\n"
-        case let t as Markdown.Table: return table(t)
-        case let t as Markdown.Text: return escape(t.string)
-        case let e as Emphasis: return "<em>\(kids(e))</em>"
-        case let s as Strong: return "<strong>\(kids(s))</strong>"
-        case let s as Strikethrough: return "<del>\(kids(s))</del>"
-        case let c as InlineCode: return "<code>\(escape(c.code))</code>"
-        case let h as InlineHTML: return "<code>\(escape(h.rawHTML))</code>"
-        case is SoftBreak: return "\n"
-        case is LineBreak: return "<br />\n"
+        case let t as Markdown.Table: return table(t, pv)
+        case let t as Markdown.Text:
+            guard let f = pv.flow else { return escape(t.string) }
+            let (html, last) = PreviewText.html(t.string, previous: f.last, inLink: pv.inLink)
+            f.last = last ?? f.last
+            return html
+        case let e as Emphasis: return "<em>\(kids(e, pv))</em>"
+        case let s as Strong: return "<strong>\(kids(s, pv))</strong>"
+        case let s as Strikethrough: return "<del>\(kids(s, pv))</del>"
+        case let c as InlineCode: pv.flow?.last = c.code.last ?? pv.flow?.last; return "<code>\(escape(c.code))</code>"
+        case let h as InlineHTML: pv.flow?.last = h.rawHTML.last ?? pv.flow?.last; return "<code>\(escape(h.rawHTML))</code>"
+        case is SoftBreak: pv.flow?.last = " "; return "\n"
+        case is LineBreak: pv.flow?.last = "\n"; return "<br />\n"
         case let l as Markdown.Link:
-            guard let target = safeTarget(l.destination) else { return kids(l) }
+            var inside = pv; inside.inLink = true
+            guard let target = safeTarget(l.destination) else { return kids(l, inside) }
             let title = l.title.flatMap { $0.isEmpty ? nil : " title=\"\(escape($0))\"" } ?? ""
-            return "<a href=\"\(target)\"\(title)>\(kids(l))</a>"
+            return "<a href=\"\(target)\"\(title)>\(kids(l, inside))</a>"
         case let i as Markdown.Image:
+            pv.flow?.last = i.plainText.last ?? pv.flow?.last
             guard let target = safeTarget(i.source) else { return escape(i.plainText) }
             let title = i.title.flatMap { $0.isEmpty ? nil : " title=\"\(escape($0))\"" } ?? ""
             return "<img src=\"\(target)\" alt=\"\(escape(i.plainText))\"\(title) />"
@@ -80,12 +95,13 @@ enum SafeHTML {
         }
     }
 
-    private static func table(_ t: Markdown.Table) -> String {
+    private static func table(_ t: Markdown.Table, _ pv: Ctx) -> String {
         let aligns = t.columnAlignments
         func cell(_ c: Markdown.Table.Cell, _ column: Int, tag: String) -> String {
             guard c.colspan > 0, c.rowspan > 0 else { return "" }
             let align = column < aligns.count ? aligns[column].map { " align=\"\($0)\"" } ?? "" : ""
-            return "<\(tag)\(align)>\(kids(c))</\(tag)>\n"
+            pv.flow?.last = nil
+            return "<\(tag)\(align)>\(kids(c, pv))</\(tag)>\n"
         }
         func row(_ cells: [Markdown.Table.Cell], tag: String) -> String {
             "<tr>\n" + cells.enumerated().map { cell($0.element, $0.offset, tag: tag) }.joined() + "</tr>\n"

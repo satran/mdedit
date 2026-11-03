@@ -35,7 +35,7 @@ make coverage                  # per-file line coverage of the last test run
 |---|---|
 | Binder | Folder tree of the opened folder; folders first, natural order; `.md/.markdown/.txt` open as notes, other files show with their extension and preview in Quick Look (Space); search; rename (double click / ⌥⌘R), move (drag), copy in (drop from Finder), trash; ↑↓←→ keyboard navigation; folder name shown beside the traffic lights; Back (‹ in the header, ⌘[) returns to the previous note and Forward (⌘]) undoes it; 100 deep, skipping notes that were deleted |
 | Write mode | Live-styled Markdown in IBM Plex Mono 17 pt, 1.65 line height, 72-character column; markers (`#`, `>`, `-`) hang in a 72 pt left gutter; code blocks as one tinted band; front matter in three quiet shades; image / file drops become links |
-| View mode | Typeset reading templates: **Serif** (Literata 20 px) and **Sans** (Inter 18 px), switch in the footer; configurable line width; real punctuation (curly quotes, dashes, ellipses) in the viewer only; front matter as a Properties card; local images centred; links open through `LinkPolicy` |
+| View mode | A web view (`Preview/`): the note becomes safe HTML (`SafeHTML` preview mode) in a page styled from `ViewerStyle` as CSS, plus the optional `.mdedit/preview.css`; JavaScript off, web content blocked unless Settings allows it, files served only from the opened folder through the `mdedit-file` scheme. Typeset reading templates: **Serif** (Literata 20 px) and **Sans** (Inter 18 px), switch in the footer; configurable line width; real punctuation (curly quotes, dashes, ellipses) in the viewer only; front matter as a Properties card; local images centred; links open through `LinkPolicy` |
 | Wiki links | `[[Note]]`, `[[Note\|alias]]`, `[[Note#Heading]]`, `[[folder/Note]]`; nearest-folder resolution; completion after `[[`; backlinks and outline in the right panel |
 | Formatting | Format menu + shortcuts: bold ⌘B, italic ⌘I, link ⌘K, code ⌘E, headings ⌥⌘1–6, lists, task, quote, code block, rule (all toggle) |
 | Modes | Typewriter (caret line stays centred), Distraction free (full screen or in-window, setting), Outline panel |
@@ -44,9 +44,10 @@ make coverage                  # per-file line coverage of the last test run
 | Export | HTML (sanitised), Print / PDF, Copy as Markdown |
 | Find & replace | ⌘F / ⌥⌘F / ⇧⌘F open the panel (`UI/FindPanel.swift`) in the outline's place: This file (marks in the editor via temporary attributes, one-undo replace) or Folder (grouped results with checkboxes, diff preview, replace on disk with a ⌘Z that restores every file if unchanged since). Engine: `Model/FindReplace.swift` (`FindEngine`, `FolderFind`; UTF-16 ranges, caps and a time limit); state: `Model/Workspace+Find.swift`. Tests: `FindEngineTests`, `FindReplaceTests`. Search Binder moved to ⇧⌘B |
 | Help | Help ▸ MDEdit Help (⌘?) opens the manual: `Resources/Manual.md` cut into pages at its `##` headings (searchable), plus a shortcuts page generated from the command list. Edit the manual there; `HelpTests` checks that the keys it names match the menus. Not an Apple Help Book: those need an indexed bundle that the Help Viewer caches and does not reliably open for unnotarised apps |
-| Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer template/size/width, remote pictures (off by default), status bar, distraction-free behaviour |
+| HTML files | `.html`/`.htm` open in the same web view with no editor (forced preview; Write, Find in file, Print, Export, Shell disabled; the eye button is dimmed). Not notes: no wiki links, outline or folder search |
+| Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer template/size/width, remote pictures and stylesheets (off by default), status bar, distraction-free behaviour |
 
-Original design intent is in `plan/PLAN.md` (historical: some details have moved on) and `plan/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Viewer/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.
+Original design intent is in `plan/PLAN.md` (historical: some details have moved on) and `plan/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Preview/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.
 
 ---
 
@@ -79,10 +80,10 @@ Sources/MDEdit/
                            typewriter, drops, Shift-Return, mouse
     MarkdownTextEditor.swift       NSViewRepresentable + Coordinator (Return/Tab/Backspace list behaviour, selection), EditorBridge
     MarkdownFormatting.swift       PURE format transformations (text + selection -> edit); EditorFormatting.swift applies them
-  Viewer/                  View mode (SwiftUI)
-    ViewerParser.swift     swift-markdown -> [VBlock]; smart punctuation; splits images out of paragraphs
-    ViewerStyle.swift      Every viewer size/space/colour per template (type specs)
-    ViewerView.swift       BlockList/BlockView/TableBlock/ImageBlock/PropertiesBlock, link-cursor modifier
+  Preview/                 View mode and HTML files (WKWebView)
+    PreviewPage.swift      Note -> page: CSS from the type specs, CSP, wiki links/addresses/punctuation, properties card, custom CSS
+    PreviewWebView.swift   Controller: lock-down (no JS, content rules, navigation), the mdedit-file scheme handler, scroll keeping
+    ViewerStyle.swift      Every viewer size/space/colour per template (type specs); the page CSS is generated from it
   UI/                      RootView, BinderView, DetailView (header/footer), FocusView, OutlineView, SettingsView,
                            Commands.swift (the ONE command list), FormatCommands.swift, Theme.swift (Palette, Metrics, TrafficLights)
   Resources/               Fonts (IBM Plex Mono, Source Serif 4, Literata, Inter + OFL licences), Assets.xcassets

@@ -16,7 +16,25 @@ final class Workspace: ObservableObject {
     @Published private(set) var ahead: [URL] = []
     @Published var search = ""
     /// Going back to Write gives the caret back to the note, so typing can start at once.
-    @Published var mode: Mode = .write { didSet { if mode == .write, oldValue == .view { focusEditor() } } }
+    @Published var mode: Mode = .write {
+        didSet {
+            // a web page has no editor
+            if mode == .write, showingHTML { mode = .view; return }
+            if mode == .write, oldValue == .view { focusEditor() }
+        }
+    }
+    /// The open file is an HTML page: shown in the preview only.
+    var showingHTML: Bool { document.url.map { BinderNode.htmlExtensions.contains($0.pathExtension.lowercased()) } ?? false }
+    private var modeBeforeHTML: Mode?
+    /// A page forces the preview; the note after it gets back the mode the reader was in.
+    private func syncModeToFile() {
+        if showingHTML {
+            if modeBeforeHTML == nil { modeBeforeHTML = mode }
+            mode = .view
+            if findVisible, find.scope == .file { find.scope = .folder; find.refresh() }
+        }
+        else if let m = modeBeforeHTML { modeBeforeHTML = nil; mode = m }
+    }
     @Published var focus = false
     /// The row being renamed in the binder.
     @Published var renaming: URL?
@@ -119,7 +137,7 @@ final class Workspace: ObservableObject {
     }
 
     func toggleFocus() {
-        guard focus || document.url != nil else { return }
+        guard focus || (document.url != nil && !showingHTML) else { return }
         focus.toggle()
         mode = .write
         focusEditor()                       // the editor view is replaced; its caret must come back
@@ -240,12 +258,20 @@ final class Workspace: ObservableObject {
 
     // MARK: selection
 
+    /// Makes `.mdedit/preview.css` (with a starter, if there is none) and shows it in Finder, for the person to edit.
+    @discardableResult
+    func editPreviewStylesheet() -> URL? {
+        guard let rootURL, let f = CustomCSS.createStarter(rootURL) else { message = "The folder does not allow a stylesheet here."; return nil }
+        if !AppEnvironment.isTesting { NSWorkspace.shared.activateFileViewerSelecting([f]) }
+        return f
+    }
+
     func select(_ url: URL) { select(url, recording: true) }
 
     /// Back to the note that was open before this one. Notes that were deleted or renamed since are skipped.
     func goBack() {
         while let last = visited.popLast() {
-            guard root?.find(last)?.isDocument == true else { continue }
+            guard root?.find(last)?.opensInApp == true else { continue }
             if let here = document.url { ahead.append(here) }
             reveal(last); select(last, recording: false)
             return
@@ -255,7 +281,7 @@ final class Workspace: ObservableObject {
     /// Undoes a Back: on to the note Back came from.
     func goForward() {
         while let next = ahead.popLast() {
-            guard root?.find(next)?.isDocument == true else { continue }
+            guard root?.find(next)?.opensInApp == true else { continue }
             if let here = document.url { visited.append(here) }
             reveal(next); select(next, recording: false)
             return
@@ -266,7 +292,7 @@ final class Workspace: ObservableObject {
         selection = url
         guard let node = root?.find(url) else { return }
         if node.isFolder { toggle(url) }
-        else if !node.isDocument { QuickView.shared.show(url) }
+        else if !node.opensInApp { QuickView.shared.show(url) }
         else {
             QuickView.shared.hide()
             if recording, document.url?.standardizedFileURL != url.standardizedFileURL { ahead = [] }
@@ -275,6 +301,7 @@ final class Workspace: ObservableObject {
                 if visited.count > 100 { visited.removeFirst(visited.count - 100) }
             }
             document.open(url)
+            syncModeToFile()
             defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()
         }
@@ -289,7 +316,7 @@ final class Workspace: ObservableObject {
         let i = rows.firstIndex { $0.node.url == selection } ?? (delta > 0 ? -1 : rows.count)
         let n = rows[min(rows.count - 1, max(0, i + delta))].node
         if n.isFolder { selection = n.url }
-        else if n.isDocument { select(n.url) }
+        else if n.opensInApp { select(n.url) }
         else {
             // a file the editor cannot open is only highlighted; Space previews it (and a preview already up follows along)
             selection = n.url
@@ -317,7 +344,7 @@ final class Workspace: ObservableObject {
 
     /// Space shows or hides the preview of a file the editor cannot open.
     func toggleQuickLook() {
-        guard let s = selection, let n = root?.find(s), !n.isFolder, !n.isDocument else { return }
+        guard let s = selection, let n = root?.find(s), !n.isFolder, !n.opensInApp else { return }
         if QuickView.shared.isShowing { QuickView.shared.hide() } else { QuickView.shared.show(s) }
     }
 

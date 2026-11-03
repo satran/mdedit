@@ -116,21 +116,20 @@ final class TypographyTests: XCTestCase {
 
     func testPunctuationIsSetInTheViewerButNeverInCodeAddressesOrProperties() {
         func text(_ md: String) -> String {
-            ViewerParser.parse(md).compactMap { b -> String? in if case .paragraph(let a) = b { return String(a.characters) } else { return nil } }.joined(separator: "|")
+            HTMLText.visible(PreviewPage.body(markdown: md)).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         }
         XCTAssertEqual(text("He said \"no\" -- twice..."), "He said “no” – twice…")
         XCTAssertEqual(text("`a--b \"c\"` and \"d\""), "a--b \"c\" and “d”")
         XCTAssertEqual(text("see https://example.com/a--b?q='x' now"), "see https://example.com/a--b?q='x' now")
         XCTAssertEqual(text("[it's a \"link\"](https://x.y)"), "it’s a “link”")
         XCTAssertEqual(text("**bold\"** and *it's*"), "bold” and it’s", "a quote right after the opening of an emphasis run reads as closing, as in most typesetters")
-        guard case .properties(let props) = ViewerParser.parse("---\ntitle: It's \"raw\"\n---\nx").first, case .text(let t) = props[0].value else { return XCTFail() }
-        XCTAssertEqual(String(t.characters), "It's \"raw\"", "front matter is data, not prose")
+        XCTAssertEqual(text("---\ntitle: It's \"raw\"\n---\nx"), "title It's \"raw\" x", "front matter is data, not prose")
     }
 
     func testTheNoteOnDiskIsNeverChangedByIt() throws {
         let s = try Scratch(["a.md": "\"quoted\" -- it's..."]); defer { s.remove() }
         let store = DocumentStore(); store.open(s.path("a.md"))
-        _ = ViewerParser.parse(store.text); _ = Exporter.html(markdown: store.text, title: "t")
+        _ = PreviewPage.body(markdown: store.text); _ = Exporter.html(markdown: store.text, title: "t")
         XCTAssertEqual(store.text, "\"quoted\" -- it's...")
     }
 

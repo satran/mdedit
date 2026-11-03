@@ -130,6 +130,20 @@ An invalid pattern is shown in the field instead of searching. Very large result
 
 The View uses curly quotes, proper dashes and ellipses, shows tables, task lists, quotes and code blocks, and sets local pictures centred. Links open as follows: another note opens in MDEdit, a web address opens in your browser, and a local file opens in its own app. Nothing runs from a note.
 
+### Pictures and styles from the web
+
+A picture or stylesheet on the web tells its server that you opened the note, so the View does not load them. Turn on **Settings ▸ Viewer ▸ Remote pictures and styles** to allow it. Scripts never run, in a note or in an HTML file.
+
+### Your own stylesheet
+
+**View ▸ Edit Preview Stylesheet…** creates `.mdedit/preview.css` in the open folder and shows it in Finder. Whatever you write there is added after the built-in styling, so it can change fonts, colours, spacing and the width of the page. The starter file lists the colour variables. It applies to the View of notes in that folder, not to HTML files.
+
+## HTML files
+
+HTML files (`.html`, `.htm`) in the folder appear in the binder with a globe icon and open as a page, as a browser would show them, with no editor. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser.
+
+For a page, **Write**, **Find** in the file, **Print**, **Export** and **Run Shell Command** are unavailable and the eye button is dimmed. Pages are not part of wiki links, the outline or Find in Folder. Reopen the page to see changes to its stylesheets or pictures; changes to the page itself show on their own.
+
 ## Printing and exporting
 
 - **Print… / PDF** (⌘P) prints the note as it looks in the View. Choose **PDF** in the bottom left of the print panel to save a PDF.
@@ -178,7 +192,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 
 - **Appearance:** light, dark, or follow the system.
 - **Editor:** the font and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
-- **Viewer:** the Serif or Sans template, the text size, the line width, and whether remote pictures are loaded.
+- **Viewer:** the Serif or Sans template, the text size, the line width, and whether remote pictures and stylesheets are loaded.
 - **Shell:** the on/off switch, the shell program (`/bin/sh` by default), the search path, the time limit, how much history to keep, and extra environment variables.
 
 ## The command palette

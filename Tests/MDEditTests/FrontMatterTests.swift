@@ -48,10 +48,10 @@ final class FrontMatterTests: XCTestCase {
     }
 
     func testViewerPutsPropertiesFirst() {
-        let blocks = ViewerParser.parse(note)
-        guard case .properties(let p) = blocks[0] else { return XCTFail("no properties") }
-        XCTAssertEqual(p.count, 5)
-        guard case .heading(1, _) = blocks[1] else { return XCTFail("no heading after") }
+        let html = PreviewPage.body(markdown: note)
+        XCTAssertTrue(html.hasPrefix("<div class=\"props\">"), "properties come first")
+        XCTAssertEqual(html.components(separatedBy: "<tr>").count - 1, 5)
+        XCTAssertLessThan(html.range(of: "class=\"props\"")!.lowerBound, html.range(of: "<h1>")!.lowerBound)
     }
 
     func testHTMLExportHasTable() {

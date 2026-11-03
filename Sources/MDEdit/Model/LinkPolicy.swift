@@ -70,7 +70,8 @@ enum LinkPolicy {
         var dir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: resolved.path, isDirectory: &dir) else { return .ignore }
         if dir.boolValue || isProgram(resolved) { return .reveal(resolved) }
-        if BinderNode.documentExtensions.contains(resolved.pathExtension.lowercased()) { return .selectNote(target) }
+        let ext = resolved.pathExtension.lowercased()
+        if BinderNode.documentExtensions.contains(ext) || BinderNode.htmlExtensions.contains(ext) { return .selectNote(target) }
         return .openFile(resolved)
     }
 }

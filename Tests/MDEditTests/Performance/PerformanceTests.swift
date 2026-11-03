@@ -32,7 +32,7 @@ final class PerformanceTests: XCTestCase {
 
     func testReadingModeAndExport() {
         let text = Self.doc(bytes: 300 * 1024)
-        within(3, "viewer parse 300 KB") { _ = ViewerParser.parse(text) }
+        within(3, "preview page 300 KB") { _ = PreviewPage.body(markdown: text) }
         within(3, "html export 300 KB") { _ = Exporter.html(markdown: text, title: "t") }
         within(1, "outline 300 KB") { _ = Outline.headings(in: text) }
         within(1, "word count 300 KB") { _ = DocumentStore.wordCount(text) }

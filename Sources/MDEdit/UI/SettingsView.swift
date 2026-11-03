@@ -60,8 +60,12 @@ struct SettingsView: View {
                         widthControl($prefs.viewerWidth, custom: $prefs.viewerWidthCustom, presets: Self.viewerPresets, range: 40...120, label: "viewer")
                     }
                     divider
-                    row("Remote pictures", note: "A picture on the web tells its server you opened the note") {
-                        Toggle("Load remote pictures", isOn: $prefs.loadRemoteImages).labelsHidden().toggleStyle(.switch)
+                    row("Remote pictures and styles", note: "A picture or stylesheet on the web tells its server you opened the note. Scripts never run") {
+                        Toggle("Load remote pictures and stylesheets", isOn: $prefs.loadRemoteImages).labelsHidden().toggleStyle(.switch)
+                    }
+                    divider
+                    row("Custom stylesheet", note: "View ▸ Edit Preview Stylesheet creates .mdedit/preview.css in the open folder; it styles the preview of notes") {
+                        EmptyView()
                     }
                     divider
                     viewerPreview

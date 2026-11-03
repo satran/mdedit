@@ -238,7 +238,7 @@ extension Workspace {
         }
         let before = rightPanelWidth
         findVisible = true
-        find.scope = scope
+        find.scope = showingHTML ? .folder : scope          // a page is not edited here
         find.focus = field
         find.refresh()
         resizeWindow(by: rightPanelWidth - before)

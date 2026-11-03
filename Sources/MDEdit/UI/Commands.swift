@@ -27,6 +27,8 @@ struct Cmd: Identifiable {
 @MainActor
 func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, newWindow: @escaping (UUID) -> Void) -> [Cmd] {
     let hasRoot = ws?.root != nil, hasDoc = ws?.document.url != nil
+    // a web page is only shown: no editing, no export, nothing that works on Markdown
+    let isPage = ws?.showingHTML == true, hasNote = hasDoc && !isPage
     func docName(_ w: Workspace) -> String { w.document.url?.deletingPathExtension().lastPathComponent ?? "" }
 
     var c: [Cmd] = [
@@ -41,31 +43,32 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
 
         Cmd(id: "rename", title: "Rename", place: .fileMore, key: "r", modifiers: [.command, .option], enabled: ws?.selection != nil) { if let s = ws?.selection { ws?.renaming = s } },
         Cmd(id: "trash", title: "Move to Trash", place: .fileMore, enabled: ws?.selection != nil) { if let s = ws?.selection { ws?.trash(s) } },
-        Cmd(id: "export-html", title: "Export as HTML…", place: .fileMore, enabled: hasDoc, dividerBefore: true) {
+        Cmd(id: "export-html", title: "Export as HTML…", place: .fileMore, enabled: hasNote, dividerBefore: true) {
             if let ws { Exporter.shared.saveHTML(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
-        Cmd(id: "copy-md", title: "Copy as Markdown", place: .fileMore, enabled: hasDoc) { if let ws { Exporter.shared.copyMarkdown(ws.document.text) } },
-        Cmd(id: "print", title: "Print…", place: .fileMore, key: "p", enabled: hasDoc) {
+        Cmd(id: "copy-md", title: "Copy as Markdown", place: .fileMore, enabled: hasNote) { if let ws { Exporter.shared.copyMarkdown(ws.document.text) } },
+        Cmd(id: "print", title: "Print…", place: .fileMore, key: "p", enabled: hasNote) {
             if let ws { Exporter.shared.print(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
 
-        Cmd(id: "shell", title: "Run Shell Command…", place: .fileMore, key: "r", enabled: hasDoc && ws?.mode == .write, dividerBefore: true) { ws?.openShellBar(prefs: prefs) },
+        Cmd(id: "shell", title: "Run Shell Command…", place: .fileMore, key: "r", enabled: hasNote && ws?.mode == .write, dividerBefore: true) { ws?.openShellBar(prefs: prefs) },
 
         Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "forward", title: "Forward to Next Note", place: .view, key: "]", enabled: ws?.ahead.isEmpty == false) { ws?.goForward() },
-        Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasDoc) { ws?.showFind(.file) },
-        Cmd(id: "replace", title: "Find and Replace…", place: .find, key: "f", modifiers: [.command, .option], enabled: hasDoc) { ws?.showFind(.file, field: .replace) },
+        Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasNote) { ws?.showFind(.file) },
+        Cmd(id: "replace", title: "Find and Replace…", place: .find, key: "f", modifiers: [.command, .option], enabled: hasNote) { ws?.showFind(.file, field: .replace) },
         Cmd(id: "find-folder", title: "Find in Folder…", place: .find, key: "f", modifiers: [.command, .shift], enabled: hasRoot) { ws?.showFind(.folder) },
-        Cmd(id: "find-next", title: "Find Next", place: .find, key: "g", enabled: hasDoc, dividerBefore: true) { ws?.findNext(1) },
-        Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasDoc) { ws?.findNext(-1) },
+        Cmd(id: "find-next", title: "Find Next", place: .find, key: "g", enabled: hasNote, dividerBefore: true) { ws?.findNext(1) },
+        Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasNote) { ws?.findNext(-1) },
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "b", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
         Cmd(id: "outline", title: ws?.outlineVisible == true ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
-        Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil, dividerBefore: true) { ws?.mode = .write },
-        Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil) { ws?.mode = .view },
-        Cmd(id: "preview", title: ws?.mode == .view ? "Back to Writing" : "Preview", place: .view, key: "e", modifiers: [.command, .shift], enabled: ws != nil) { ws?.mode = ws?.mode == .view ? .write : .view },
-        Cmd(id: "focus", title: ws?.focus == true ? "Leave Distraction Free" : "Distraction Free", place: .view, key: "f", modifiers: [.command, .control], enabled: ws != nil, dividerBefore: true) { ws?.toggleFocus() },
+        Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil && !isPage, dividerBefore: true) { ws?.mode = .write },
+        Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil && !isPage) { ws?.mode = .view },
+        Cmd(id: "preview", title: ws?.mode == .view ? "Back to Writing" : "Preview", place: .view, key: "e", modifiers: [.command, .shift], enabled: ws != nil && !isPage) { ws?.mode = ws?.mode == .view ? .write : .view },
+        Cmd(id: "focus", title: ws?.focus == true ? "Leave Distraction Free" : "Distraction Free", place: .view, key: "f", modifiers: [.command, .control], enabled: ws != nil && !isPage, dividerBefore: true) { ws?.toggleFocus() },
+        Cmd(id: "preview-css", title: "Edit Preview Stylesheet…", place: .view, enabled: hasRoot) { _ = ws?.editPreviewStylesheet() },
         Cmd(id: "typewriter", title: ws?.typewriter == true ? "Turn Off Typewriter Mode" : "Typewriter Mode", place: .view, key: "t", modifiers: [.command, .control], enabled: ws != nil) { ws?.typewriter.toggle() },
         Cmd(id: "palette", title: "Command Palette…", place: .view, key: "p", modifiers: [.command, .shift], enabled: ws != nil, dividerBefore: true) { ws?.paletteVisible.toggle() },
 
