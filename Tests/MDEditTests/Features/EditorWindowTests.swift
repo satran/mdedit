@@ -225,7 +225,7 @@ final class EditorWindowTests: XCTestCase {
         XCTAssertEqual(pixel(onLineStarting: "text", text: text, tv: tv, fromRight: 30)?.alphaComponent ?? 1, 0, accuracy: 0.01, "nothing behind a paragraph")
     }
 
-    /// A chip stays under its own words: a wrapped inline-code span must not paint into the margin or the list's hanging indent.
+    /// A chip stays under its own words: a wrapped inline-code span must not paint into the margin or under the list's marker.
     func testAWrappedInlineCodeChipStaysUnderItsWords() {
         let code = (0..<22).map { "word\($0)" }.joined(separator: " ")             // long enough to wrap in a 72-character column
         let text = "- see `\(code)` and then more text\n"
@@ -246,7 +246,8 @@ final class EditorWindowTests: XCTestCase {
         let origin = tv.textContainerOrigin.x
         let textStart = origin + lm.location(forGlyphAt: fragmentRange.location).x + frag.minX
         XCTAssertEqual(alpha(atX: origin + 6), 0, accuracy: 0.01, "nothing in the left margin")
-        XCTAssertEqual(alpha(atX: origin + EditorTextView.gutter - 8), 0, accuracy: 0.01, "nothing in the gutter where the list marker hangs")
+        XCTAssertEqual(alpha(atX: origin + EditorTextView.gutter - 8), 0, accuracy: 0.01, "nothing in the margin")
+        XCTAssertEqual(alpha(atX: origin + EditorTextView.gutter + 4), 0, accuracy: 0.01, "nothing under the marker, where the wrapped line is indented")
         XCTAssertGreaterThan(alpha(atX: textStart + 14), 0.9, "the chip is behind the words on the wrapped line")
     }
 

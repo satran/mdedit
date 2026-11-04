@@ -22,15 +22,15 @@ struct MDSpan: Equatable {
     var kind: Kind
 }
 
-/// A line whose first characters hang in the margin: headings, list items and quotes. The text of its
-/// wrapped lines lines up under the text, not under the marker.
+/// A line that starts with a marker: a heading, a list item or a quote. A heading's marker hangs in the margin; the other
+/// two stay in the column, and their wrapped lines line up under the text, not under the marker.
 struct MDLine: Equatable {
     enum Kind: Equatable { case heading(Int), list, quote }
     var range: NSRange      // the paragraph, without its newline
     var prefix: NSRange     // leading spaces, the marker and the space after it
     var lead: Int           // how many characters of the prefix are indentation
     var kind: Kind
-    /// Length of a task's "[ ] " inside the prefix; it sits in the text, only the bullet hangs in the margin.
+    /// Length of a task's "[ ] " inside the prefix.
     var box = 0
 }
 

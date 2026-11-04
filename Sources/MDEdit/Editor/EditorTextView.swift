@@ -8,8 +8,8 @@ struct EditorStyle: Equatable {
     var headingSizes = true
 }
 
-/// The writing surface: Markdown stays in the text, quiet, and is styled as you type. Block markers
-/// (`#`, `>`, `-`) hang in the left margin so the text keeps one straight edge.
+/// The writing surface: Markdown stays in the text, quiet, and is styled as you type. The `#`s of a heading hang in the
+/// left margin so its text keeps the column's edge; list markers and quotes stay in the column.
 final class EditorTextView: NSTextView {
     var style = EditorStyle(fontName: "IBM Plex Mono", size: 17, lineWidth: 72) { didSet { if style != oldValue { semiboldCache = [:]; cachedBase = nil; relayout() } } }
     var placeholder = "Start writing…"
@@ -271,16 +271,17 @@ final class EditorTextView: NSTextView {
                 }
             }
         }
-        // markers hang in the margin; wrapped lines line up under the text
+        // Only a heading's #s hang in the margin, so its text keeps the column's edge. A list item or a quote starts at the
+        // column's edge with its marker, and its wrapped lines line up under its text, after the marker.
         let g = Self.gutter
+        let room = max(0, (textContainer?.size.width ?? 10_000) - g)
         for line in syntax.lines where NSMaxRange(line.prefix) <= storage.length {
-            let lead = NSRange(location: line.prefix.location, length: line.lead)
-            let leadW = line.lead > 0 ? storage.attributedSubstring(from: lead).size().width : 0
-            // only the bullet or number hangs in the margin; a task's box starts where a plain item's text would
-            let boxW = line.box > 0 && line.box <= line.prefix.length
-                ? storage.attributedSubstring(from: NSRange(location: NSMaxRange(line.prefix) - line.box, length: line.box)).size().width : 0
-            let markerW = storage.attributedSubstring(from: line.prefix).size().width - leadW - boxW
-            let p = paragraph(first: max(0, g + leadW - markerW), head: g + leadW + boxW)
+            let prefixW = storage.attributedSubstring(from: line.prefix).size().width
+            let p: NSParagraphStyle
+            switch line.kind {
+            case .heading: p = paragraph(first: max(0, g - prefixW), head: g)
+            case .list, .quote: p = paragraph(first: g, head: g + min(prefixW, room * 0.6))
+            }
             storage.addAttribute(.paragraphStyle, value: p, range: NSRange(location: line.range.location, length: line.range.length))
         }
         if focusDim {

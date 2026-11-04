@@ -34,7 +34,7 @@ make coverage                  # per-file line coverage of the last test run
 | Area | What |
 |---|---|
 | Binder | Folder tree of the opened folder; folders first, natural order; `.md/.markdown/.txt` open as notes, other files show with their extension and preview in Quick Look (Space); search; rename (double click / ⌥⌘R), move (drag), copy in (drop from Finder), trash; ↑↓←→ keyboard navigation; folder name shown beside the traffic lights; Back (‹ in the header, ⌘[) returns to the previous note and Forward (⌘]) undoes it, also from a mouse's side buttons; 100 deep, skipping notes that were deleted |
-| Write mode | Live-styled Markdown in IBM Plex Mono 17 pt, 1.65 line height, 72-character column; markers (`#`, `>`, `-`) hang in a 72 pt left gutter; code blocks as one tinted band; front matter in three quiet shades; image / file drops become links |
+| Write mode | Live-styled Markdown in IBM Plex Mono 17 pt, 1.65 line height, 72-character column; the `#`s of a heading hang in a 72 pt left gutter so its text keeps the column's edge, while list markers and quotes start at the column's edge and wrapped lines sit under their text; code blocks as one tinted band; front matter in three quiet shades; image / file drops become links |
 | View mode | A web view (`Preview/`): the note becomes safe HTML (`SafeHTML` preview mode) in a page styled from `ViewerStyle` as CSS, plus the optional `.mdedit/preview.css`; JavaScript off, web content blocked unless Settings allows it, files served only from the opened folder through the `mdedit-file` scheme. Typeset reading templates: **Serif** (Literata 20 px) and **Sans** (Inter 18 px), switch in the footer; configurable line width; real punctuation (curly quotes, dashes, ellipses) in the viewer only; front matter as a Properties card; local images centred; links open through `LinkPolicy` |
 | Wiki links | `[[Note]]`, `[[Note\|alias]]`, `[[Note#Heading]]`, `[[folder/Note]]`; nearest-folder resolution; completion after `[[`; backlinks and outline in the right panel |
 | Formatting | Format menu + shortcuts: bold ⌘B, italic ⌘I, link ⌘K, code ⌘E, headings ⌥⌘1–6, lists, task, quote, code block, rule (all toggle) |
@@ -72,11 +72,11 @@ Sources/MDEdit/
     FolderWatcher.swift    FSEvents -> debounced reload
     Outline.swift, QuickView.swift
   Syntax/                  Pure text logic, no UI
-    MarkdownSyntax.swift   Line/inline analyser for the editor (spans, hanging-marker lines)
+    MarkdownSyntax.swift   Line/inline analyser for the editor (spans, marker lines)
     MarkdownLimits.swift   Clamps nesting/line length BEFORE any parser runs (stack-overflow guard)
     FrontMatter.swift, ListMarker.swift
   Editor/                  Write mode (TextKit 1)
-    EditorTextView.swift   NSTextView subclass: styling (restyle()), hanging markers, drawing (code bands, caret),
+    EditorTextView.swift   NSTextView subclass: styling (restyle()), heading markers hanging in the margin, drawing (code bands, caret),
                            typewriter, drops, Shift-Return, mouse
     MarkdownTextEditor.swift       NSViewRepresentable + Coordinator (Return/Tab/Backspace list behaviour, selection), EditorBridge
     MarkdownFormatting.swift       PURE format transformations (text + selection -> edit); EditorFormatting.swift applies them
@@ -97,7 +97,7 @@ Key ideas:
 
 - **One `Workspace` per window**, created in `WindowRoot` and shared with menus via `.focusedSceneObject`. Per-window state is keyed by a window id in `UserDefaults` (`folderBookmark.<uuid>`, `lastFile.<uuid>`); `id == nil` is the original single-window state.
 - **One command list.** `makeCommands(...)` in `UI/Commands.swift` returns `[Cmd]` (id, title, shortcut, enabled, action). `AppCommands` builds the **menu bar** from it and `PaletteView` builds the **command palette** from it. Add a command once; it appears in both. `AppFeatureTests` fails if two commands share a shortcut or use a system one.
-- **Editor = TextKit 1.** `EditorTextView.restyle()` re-styles the whole text on every edit (notes are short; hostile/huge input is capped). Markers hang by giving list/heading lines a negative first-line indent into a 72 pt gutter. Code bands and inline-code chips are **drawn** in `drawBackground`, not set as text backgrounds.
+- **Editor = TextKit 1.** `EditorTextView.restyle()` re-styles the whole text on every edit (notes are short; hostile/huge input is capped). Only headings hang: a heading line gets a negative first-line indent into a 72 pt gutter; list and quote lines start at the column's edge with a head indent equal to their prefix, so wrapped lines sit under the text. Code bands and inline-code chips are **drawn** in `drawBackground`, not set as text backgrounds.
 - **Pure logic is separated and tested directly**: `MarkdownFormatting`, `MarkdownSyntax`, `LinkPolicy`, `ViewerStyle`, `SafeHTML`. Prefer adding logic there over inside views.
 - **Viewer** is SwiftUI `Text` blocks; selection is enabled, which makes macOS draw an I-beam over links, so `LinkCursor` hit-tests links with TextKit and sets the pointing hand.
 - **Sandbox + security-scoped bookmarks.** The opened folder is reached through a bookmark (`NSOpenPanel` pick, or Open Recent). Anything that creates a bookmark from a URL must have **access open** (`startAccessingSecurityScopedResource`) — or reuse the saved bookmark data (see `Workspace.openRecent`).

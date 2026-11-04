@@ -119,7 +119,24 @@ final class EditorBehaviorTests: XCTestCase {
         XCTAssertEqual(flat, 16)
     }
 
-    func testATaskLineHangsItsBulletInTheSameColumnAsAPlainItem() {
+    func testOnlyHeadingsHangInTheMarginListsAndQuotesStayInTheColumn() {
+        let tv = EditorTextView(frame: NSRect(x: 0, y: 0, width: 700, height: 500))
+        tv.string = "# Title\n\nbody\n\n- item\n\n1. first\n\n> said\n"
+        tv.restyle()
+        func style(_ needle: String) -> NSParagraphStyle {
+            let r = (tv.string as NSString).range(of: needle)
+            return tv.textStorage!.attribute(.paragraphStyle, at: r.location, effectiveRange: nil) as! NSParagraphStyle
+        }
+        let body = style("body"), heading = style("Title"), bullet = style("item"), numbered = style("first"), quote = style("said")
+        XCTAssertLessThan(heading.firstLineHeadIndent, body.firstLineHeadIndent, "the #s hang in the margin")
+        XCTAssertEqual(heading.headIndent, body.firstLineHeadIndent, accuracy: 0.5, "the heading's text is on the column's edge")
+        for (name, p) in [("bullet", bullet), ("numbered", numbered), ("quote", quote)] {
+            XCTAssertEqual(p.firstLineHeadIndent, body.firstLineHeadIndent, accuracy: 0.5, "\(name): the marker starts at the column's edge, not in the margin")
+            XCTAssertGreaterThan(p.headIndent, p.firstLineHeadIndent, "\(name): wrapped lines sit under the text, after the marker")
+        }
+    }
+
+    func testATaskLineKeepsItsBulletInTheSameColumnAsAPlainItem() {
         let tv = EditorTextView(frame: NSRect(x: 0, y: 0, width: 700, height: 500))
         tv.string = "- plain\n- [ ] task\n- [x] done\n  - nested\n  - [ ] nested task\n"
         tv.restyle()
@@ -132,7 +149,7 @@ final class EditorBehaviorTests: XCTestCase {
         XCTAssertEqual(done.firstLineHeadIndent, plain.firstLineHeadIndent, accuracy: 0.5)
         XCTAssertGreaterThan(task.headIndent, plain.headIndent, "wrapped lines sit under the task text, after the box")
         XCTAssertEqual(nestedTask.firstLineHeadIndent, nested.firstLineHeadIndent, accuracy: 0.5)
-        XCTAssertGreaterThan(nested.firstLineHeadIndent, plain.firstLineHeadIndent, "nesting still indents")
+        XCTAssertGreaterThan(nested.headIndent, plain.headIndent, "nesting still indents: the leading spaces are in the text, so wrapped lines move with them")
     }
 
     func testMarkdownIsStyledNotChanged() {
