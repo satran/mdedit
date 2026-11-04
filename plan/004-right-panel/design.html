@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Right panel · design</title>
+<style>
+:root{--pane:#fff;--binder:#f4f5f7;--border:#e2e5e9;--hair:#eff1f3;--text:#2a2d31;--strong:#15171a;--muted:#686e76;--field:#e7e9ed;--chip:#f2f4f7;
+  --link:#2f6fdb;--seg:#eef0f3;--segon:#fff;--segtext:#5f656d;--hit:#fceFb4;--cur:#fad551;--page:#ecebe6;--ink:#1f1e1d;--note:#6b6a68}
+@media (prefers-color-scheme:dark){:root{--pane:#1e1f22;--binder:#25262a;--border:#34363b;--hair:#2c2e33;--text:#dcdfe3;--strong:#f3f4f6;--muted:#9ba1a9;--field:#303237;--chip:#2c2e33;
+  --link:#6fa3f7;--seg:#2b2d31;--segon:#42454c;--segtext:#b3b8bf;--hit:#4d4322;--cur:#7a6624;--page:#161618;--ink:#e6e4df;--note:#9a9893}}
+*{box-sizing:border-box}
+html{background:var(--page);color:var(--ink);font:14px/1.45 -apple-system,system-ui,"Inter",sans-serif}
+body{margin:0;padding:40px 48px 80px;display:flex;flex-direction:column;gap:44px}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;font-weight:600;margin:0 0 10px;color:var(--note)}
+p.note{margin:6px 0 0;max-width:1100px;color:var(--note);font-size:13px}
+.win{width:1280px;height:760px;background:var(--pane);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.18),0 12px 40px rgba(0,0,0,.12);display:flex;overflow:hidden;color:var(--text);font-size:13px;position:relative}
+.binder{width:272px;background:var(--binder);border-right:1px solid var(--border);padding:52px 14px 0}
+.binder .row{padding:5px 10px;border-radius:6px;color:var(--text)}.binder .row.on{background:#dfe5ee;color:var(--strong)}
+@media (prefers-color-scheme:dark){.binder .row.on{background:#3a404a}}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{height:52px;display:flex;align-items:center;padding:0 16px;gap:12px;border-bottom:1px solid var(--hair)}
+.ic{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--muted);flex:none}
+.ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ic.on{color:var(--link)}.ic.dim{opacity:.35}
+.crumb{flex:1;color:var(--muted)}.crumb b{color:var(--text);font-weight:500}
+.grp{display:flex;gap:2px;align-items:center}
+.sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.new{outline:2px solid #e8590c;outline-offset:1px;border-radius:7px}
+body.plain .new{outline:0}
+.doc{flex:1;padding:56px 0 0;overflow:hidden}.doc div{max-width:640px;margin:0 auto;font:17px/1.7 ui-monospace,Menlo,monospace;color:var(--text)}
+.doc h3{font:600 20px/1.3 ui-monospace,Menlo,monospace;margin:0 0 18px;color:var(--strong)}.doc p{margin:0 0 18px}
+mark{background:var(--hit);color:inherit;border-radius:3px}mark.c{background:var(--cur)}
+.foot{height:44px;border-top:1px solid var(--hair);display:flex;align-items:center;padding:0 12px 0 28px;color:var(--muted);font-size:12px}
+.foot .sp{flex:1}
+.panel{width:361px;border-left:1px solid var(--border);background:var(--binder);display:flex;flex-direction:column}
+.ph{height:52px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border)}
+.seg{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--seg)}
+.seg .ic{width:38px;height:26px;border-radius:6px;color:var(--segtext)}.seg .ic.sel{background:var(--segon);color:var(--strong);box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.pt{margin-left:12px;font-weight:600;color:var(--strong)}
+.pb{padding:16px;display:flex;flex-direction:column;gap:18px;overflow:hidden}
+.lab{font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.out div{padding:3px 0}.out .h1{font-weight:600;color:var(--strong)}.out .h2{padding-left:12px}.out .h3{padding-left:24px;color:var(--muted)}
+.lm{color:var(--link)}
+.seg2{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--seg)}.seg2 span{flex:1;text-align:center;padding:4px 0;border-radius:6px;color:var(--segtext);font-weight:500}.seg2 .sel{background:var(--segon);color:var(--strong)}
+.fld{background:var(--field);border-radius:7px;padding:7px 10px;color:var(--strong)}.fld.ph2{color:var(--muted)}
+.hit{padding:5px 0;color:var(--text)}.hit small{color:var(--muted);margin-right:8px}
+.callout{position:absolute;background:#e8590c;color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:9px;white-space:nowrap}
+.pair{display:flex;gap:28px;flex-wrap:wrap}
+.hdr{width:560px;background:var(--pane);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.18);overflow:hidden;color:var(--text);font-size:13px}
+.hdr .head{border-bottom:0}.hdr + .hdr{margin-top:10px}
+.legend{font-size:12px;color:var(--note);margin-top:6px}
+</style></head>
+<body>
+<header><h1>Right panel · one panel, two tabs</h1>
+<p class="note">Outline and Find &amp; Replace share the right-hand panel. A pair of icons at its top switches between them. Share (with Print inside it) moves up to the toolbar. Orange marks what is new or moved. A divider sits on each side of the page actions: after the binder toggle and before the panel toggle. Light and dark follow the system.</p></header>
+
+<!-- SVG icon sprite -->
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="sbl" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></symbol>
+<symbol id="sbr" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M10 2.5v11"/></symbol>
+<symbol id="back" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></symbol>
+<symbol id="eye" viewBox="0 0 16 16"><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+<symbol id="print" viewBox="0 0 16 16"><path d="M4 6V2h8v4M4 11H2.5V6h11v5H12"/><rect x="4" y="9" width="8" height="5"/></symbol>
+<symbol id="share" viewBox="0 0 16 16"><path d="M8 10V1.5M5 4l3-2.5L11 4M4.5 6.5H3v8h10v-8h-1.5"/></symbol>
+<symbol id="win" viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="9" height="9" rx="1.5"/><path d="M5.5 4.5v-1a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1"/></symbol>
+<symbol id="find" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></symbol>
+<symbol id="outline" viewBox="0 0 16 16"><path d="M2 3.5h2M6.5 3.5H14M4 8h2M8.5 8H14M6 12.5h2M10.5 12.5H14"/></symbol>
+</defs></svg>
+
+<section><h2>1 · Outline tab (panel open)</h2>
+<div class="win">
+ <div class="binder"><div class="row">Projects</div><div class="row on">Goals 2027</div><div class="row">Reading list</div><div class="row">Meeting notes</div></div>
+ <div class="main">
+  <div class="head">
+   <span class="ic on"><svg><use href="#sbl"/></svg></span><span class="sep"></span><span class="ic"><svg><use href="#back"/></svg></span>
+   <div class="crumb">Projects › <b>Goals 2027</b></div>
+   <div class="grp"><span class="ic"><svg><use href="#eye"/></svg></span><span class="ic new"><svg><use href="#share"/></svg></span><span class="ic"><svg><use href="#win"/></svg></span></div>
+   <span class="sep"></span>
+   <span class="ic on"><svg><use href="#sbr"/></svg></span>
+  </div>
+  <div class="doc"><div><h3>Goals 2027</h3><p>Both are about the same thing: how well your systems hold up when something goes wrong.</p><p>The first goal is to ship the new editor before the summer.</p></div></div>
+  <div class="foot">412 words · 2 min read<span class="sp"></span></div>
+ </div>
+ <div class="panel">
+  <div class="ph new"><div class="seg"><span class="ic sel" title="Outline"><svg><use href="#outline"/></svg></span><span class="ic" title="Find"><svg><use href="#find"/></svg></span></div><span class="pt">Outline</span></div>
+  <div class="pb">
+   <div class="out"><div class="lab">Headings</div><div class="h1">Goals 2027</div><div class="h2">Ship the editor</div><div class="h3">Design</div><div class="h3">Build</div><div class="h2">Reading</div></div>
+   <div><div class="lab">Linked mentions</div><div class="lm">Reading list</div><div class="lm">Meeting notes</div></div>
+  </div>
+ </div>
+</div>
+<p class="note">The header's magnifier is gone: ⌘F opens the panel on the Find tab. The right-hand toggle opens and closes the panel and remembers the tab you used last. The panel header is the same 52 pt as the toolbar, so the two rules line up.</p>
+</section>
+
+<section><h2>2 · Find tab</h2>
+<div class="win">
+ <div class="binder"><div class="row">Projects</div><div class="row on">Goals 2027</div><div class="row">Reading list</div><div class="row">Meeting notes</div></div>
+ <div class="main">
+  <div class="head">
+   <span class="ic on"><svg><use href="#sbl"/></svg></span><span class="sep"></span><span class="ic"><svg><use href="#back"/></svg></span>
+   <div class="crumb">Projects › <b>Goals 2027</b></div>
+   <div class="grp"><span class="ic"><svg><use href="#eye"/></svg></span><span class="ic"><svg><use href="#share"/></svg></span><span class="ic"><svg><use href="#win"/></svg></span></div>
+   <span class="sep"></span>
+   <span class="ic on"><svg><use href="#sbr"/></svg></span>
+  </div>
+  <div class="doc"><div><h3>Goals 2027</h3><p>Both are about the same thing: how well your <mark class="c">systems</mark> hold up when something goes wrong.</p><p>The first goal is to ship the new editor before the summer, and keep the <mark>systems</mark> small.</p></div></div>
+  <div class="foot">412 words · 2 min read<span class="sp"></span></div>
+ </div>
+ <div class="panel">
+  <div class="ph"><div class="seg"><span class="ic" title="Outline"><svg><use href="#outline"/></svg></span><span class="ic sel" title="Find"><svg><use href="#find"/></svg></span></div><span class="pt">Find &amp; Replace</span></div>
+  <div class="pb">
+   <div class="seg2"><span class="sel">This file</span><span>Folder</span></div>
+   <div class="fld">systems</div><div class="fld ph2">Replace with</div>
+   <div><div class="lab">2 matches · 2 of 2</div><div class="hit"><small>3</small>…how well your <mark class="c">systems</mark> hold up…</div><div class="hit"><small>5</small>…and keep the <mark>systems</mark> small.</div></div>
+  </div>
+ </div>
+</div>
+<p class="note">The title row with the ✕ is replaced by the tab icons. The panel is closed from the toolbar toggle or with Esc. The controls below the tabs are the Find &amp; Replace design as it is now.</p>
+</section>
+
+<section><h2>3 · Toolbar close-up</h2>
+<div class="pair">
+ <div><div class="hdr"><div class="head"><span class="ic on"><svg><use href="#sbl"/></svg></span><span class="sep"></span><span class="ic"><svg><use href="#back"/></svg></span><div class="crumb">Projects › <b>Goals 2027</b></div>
+  <div class="grp"><span class="ic"><svg><use href="#eye"/></svg></span><span class="ic"><svg><use href="#share"/></svg></span><span class="ic"><svg><use href="#win"/></svg></span></div><span class="sep"></span><span class="ic"><svg><use href="#sbr"/></svg></span></div></div>
+  <div class="legend">A note, panel closed. Left to right: binder │ back · breadcrumb · preview, share, new window │ panel.</div></div>
+ <div><div class="hdr"><div class="head"><span class="ic on"><svg><use href="#sbl"/></svg></span><span class="sep"></span><span class="ic"><svg><use href="#back"/></svg></span><div class="crumb">site › <b>index.html</b></div>
+  <div class="grp"><span class="ic dim"><svg><use href="#eye"/></svg></span><span class="ic dim"><svg><use href="#share"/></svg></span><span class="ic"><svg><use href="#win"/></svg></span></div><span class="sep"></span><span class="ic"><svg><use href="#sbr"/></svg></span></div></div>
+  <div class="legend">An HTML page: preview and share are dimmed, not hidden, like the eye already is.</div></div>
+</div></section>
+</body></html>

@@ -114,21 +114,19 @@ final class AppFeatureTests: XCTestCase {
 
     func testAbsurdStoredPreferencesAreClamped() {
         let d = isolatedDefaults()
-        d.set(1e9, forKey: "editorSize"); d.set(-5, forKey: "lineWidth"); d.set(0.0, forKey: "viewerSize"); d.set("<script>", forKey: "theme")
+        d.set(1e9, forKey: "editorSize"); d.set(-5, forKey: "lineWidth"); d.set(0.0, forKey: "viewerTextSize"); d.set("<script>", forKey: "theme")
         let p = Preferences(defaults: d)
-        XCTAssertEqual(p.editorSize, 72); XCTAssertEqual(p.lineWidth, 20); XCTAssertEqual(p.viewerSize, 14); XCTAssertEqual(p.theme, "auto")
+        XCTAssertEqual(p.editorSize, 72); XCTAssertEqual(p.lineWidth, 20); XCTAssertEqual(p.viewerSize, 12); XCTAssertEqual(p.theme, "auto")
     }
 
     func testMissingFontsFallBack() {
         let p = Preferences(defaults: isolatedDefaults())
         p.editorFont = "No Such Font"
         XCTAssertGreaterThan(p.editorNSFont().pointSize, 0)
-        // Literata and Inter fall back to the system serif and sans when they are not installed
-        for t in ["serif", "sans"] {
-            p.viewerTemplate = t
-            XCTAssertGreaterThan(p.viewerStyle.nsFont(16, weight: .semibold).pointSize, 0)
-            XCTAssertGreaterThan(p.viewerStyle.lineSpacing(size: 16, leading: 1.5), -1)
-        }
+        // a viewer font that is not installed falls back to the system font
+        p.viewerFont = "No Such Font"
+        XCTAssertGreaterThan(p.viewerStyle.nsFont(16, weight: .semibold).pointSize, 0)
+        XCTAssertGreaterThan(p.viewerStyle.lineSpacing(size: 16, leading: 1.5), -1)
     }
 
     // MARK: command palette and menus

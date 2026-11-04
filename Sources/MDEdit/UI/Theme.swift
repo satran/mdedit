@@ -53,11 +53,11 @@ enum Palette {
     static let inlineCode = dyn(0xF2F4F7, 0x2E3035)
 
     // type specs: viewer
-    static let vInkSerif = dyn(0x24272B, 0xDCDFE3), vInkSans = dyn(0x25282C, 0xDCDFE3)
-    static let vHeadSerif = dyn(0x15171A, 0xF3F4F6), vHeadSans = dyn(0x131518, 0xF3F4F6)
-    static let vQuoteSerif = dyn(0x3B4045, 0xA9AEB6), vQuoteSans = dyn(0x4A4F56, 0xA9AEB6)
+    static let vInk = dyn(0x25282C, 0xDCDFE3)
+    static let vHead = dyn(0x131518, 0xF3F4F6)
+    static let vQuote = dyn(0x4A4F56, 0xA9AEB6)
     static let vQuoteBar = dyn(0xD9DEE4, 0x42454C)
-    static let vBulletSerif = dyn(0x8C929A, 0x7B8089), vBulletSans = dyn(0x9AA0A8, 0x7B8089)
+    static let vBullet = dyn(0x9AA0A8, 0x7B8089)
     static let vRule = dyn(0xD5D9DF, 0x42454C)
     static let vRowLine = dyn(0xECEEF1, 0x2F3136)
     static let vLabel = dyn(0x6A7078, 0x9BA1A9)
@@ -89,6 +89,17 @@ struct WindowDragArea: NSViewRepresentable {
     final class V: NSView { override var mouseDownCanMoveWindow: Bool { true } }
     func makeNSView(context: Context) -> NSView { V() }
     func updateNSView(_ v: NSView, context: Context) {}
+}
+
+/// Hands the window this view is in to `found`, so a workspace resizes its own window rather than whichever is key.
+struct WindowAccess: NSViewRepresentable {
+    let found: (NSWindow?) -> Void
+    final class V: NSView {
+        var found: (NSWindow?) -> Void = { _ in }
+        override func viewDidMoveToWindow() { found(window) }
+    }
+    func makeNSView(context: Context) -> V { let v = V(); v.found = found; return v }
+    func updateNSView(_ v: V, context: Context) { v.found = found }
 }
 
 /// Centres the traffic lights in the header row, level with the header's buttons.

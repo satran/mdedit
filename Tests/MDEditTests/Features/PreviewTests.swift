@@ -13,8 +13,8 @@ final class PreviewTests: XCTestCase {
         addTeardownBlock { [s] in s?.remove() }
     }
 
-    private func options(remote: Bool = false, css: String? = nil, serif: Bool = true) -> PreviewPage.Options {
-        .init(style: ViewerStyle(template: serif ? .serif : .sans, serifBody: 20), loadRemote: remote, customCSS: css)
+    private func options(remote: Bool = false, css: String? = nil, family: String = "Inter") -> PreviewPage.Options {
+        .init(style: ViewerStyle(family: family), loadRemote: remote, customCSS: css)
     }
     private func page(_ md: String, _ o: PreviewPage.Options? = nil) -> String { PreviewPage.html(markdown: md, title: "T", options: o ?? options()) }
     private func body(_ md: String) -> String { PreviewPage.body(markdown: md) }
@@ -64,14 +64,24 @@ final class PreviewTests: XCTestCase {
     }
 
     func testThePageTakesItsSizesFromTheTypeSpecs() {
-        let serif = PreviewPage.css(ViewerStyle(template: .serif, serifBody: 20))
-        XCTAssertTrue(serif.contains("h1 { font-size: 40px"), serif)
-        XCTAssertTrue(serif.contains("max-width: 680px"), "68 characters is the specs' 34 em")
-        let sans = PreviewPage.css(ViewerStyle(template: .sans, serifBody: 20))
-        XCTAssertTrue(sans.contains("h1 { font-size: 34px") && sans.contains("max-width: 648px"), sans)
-        let big = PreviewPage.css(ViewerStyle(template: .serif, serifBody: 24))
-        XCTAssertTrue(big.contains("h1 { font-size: 48px"), "sizes follow the text size setting")
-        XCTAssertTrue(serif.contains("prefers-color-scheme: dark"), "dark mode is in the page itself")
+        let css = PreviewPage.css(ViewerStyle())
+        XCTAssertTrue(css.contains("h1 { font-size: 34px") && css.contains("max-width: 648px"), css)
+        let big = PreviewPage.css(ViewerStyle(body: 21.6))
+        XCTAssertTrue(big.contains("h1 { font-size: 40.8px"), "sizes follow the text size setting")
+        XCTAssertTrue(css.contains("prefers-color-scheme: dark"), "dark mode is in the page itself")
+    }
+
+    func testTheFontComesFromTheSettingAndCannotBreakOutOfTheStylesheet() {
+        XCTAssertTrue(PreviewPage.css(ViewerStyle()).contains("\"Inter\", system-ui"))
+        XCTAssertTrue(PreviewPage.css(ViewerStyle(family: "Helvetica Neue")).contains("\"Helvetica Neue\", system-ui"))
+        let evil = PreviewPage.css(ViewerStyle(family: "x\"; } </style><script>alert(1)</script>"))
+        XCTAssertFalse(evil.contains("<script>"), evil)
+    }
+
+    func testTheCustomStylesheetComesAfterTheBuiltInFont() throws {
+        let h = page("x", options(css: "body { font-family: Georgia; }"))
+        let builtIn = try XCTUnwrap(h.range(of: "\"Inter\", system-ui")), custom = try XCTUnwrap(h.range(of: "font-family: Georgia"))
+        XCTAssertLessThan(builtIn.lowerBound, custom.lowerBound, "later rules win")
     }
 
     func testCSPAllowsTheWebOnlyWhenAsked() {
@@ -232,8 +242,8 @@ final class PreviewTests: XCTestCase {
         c.show(request("# Title\n\n![a](pic.png)\n\n![b](sub/deep.png)\n\n![c](../../../../etc/hosts.png)"))
         wait(c.loads >= 1, "page")
         wait((js(c, "[...document.images].map(i => i.complete ? i.naturalWidth : -1).join(',')") as? String) == "3,3,0", "pictures: inside the folder load, outside does not")
-        XCTAssertEqual(js(c, "getComputedStyle(document.querySelector('h1')).fontSize") as? String, "40px")
-        XCTAssertEqual(js(c, "document.querySelector('main').getBoundingClientRect().width") as? Double, 680)
+        XCTAssertEqual(js(c, "getComputedStyle(document.querySelector('h1')).fontSize") as? String, "34px")
+        XCTAssertEqual(js(c, "document.querySelector('main').getBoundingClientRect().width") as? Double, 648)
     }
 
     func testRelativeLinksResolveAgainstTheNotesFolder() throws {
@@ -356,5 +366,32 @@ final class PreviewTests: XCTestCase {
         let c = controller()
         c.show(request("# T ![x](https://127.0.0.1:9/never.png)", remote: true)); wait(c.loads >= 1, "page")
         XCTAssertEqual(js(c, "document.querySelector('h1') !== null") as? Bool, true)
+    }
+}
+
+/// HTML comments in a note are for the writer; the preview leaves them out.
+final class HTMLCommentTests: XCTestCase {
+    private func html(_ md: String) -> String { PreviewPage.body(markdown: md) }
+
+    func testACommentOnItsOwnLineIsNotShown() {
+        let h = html("Before\n\n<!-- a note to self -->\n\nAfter")
+        XCTAssertFalse(h.contains("note to self")); XCTAssertFalse(h.contains("&lt;!--")); XCTAssertFalse(h.contains("<pre>"))
+        XCTAssertTrue(h.contains("Before") && h.contains("After"))
+    }
+
+    func testAMultiLineAndAnUnclosedCommentAreNotShown() {
+        XCTAssertFalse(html("<!--\nline one\nline two\n-->\n\nText").contains("line one"))
+        let h = html("Text\n\n<!-- never closed\n\nstill hidden")
+        XCTAssertFalse(h.contains("never closed")); XCTAssertTrue(h.contains("Text"))
+    }
+
+    func testACommentInsideAParagraphLeavesTheTextAlone() {
+        let h = html("one <!-- hidden --> two")
+        XCTAssertFalse(h.contains("hidden")); XCTAssertTrue(h.contains("one") && h.contains("two"))
+    }
+
+    func testOtherRawHTMLIsStillShownAsCode() {
+        let h = html("<div>hello</div>\n\n<!-- gone -->")
+        XCTAssertTrue(h.contains("&lt;div&gt;")); XCTAssertFalse(h.contains("gone"))
     }
 }

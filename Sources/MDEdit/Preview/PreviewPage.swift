@@ -134,21 +134,15 @@ enum PreviewPage {
         let faces = fontFaces.map {
             "@font-face { font-family: \"\($0.family)\"; src: url(\(scheme)://bundle/\($0.file)); font-style: \($0.style); font-weight: \($0.weight); }"
         }.joined(separator: "\n")
-        let serif = s.isSerif
         let h1 = s.heading(1), h2 = s.heading(2), h3 = s.heading(3), h4 = s.heading(4)
         func head(_ sel: String, _ h: ViewerStyle.Heading) -> String {
             let w = h.weight == .bold ? 700 : 600
             return "\(sel) { font-size: \(num(h.size))px; line-height: \(num(h.leading)); font-weight: \(w); letter-spacing: \(num(h.tracking))em; margin: \(num(h.top))px 0 \(num(h.bottom))px; color: var(--head); }"
         }
-        let family = serif ? "\"Literata\", \"New York\", ui-serif, Georgia, serif" : "\"Inter\", system-ui, -apple-system, sans-serif"
+        let family = "\"\(Preferences.cleanFamily(s.family) ?? ViewerStyle.defaultFamily)\", system-ui, -apple-system, sans-serif"
         let mono = "\"IBM Plex Mono\", ui-monospace, Menlo, monospace"
-        let bullet = serif
-            ? "ul > li::before { content: \"\\2022\"; position: absolute; left: \(num(s.body * 0.2))px; color: var(--bullet); }"
-            : "ul > li::before { content: \"\"; position: absolute; left: \(num(s.body * 0.25))px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--bullet); }"
-        let quote = serif
-            ? "blockquote { margin: 0 0 \(num(s.quoteGap))px; padding: 0 \(num(s.quoteIndent))px; font-size: \(num(s.quoteSize))px; line-height: \(num(s.quoteLeading)); color: var(--quote); }"
-            : "blockquote { margin: 0 0 \(num(s.quoteGap))px; padding: 2px 0 2px \(num(s.quotePadding))px; border-left: \(num(s.quoteBar))px solid var(--bar); font-size: \(num(s.quoteSize))px; line-height: \(num(s.quoteLeading)); color: var(--quote); }"
-        let colWeight = serif ? "" : "td:first-child { font-weight: 500; }"
+        let bullet = "ul > li::before { content: \"\"; position: absolute; left: \(num(s.body * 0.25))px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--bullet); }"
+        let quote = "blockquote { margin: 0 0 \(num(s.quoteGap))px; padding: 2px 0 2px \(num(s.quotePadding))px; border-left: \(num(s.quoteBar))px solid var(--bar); font-size: \(num(s.quoteSize))px; line-height: \(num(s.quoteLeading)); color: var(--quote); }"
         return """
         \(faces)
         :root { color-scheme: light dark; \(colors(s, dark: false)) }
@@ -156,7 +150,7 @@ enum PreviewPage {
         * { box-sizing: border-box; }
         html { background: var(--pane); -webkit-text-size-adjust: none; }
         body { margin: 0; padding: \(num(s.pageTop))px 24px \(num(s.pageBottom + 24))px; background: var(--pane); color: var(--ink);
-               font: \(num(s.body))px/\(num(s.bodyLeading)) \(family); font-variant-numeric: \(serif ? "oldstyle-nums" : "normal");
+               font: \(num(s.body))px/\(num(s.bodyLeading)) \(family);
                -webkit-font-smoothing: antialiased; overflow-wrap: break-word; }
         main { max-width: \(num(s.measure))px; margin: 0 auto; }
         main > :first-child { margin-top: 0; }
@@ -195,7 +189,7 @@ enum PreviewPage {
         th:last-child, td:last-child { padding-right: 0; }
         tbody tr:last-child td { border-bottom: 0; }
         td:nth-child(2) { color: var(--secondary); }
-        \(colWeight)
+        td:first-child { font-weight: 500; }
         [align=center] { text-align: center; } [align=right] { text-align: right; }
         .props { margin: 0 0 \(num(s.propertiesBottom))px; border: 1px solid var(--card); border-radius: 10px; overflow: hidden;
                  font: \(num(14 * s.scale))px/1.4 system-ui, -apple-system, sans-serif; font-variant-numeric: normal; }

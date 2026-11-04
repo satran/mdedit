@@ -35,7 +35,7 @@ final class FindPanelTests: XCTestCase {
     func testEveryControlHasAHoverTip() {
         ws.find.scope = .file; ws.find.query = "time to restore"
         var t = tips(in: host().0)
-        for want in ["Match case", "Whole word", "Regular expression", "Previous match", "Next match", "Preserve case", "Close find and replace", "Replace every match", "Replace the current match", "Go to line"] {
+        for want in ["Match case", "Whole word", "Regular expression", "Previous match", "Next match", "Preserve case", "Replace every match", "Replace the current match", "Go to line"] {
             XCTAssertTrue(t.contains { $0.hasPrefix(want) }, "no tip starting “\(want)” in \(t)")
         }
         ws.find.scope = .folder

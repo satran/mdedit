@@ -39,10 +39,40 @@ final class Workspace: ObservableObject {
     /// The row being renamed in the binder.
     @Published var renaming: URL?
     @Published var typewriter: Bool { didSet { defaults.set(typewriter, forKey: "typewriter") } }
-    @Published var outlineVisible: Bool { didSet { defaults.set(outlineVisible, forKey: "outlineVisible"); refreshBacklinks() } }
+    /// The right-hand panel: the outline or find & replace, one at a time; nil is closed.
+    @Published var panel: RightPanel? {
+        didSet {
+            if let p = panel { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
+            defaults.set(panel != nil, forKey: "rightPanelOpen")
+            if (oldValue == .outline) != (panel == .outline) { refreshBacklinks() }
+        }
+    }
+    /// The tab the toolbar button opens, and where Esc goes back to from Find.
+    var lastPanel: RightPanel = .outline
+    var panelBeforeFind: RightPanel?
+    /// Width of the panel's content in points; the person can drag it. The same for both tabs.
+    @Published var panelWidth: CGFloat { didSet { defaults.set(Double(panelWidth), forKey: "rightPanelWidth") } }
+    static let panelWidthRange: ClosedRange<CGFloat> = 280...560
+    var outlineVisible: Bool {
+        get { panel == .outline }
+        set { if newValue { panel = .outline } else if panel == .outline { panel = nil } }
+    }
+    var findVisible: Bool {
+        get { panel == .find }
+        set { if newValue { panel = .find } else if panel == .find { panel = nil } }
+    }
     @Published var binderVisible: Bool
-    /// The find & replace panel takes the outline's place on the right while it is open.
-    @Published var findVisible = false
+    // While a side panel slides in or out, only the window changes size: the writing column keeps this width and place,
+    // a panel on its way out stays until the window has shrunk past it, and the minimum width waits for the end.
+    @Published var pinnedMainWidth: CGFloat?
+    @Published var pinnedToTrailingEdge = false
+    @Published var holdBinder = false
+    @Published var heldPanel: RightPanel?
+    @Published var minWidthOverride: CGFloat?
+    /// The window this workspace is shown in, once its view is on screen.
+    weak var hostWindow: NSWindow?
+    var slideGeneration = 0
+    var slideTarget: NSRect?
     let find = FindModel()
     /// Closing the palette gives the keyboard back to the note, so the caret is not left without a home.
     @Published var paletteVisible = false { didSet { if oldValue, !paletteVisible, mode == .write { DispatchQueue.main.async { [weak self] in self?.focusEditor() } } } }
@@ -89,7 +119,11 @@ final class Workspace: ObservableObject {
         self.recents = recents
         windowKey = id.map { ".\($0.uuidString)" } ?? ""
         typewriter = defaults.bool(forKey: "typewriter")
-        outlineVisible = defaults.bool(forKey: "outlineVisible")
+        let tab = defaults.string(forKey: "rightPanelTab").flatMap(RightPanel.init(rawValue:)) ?? .outline
+        let open = defaults.object(forKey: "rightPanelOpen") as? Bool ?? defaults.bool(forKey: "outlineVisible")
+        lastPanel = tab
+        panel = open && tab == .outline ? .outline : nil      // find does not come back open: its fields start empty
+        panelWidth = min(Self.panelWidthRange.upperBound, max(Self.panelWidthRange.lowerBound, CGFloat(defaults.object(forKey: "rightPanelWidth") as? Double ?? 360)))
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
         shellDestination = defaults.string(forKey: "shellDestination").flatMap(ShellDestination.init(rawValue:)) ?? .insert
         find.ws = self
@@ -99,27 +133,21 @@ final class Workspace: ObservableObject {
     /// Distraction-free writing: just the text, in full screen, with everything but the current paragraph dimmed.
     /// Slides the binder away and shrinks the window by the same amount, so the writing pane keeps its width and place.
     func toggleBinder() {
-        let width = CGFloat(defaults.object(forKey: "binderWidth") as? Double ?? 272) + 1
-        binderVisible.toggle()
-        defaults.set(binderVisible, forKey: "binderVisible")
-        if binderVisible { wantsTreeFocus = true }
-        let delta = binderVisible ? width : -width
-        guard let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
-        var f = w.frame
-        f.size.width += delta
-        f.origin.x -= delta
-        NSAnimationContext.runAnimationGroup { c in
-            c.duration = 0.25
-            c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            w.animator().setFrame(f, display: true)
+        slidePanel(.left) {
+            binderVisible.toggle()
+            defaults.set(binderVisible, forKey: "binderVisible")
+            if binderVisible { wantsTreeFocus = true }
         }
     }
 
-    /// Same for the outline on the right: the window grows or shrinks, the writing pane stays as it is.
+    /// ⌥⌘O: the outline on the right. From the find tab it switches to the outline; on the outline it closes the panel.
     func toggleOutline() {
-        let before = rightPanelWidth
-        if findVisible { findVisible = false; find.highlight(); outlineVisible = true } else { outlineVisible.toggle() }
-        resizeWindow(by: rightPanelWidth - before)
+        if panel == .outline { closePanel() } else { openPanel(.outline) }
+    }
+
+    /// The toolbar button: opens the panel on the tab used last, or closes it.
+    func togglePanel() {
+        if panel != nil { closePanel() } else { openPanel(lastPanel) }
     }
 
     /// Another window on the folder that is open here.

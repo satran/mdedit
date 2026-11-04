@@ -20,13 +20,13 @@ final class Preferences: ObservableObject {
     @Published var focusFullScreen: Bool { didSet { d.set(focusFullScreen, forKey: "focusFullScreen") } }
     /// Pictures from the web load only when this is on: a remote picture tells its server that the note was opened.
     @Published var loadRemoteImages: Bool { didSet { d.set(loadRemoteImages, forKey: "loadRemoteImages") } }
-    /// Characters per line in the viewer; 68 gives the type specs' own column (34 em serif, 36 em sans).
+    /// Characters per line in the viewer; 68 gives the type specs' own column (36 em).
     @Published var viewerWidth: Int { didSet { d.set(viewerWidth, forKey: "viewerWidth") } }
     @Published var viewerWidthCustom: Bool { didSet { d.set(viewerWidthCustom, forKey: "viewerWidthCustom") } }
-    /// "serif" (Literata) or "sans" (Inter): the two reading templates of the viewer.
-    @Published var viewerTemplate: String { didSet { d.set(viewerTemplate, forKey: "viewerTemplate") } }
-    /// The serif template's body size in points (20 by default); the sans template runs 2 points smaller, as in the type specs.
-    @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerSize") } }
+    /// The viewer's font family (Inter by default). The custom stylesheet can still override it.
+    @Published var viewerFont: String { didSet { d.set(viewerFont, forKey: "viewerFont") } }
+    /// The viewer's body size in points (18 by default, as in the type specs).
+    @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerTextSize") } }
 
     /// Shell commands from the editor (⌘R). Off until turned on here.
     @Published var shellEnabled: Bool { didSet { d.set(shellEnabled, forKey: "shellEnabled") } }
@@ -54,8 +54,8 @@ final class Preferences: ObservableObject {
         loadRemoteImages = d.bool(forKey: "loadRemoteImages")
         viewerWidth = min(140, max(30, d.object(forKey: "viewerWidth") as? Int ?? 68))
         viewerWidthCustom = d.bool(forKey: "viewerWidthCustom")
-        viewerTemplate = d.string(forKey: "viewerTemplate") == "sans" ? "sans" : "serif"
-        viewerSize = min(32, max(14, d.object(forKey: "viewerSize") as? Double ?? 20))
+        viewerFont = Self.cleanFamily(d.string(forKey: "viewerFont")) ?? ViewerStyle.defaultFamily
+        viewerSize = min(32, max(12, d.object(forKey: "viewerTextSize") as? Double ?? Double(ViewerStyle.specBody)))
         shellEnabled = d.bool(forKey: "shellEnabled")
         shellPath = String((d.string(forKey: "shellPath") ?? ShellEnvironment.defaultShell).prefix(1024))
         shellSearchPath = String((d.string(forKey: "shellSearchPath") ?? ShellEnvironment.defaultPath).prefix(4096))
@@ -78,11 +78,14 @@ final class Preferences: ObservableObject {
         return Fonts.nsFont(family: editorFont, size: s) ?? .monospacedSystemFont(ofSize: s, weight: .regular)
     }
 
-    /// The family of the chosen template; the exported HTML names it too.
-    var viewerFont: String { viewerTemplate == "sans" ? "Inter" : "Literata" }
+    /// A font family name that is safe to put in a stylesheet: letters, digits, spaces and hyphens, 60 characters at most.
+    static func cleanFamily(_ name: String?) -> String? {
+        let f = String((name ?? "").filter { $0.isLetter || $0.isNumber || $0 == " " || $0 == "-" }.prefix(60)).trimmingCharacters(in: .whitespaces)
+        return f.isEmpty ? nil : f
+    }
 
-    /// Every size, spacing and colour of the viewer for the chosen template (the type specs).
-    var viewerStyle: ViewerStyle { ViewerStyle(template: viewerTemplate == "sans" ? .sans : .serif, serifBody: CGFloat(viewerSize), width: viewerWidth) }
+    /// Every size, spacing and colour of the viewer, with the chosen font (the type specs).
+    var viewerStyle: ViewerStyle { ViewerStyle(body: CGFloat(viewerSize), family: viewerFont, width: viewerWidth) }
 
     var monoFont: (CGFloat) -> Font { { [self] s in
         Fonts.installed(editorFont) ? .custom(editorFont, size: s) : .system(size: s, design: .monospaced) } }

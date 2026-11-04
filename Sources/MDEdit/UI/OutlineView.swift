@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The right-hand panel: the headings of the open note, and the notes that link to it.
+/// A tab of the right-hand panel: the headings of the open note, and the notes that link to it.
 struct OutlineView: View {
     @EnvironmentObject var ws: Workspace
     @ObservedObject var document: DocumentStore
@@ -9,7 +9,7 @@ struct OutlineView: View {
         let headings = Outline.headings(in: document.text)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                section("Outline") {
+                section("Headings") {
                     if headings.isEmpty { empty("No headings") }
                     ForEach(headings) { h in
                         Button { ws.jump(to: h.location) } label: {

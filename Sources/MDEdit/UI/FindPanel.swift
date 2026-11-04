@@ -11,7 +11,7 @@ extension View {
     func tip(_ text: String) -> some View { background(TipView(text: text)) }
 }
 
-/// Find & replace, in the outline's place on the right: "This file" shows its matches as a list; "Folder" shows every note
+/// Find & replace, a tab of the right-hand panel: "This file" shows its matches as a list; "Folder" shows every note
 /// with a match, each match with a box, and what it would become.
 struct FindPanel: View {
     @EnvironmentObject var ws: Workspace
@@ -43,14 +43,6 @@ struct FindPanel: View {
 
     private var controls: some View {
         VStack(spacing: 10) {
-            HStack {
-                Text("Find & Replace").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Palette.binderText))
-                Spacer()
-                Button { ws.closeFind() } label: {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).frame(width: 26, height: 26).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).foregroundStyle(Color(Palette.muted)).accessibilityLabel("Close find").tip("Close find and replace (Esc)").pointerCursor()
-            }
             scopeSwitch
             if find.scope == .folder { areaMenu }
             findField

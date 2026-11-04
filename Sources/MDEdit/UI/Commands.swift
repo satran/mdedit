@@ -62,7 +62,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasNote) { ws?.findNext(-1) },
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "b", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
-        Cmd(id: "outline", title: ws?.outlineVisible == true ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
+        Cmd(id: "outline", title: ws?.panel == .outline ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
         Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil && !isPage, dividerBefore: true) { ws?.mode = .write },
         Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil && !isPage) { ws?.mode = .view },

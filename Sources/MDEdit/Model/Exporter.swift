@@ -14,7 +14,7 @@ final class Exporter: NSObject, WKNavigationDelegate {
     }
 
     /// A full HTML page for the note, set the way the viewer sets it. [[Wiki links]] become their plain text.
-    nonisolated static func html(markdown: String, title: String, viewerFont: String = "Source Serif 4", size: Double = 18) -> String {
+    nonisolated static func html(markdown: String, title: String, viewerFont: String = "Inter", size: Double = 18) -> String {
         let fm = FrontMatter.parse(markdown)
         let content = fm.map { (markdown as NSString).substring(from: $0.end) } ?? markdown
         let body = (fm.map(propertiesHTML) ?? "") + safeHTML(plainWikiLinks(content))
@@ -27,7 +27,7 @@ final class Exporter: NSObject, WKNavigationDelegate {
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'">
         <meta name="referrer" content="no-referrer"><title>\(esc)</title>
         <style>
-        body { font: \(Int(size))px/1.65 "\(font)", "New York", Georgia, serif; color: #24272B; max-width: 640px; margin: 48px auto; padding: 0 24px; }
+        body { font: \(Int(size))px/1.65 "\(font)", system-ui, -apple-system, sans-serif; color: #24272B; max-width: 640px; margin: 48px auto; padding: 0 24px; }
         h1 { font-size: 2em; line-height: 1.2; } h2 { font-size: 1.33em; margin-top: 1.6em; } h3 { font-size: 1.11em; }
         blockquote { margin: 0; padding: 2px 0 2px 20px; border-left: 3px solid #D7DCE2; color: #4A4F56; font-style: italic; }
         code { font: 0.85em "IBM Plex Mono", ui-monospace, Menlo, monospace; background: #F2F4F7; border-radius: 4px; padding: 1px 5px; }

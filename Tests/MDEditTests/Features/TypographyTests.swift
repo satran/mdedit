@@ -10,30 +10,10 @@ final class TypographyTests: XCTestCase {
         XCTAssertEqual(a, b, accuracy: tol, what, file: file, line: line)
     }
 
-    // MARK: viewer, serif
+    // MARK: viewer
 
-    func testSerifTemplateFollowsTheSpecs() {
-        let s = ViewerStyle(template: .serif, serifBody: 20)
-        approx(s.body, 20, "body 20 px"); approx(s.bodyLeading, 1.45, "line height 1.45")
-        approx(s.measure, 680, "measure 34 em")
-        approx(s.heading(1).size, 40, "H1 40"); approx(s.heading(2).size, 26, "H2 26"); approx(s.heading(3).size, 20, "H3 20")
-        approx(s.heading(1).leading, 1.12, "H1 leading"); approx(s.heading(2).leading, 1.25, "H2 leading"); approx(s.heading(3).leading, 1.45, "H3 leading")
-        XCTAssertEqual(s.heading(1).weight, .semibold); XCTAssertEqual(s.heading(2).weight, .semibold)
-        approx(s.heading(2).top, 26 * 1.7, "H2 space above 1.7 em"); approx(s.heading(2).bottom, 26 * 0.45, "H2 space below 0.45 em")
-        approx(s.heading(3).top, 20 * 1.5, "H3 above 1.5 em"); approx(s.heading(3).bottom, 20 * 0.35, "H3 below 0.35 em")
-        approx(s.paragraphGap, 15, "paragraphs 0.75 em")
-        approx(s.quoteSize, 18.5, "quote 18.5 px"); approx(s.quoteIndent, 18.5 * 1.25, "quote indented 1.25 em"); approx(s.quoteBar, 0, "no rule")
-        approx(s.codeSize, 15, "code 15 px"); approx(s.codeLeading, 1.55, "code 23 px line"); approx(s.inlineCodeScale, 0.8, "inline code 0.8 em")
-        approx(s.tableSize, 17, "table 17 px"); approx(s.tableLabelSize, 12, "labels 12 px"); approx(s.tableLabelTracking, 0.07, "labels +7%")
-        approx(s.itemIndent, 24, "list item padding 1.2 em"); approx(s.itemGap, 4, "list items 0.2 em apart")
-        approx(s.ruleGap, 40, "rule 2 em above and below")
-        XCTAssertTrue(s.isSerif)
-    }
-
-    // MARK: viewer, sans
-
-    func testSansTemplateFollowsTheSpecs() {
-        let s = ViewerStyle(template: .sans, serifBody: 20)
+    func testTheViewerFollowsTheSpecs() {
+        let s = ViewerStyle()
         approx(s.body, 18, "body 18 px"); approx(s.bodyLeading, 1.6, "line height 1.6")
         approx(s.measure, 648, "measure 36 em")
         approx(s.heading(1).size, 34, "H1 34"); approx(s.heading(2).size, 23, "H2 23"); approx(s.heading(3).size, 18, "H3 18")
@@ -45,36 +25,31 @@ final class TypographyTests: XCTestCase {
         approx(s.codeSize, 14.5, "code 14.5 px"); approx(s.inlineCodeScale, 0.86, "inline code 0.86 em")
         approx(s.tableSize, 15.5, "table 15.5 px"); approx(s.tableLabelTracking, 0.06, "labels +6%")
         approx(s.itemIndent, 22.5, "list item padding 1.25 em"); approx(s.itemGap, 4.5, "list items 0.25 em apart")
-        XCTAssertFalse(s.isSerif)
     }
 
-    func testBothTemplatesStayInsidePracticalTypographysRanges() {
-        for t in [ViewerStyle.Template.serif, .sans] {
-            let s = ViewerStyle(template: t, serifBody: 20)
-            XCTAssertTrue((15...25).contains(s.body), "body 15 to 25 px")
-            XCTAssertTrue((1.2...1.65).contains(s.bodyLeading), "line spacing 120 to 165%")
-            let chars = s.measure / (s.body * 0.5)          // an average character is about half an em wide
-            XCTAssertTrue((60...75).contains(chars), "about 65 to 70 characters per line, got \(chars)")
-            for level in 1...3 {
-                XCTAssertGreaterThan(s.heading(level).size, level == 3 ? 0 : s.heading(level + 1 > 3 ? 3 : level + 1).size - 0.001)
-                if level > 1 { XCTAssertGreaterThan(s.heading(level).top, s.heading(level).bottom, "more space above a heading than below it") }
-            }
+    func testTheViewerStaysInsidePracticalTypographysRanges() {
+        let s = ViewerStyle()
+        XCTAssertTrue((15...25).contains(s.body), "body 15 to 25 px")
+        XCTAssertTrue((1.2...1.65).contains(s.bodyLeading), "line spacing 120 to 165%")
+        let chars = s.measure / (s.body * 0.5)          // an average character is about half an em wide
+        XCTAssertTrue((60...75).contains(chars), "about 65 to 70 characters per line, got \(chars)")
+        for level in 1...3 {
+            XCTAssertGreaterThan(s.heading(level).size, level == 3 ? 0 : s.heading(level + 1 > 3 ? 3 : level + 1).size - 0.001)
+            if level > 1 { XCTAssertGreaterThan(s.heading(level).top, s.heading(level).bottom, "more space above a heading than below it") }
         }
     }
 
     func testTheSizeSettingScalesEverythingTogether() {
-        let big = ViewerStyle(template: .serif, serifBody: 24), normal = ViewerStyle(template: .serif, serifBody: 20)
-        approx(big.body, 24, "body"); approx(big.heading(1).size / normal.heading(1).size, 1.2, "H1 in proportion")
+        let big = ViewerStyle(body: 21.6), normal = ViewerStyle()
+        approx(big.body, 21.6, "body"); approx(big.heading(1).size / normal.heading(1).size, 1.2, "H1 in proportion")
         approx(big.measure / normal.measure, 1.2, "the column grows with the type, so characters per line stay the same")
-        approx(ViewerStyle(template: .sans, serifBody: 24).body, 21.6, "sans follows")
     }
 
     func testViewerLineWidthSetsTheColumnAndKeepsTheSpecsAtItsMiddle() {
-        approx(ViewerStyle(template: .serif, serifBody: 20, width: 68).measure, 680, "68 characters is the specs' 34 em")
-        approx(ViewerStyle(template: .sans, serifBody: 20, width: 68).measure, 648, "and 36 em for sans")
-        let wide = ViewerStyle(template: .serif, serifBody: 20, width: 80).measure, narrow = ViewerStyle(template: .serif, serifBody: 20, width: 58).measure
-        XCTAssertGreaterThan(wide, 680); XCTAssertLessThan(narrow, 680)
-        approx(ViewerStyle(template: .serif, serifBody: 20, width: 136).measure, 1360, "proportional to the number of characters")
+        approx(ViewerStyle(width: 68).measure, 648, "68 characters is the specs' 36 em")
+        let wide = ViewerStyle(width: 80).measure, narrow = ViewerStyle(width: 58).measure
+        XCTAssertGreaterThan(wide, 648); XCTAssertLessThan(narrow, 648)
+        approx(ViewerStyle(width: 136).measure, 1296, "proportional to the number of characters")
         XCTAssertEqual(SettingsView.viewerPresets.map(\.1), [58, 68, 80])
     }
 
@@ -89,15 +64,17 @@ final class TypographyTests: XCTestCase {
         d.set(-3, forKey: "viewerWidth"); XCTAssertEqual(Preferences(defaults: d).viewerWidth, 30)
     }
 
-    func testPreferencesPickTheTemplate() {
+    func testPreferencesPickTheFontAndTheSize() {
         let d = isolatedDefaults()
         let p = Preferences(defaults: d)
-        XCTAssertEqual(p.viewerTemplate, "serif"); XCTAssertEqual(p.viewerFont, "Literata"); approx(p.viewerStyle.body, 20, "default body")
-        p.viewerTemplate = "sans"
-        XCTAssertEqual(p.viewerFont, "Inter"); approx(p.viewerStyle.body, 18, "sans body")
-        XCTAssertEqual(Preferences(defaults: d).viewerTemplate, "sans")
-        let junk = isolatedDefaults(); junk.set("comic", forKey: "viewerTemplate")
-        XCTAssertEqual(Preferences(defaults: junk).viewerTemplate, "serif")
+        XCTAssertEqual(p.viewerFont, "Inter"); approx(p.viewerStyle.body, 18, "default body"); XCTAssertEqual(p.viewerStyle.family, "Inter")
+        p.viewerFont = "Literata"; p.viewerSize = 21.6
+        let q = Preferences(defaults: d)
+        XCTAssertEqual(q.viewerFont, "Literata"); approx(q.viewerStyle.body, 21.6, "body follows the size")
+        let junk = isolatedDefaults(); junk.set("Evil\"; } </style><script>", forKey: "viewerFont")
+        XCTAssertFalse(Preferences(defaults: junk).viewerFont.contains { "\"<>;{}".contains($0) }, "a stored name cannot carry markup")
+        let empty = isolatedDefaults(); empty.set("", forKey: "viewerFont")
+        XCTAssertEqual(Preferences(defaults: empty).viewerFont, "Inter")
     }
 
     // MARK: real punctuation
@@ -238,8 +215,7 @@ final class TypographyTests: XCTestCase {
         XCTAssertEqual(hex(Palette.marker), 0xAEB4BC); XCTAssertEqual(hex(Palette.strongText), 0x15171A); XCTAssertEqual(hex(Palette.linkText), 0x2453B3)
         XCTAssertEqual(hex(Palette.selectionText), 0xCFE0FB); XCTAssertEqual(hex(Palette.caret), 0x3478F6); XCTAssertEqual(hex(Palette.codeBand), 0xF6F7F9)
         XCTAssertEqual(hex(Palette.fmValue), 0x7C828A); XCTAssertEqual(hex(Palette.fmKey), 0x9AA0A8); XCTAssertEqual(hex(Palette.text), 0x2A2D31)
-        XCTAssertEqual(hex(Palette.vInkSerif), 0x24272B); XCTAssertEqual(hex(Palette.vInkSans), 0x25282C)
-        XCTAssertEqual(hex(Palette.vHeadSerif), 0x15171A); XCTAssertEqual(hex(Palette.vHeadSans), 0x131518)
+        XCTAssertEqual(hex(Palette.vInk), 0x25282C); XCTAssertEqual(hex(Palette.vHead), 0x131518)
         XCTAssertEqual(hex(Palette.vQuoteBar), 0xD9DEE4); XCTAssertEqual(hex(Palette.vRule), 0xD5D9DF); XCTAssertEqual(hex(Palette.vRowLine), 0xECEEF1)
     }
 }
@@ -249,12 +225,12 @@ final class TypographyTests: XCTestCase {
 final class BundledFontTests: XCTestCase {
     func testLiterataAndInterAreBundledAndWeightsWork() {
         for family in ["Literata", "Inter", "IBM Plex Mono"] { XCTAssertTrue(Fonts.installed(family), "\(family) is bundled") }
-        for t in [ViewerStyle.Template.serif, .sans] {
-            let s = ViewerStyle(template: t, serifBody: 20)
+        for family in ["Literata", "Inter"] {
+            let s = ViewerStyle(family: family)
             let sample = "Hamburgefonstiv 1234"
             func width(_ w: Font.Weight) -> CGFloat { NSAttributedString(string: sample, attributes: [.font: s.nsFont(20, weight: w)]).size().width }
-            XCTAssertGreaterThan(width(.bold), width(.regular), "\(t): bold is wider than regular, so the variable weight axis is used")
-            XCTAssertEqual(s.nsFont(20).familyName, t == .serif ? "Literata" : "Inter")
+            XCTAssertGreaterThan(width(.bold), width(.regular), "\(family): bold is wider than regular, so the variable weight axis is used")
+            XCTAssertEqual(s.nsFont(20).familyName, family)
         }
     }
 

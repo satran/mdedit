@@ -39,7 +39,7 @@ struct WindowRoot: View {
             .environmentObject(ws)
             .focusedSceneObject(ws)
             .navigationTitle(ws.rootURL?.lastPathComponent ?? "MDEdit")
-            .frame(minWidth: (ws.binderVisible ? 760 : 488) + ws.rightPanelWidth, minHeight: 480)
+            .frame(minWidth: ws.minWidthOverride ?? ws.minContentWidth, minHeight: 480)
             .onAppear { Preferences.shared.applyTheme(); ws.newWindow = { openWindow(id: "main", value: $0) } }
     }
 }

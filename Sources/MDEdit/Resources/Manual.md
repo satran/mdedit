@@ -15,8 +15,8 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 ## The window
 
 - **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
-- **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free, typewriter and export buttons.
-- **Outline** (right, optional): the headings of the note, and the notes that link to it. Show or hide it with the button at the top right, or ⌥⌘O. The magnifying-glass button next to it opens find and replace in the same place.
+- **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free and typewriter buttons. The toolbar at the top has the share button.
+- **Side panel** (right, optional): show or hide it with the button at the top right. Two icons at the top of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), and **Find and replace** (⌘F). The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
 - The **status bar** at the bottom can be hidden with ⌥⌘B.
 
 ## Working with notes and folders
@@ -40,6 +40,8 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 ## Back and Forward
 
 MDEdit remembers the notes you opened, like a browser does. **View ▸ Back to Previous Note** (⌘[) returns to the note you were in before, and **Forward to Next Note** (⌘]) undoes a Back. The ‹ button at the top left of the note does the same as Back.
+
+The back and forward side buttons of a mouse do the same.
 
 The trail keeps your last 100 notes, skips notes that have been deleted or renamed, and starts again when you open another folder. Opening a different note after going back clears Forward.
 
@@ -93,7 +95,7 @@ A block of `key: value` lines between `---` lines at the very top of a note is *
 
 ## Find and replace
 
-The **magnifying-glass button** in the header, or ⌘F, opens the find and replace panel on the right, in the place of the outline. Close it with ✕ or Esc, and the outline comes back as it was. The panel has two scopes, chosen at the top.
+⌘F opens the side panel on its **Find and replace** tab (or click the magnifying-glass icon at the top of the panel). Press Esc to go back to where the panel was: the outline, or closed. The panel has two scopes, chosen at the top.
 
 ### This file
 
@@ -126,7 +128,7 @@ An invalid pattern is shown in the field instead of searching. Very large result
 
 ## Viewing
 
-**View ▸ View** (⌘2) shows the note typeset like a printed page, in a **Serif** (Literata) or **Sans** (Inter) template. Switch between them with the buttons at the bottom left. **Write** (⌘1) returns to editing, and ⇧⌘E toggles between the two.
+**View ▸ View** (⌘2) shows the note typeset like a printed page, in a sans face (Inter unless you pick another under **Settings ▸ Viewer ▸ Font**). **Write** (⌘1) returns to editing, and ⇧⌘E toggles between the two.
 
 The View uses curly quotes, proper dashes and ellipses, shows tables, task lists, quotes and code blocks, and sets local pictures centred. Links open as follows: another note opens in MDEdit, a web address opens in your browser, and a local file opens in its own app. Nothing runs from a note.
 
@@ -146,8 +148,8 @@ For a page, **Write**, **Find** in the file, **Print**, **Export** and **Run She
 
 ## Printing and exporting
 
-- **Print… / PDF** (⌘P) prints the note as it looks in the View. Choose **PDF** in the bottom left of the print panel to save a PDF.
-- **Export as HTML…** saves a standalone web page. Scripts and unsafe markup are stripped from it.
+- **Print… / PDF** (⌘P, or in the share menu) prints the note as it looks in the View. Choose **PDF** in the bottom left of the print panel to save a PDF.
+- **Export as HTML…** (in the share menu in the toolbar) saves a standalone web page. Scripts and unsafe markup are stripped from it.
 - **Copy as Markdown** copies the note's text.
 
 ## Running shell commands
@@ -192,7 +194,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 
 - **Appearance:** light, dark, or follow the system.
 - **Editor:** the font and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
-- **Viewer:** the Serif or Sans template, the text size, the line width, and whether remote pictures and stylesheets are loaded.
+- **Viewer:** the font, the text size, the line width, and whether remote pictures and stylesheets are loaded.
 - **Shell:** the on/off switch, the shell program (`/bin/sh` by default), the search path, the time limit, how much history to keep, and extra environment variables.
 
 ## The command palette

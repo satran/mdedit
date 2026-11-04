@@ -226,9 +226,12 @@ final class FindModel: ObservableObject {
 }
 
 extension Workspace {
-    var rightPanelWidth: CGFloat { findVisible ? 361 : outlineVisible ? 241 : 0 }
+    enum RightPanel: String { case outline, find }
 
-    /// ⌘F, ⌥⌘F, ⇧⌘F: opens the panel in the scope, with the keyboard in a field. The window grows to make room, as for the outline.
+    /// What the right side takes from the window, divider included; 0 when closed.
+    var rightPanelWidth: CGFloat { panel == nil ? 0 : panelWidth + 1 }
+
+    /// ⌘F, ⌥⌘F, ⇧⌘F: opens the panel on Find in the scope, with the keyboard in a field. The window grows to make room.
     func showFind(_ scope: FindModel.Scope, field: FindModel.Field = .find) {
         if focus { toggleFocus() }
         // the selected text becomes the query, as in other editors
@@ -236,39 +239,105 @@ extension Workspace {
             let s = (tv.string as NSString).substring(with: tv.selectedRange())
             if !s.contains("\n") { find.query = s }
         }
-        let before = rightPanelWidth
-        findVisible = true
+        openPanel(.find)
         find.scope = showingHTML ? .folder : scope          // a page is not edited here
         find.focus = field
         find.refresh()
-        resizeWindow(by: rightPanelWidth - before)
     }
 
-    func closeFind() {
-        let before = rightPanelWidth
-        findVisible = false
+    /// Shows a tab, opening the panel if it is closed. Switching tabs keeps the width, so the window does not move.
+    func openPanel(_ tab: RightPanel) {
+        if tab == .find, panel != .find { panelBeforeFind = panel }
+        slidePanel(.right) { panel = tab }
+        if tab == .find {
+            if showingHTML { find.scope = .folder }          // a page is not edited here
+            find.focus = find.focus ?? .find
+        }
         find.refresh()
         find.highlight()
-        resizeWindow(by: rightPanelWidth - before)
+    }
+
+    /// The tab icons at the top of the panel.
+    func selectPanel(_ tab: RightPanel) { if panel != tab { openPanel(tab) } }
+
+    func closePanel() {
+        slidePanel(.right) { panel = nil }
+        panelBeforeFind = nil
+        find.refresh()
+        find.highlight()
         if mode == .write { focusEditor() }
     }
 
-    func toggleFindPanel() { findVisible ? closeFind() : showFind(.file) }
+    /// Esc in Find: back to where the panel was before, the outline or closed.
+    func closeFind() {
+        guard panel == .find else { return }
+        let back = panelBeforeFind
+        panelBeforeFind = nil
+        slidePanel(.right) { panel = back }
+        find.refresh()
+        find.highlight()
+        if mode == .write { focusEditor() }
+    }
 
     func findNext(_ step: Int = 1) {
         guard findVisible, find.scope == .file else { showFind(.file); return }
         find.next(step)
     }
 
-    func resizeWindow(by delta: CGFloat) {
-        guard delta != 0, let w = NSApp.keyWindow ?? NSApp.windows.first, !w.styleMask.contains(.fullScreen) else { return }
-        var f = w.frame
+    enum Side { case left, right }
+
+    var shownPanel: RightPanel? { panel }
+    /// What the right side shows now, including a panel that is on its way out.
+    var panelOnScreen: RightPanel? { heldPanel ?? shownPanel }
+    var binderOnScreen: Bool { binderVisible || holdBinder }
+    var binderTotalWidth: CGFloat { CGFloat(defaults.object(forKey: "binderWidth") as? Double ?? 272) + 1 }
+    /// The widest the panel may be dragged to: the writing column keeps at least 400 points.
+    func clampedPanelWidth(_ w: CGFloat) -> CGFloat {
+        let avail = (hostWindow?.contentView?.bounds.width ?? 10_000) - (binderVisible ? binderTotalWidth : 0) - 1 - 400
+        let hi = max(Self.panelWidthRange.lowerBound, min(Self.panelWidthRange.upperBound, avail))
+        return min(hi, max(Self.panelWidthRange.lowerBound, w))
+    }
+    /// The least width the window may have for what is open.
+    var minContentWidth: CGFloat { (binderVisible ? 792 : 520) + rightPanelWidth }
+
+    /// Opens or closes a side panel. The window grows or shrinks by the panel's width and the writing column stays exactly
+    /// where it is, on screen and in size: it is pinned for the length of the animation, so nothing in it is laid out
+    /// again from frame to frame. A panel that goes away stays in the layout until the window has shrunk past it, so it
+    /// slides out instead of vanishing. `change` flips the state.
+    func slidePanel(_ side: Side, _ change: () -> Void) {
+        func width() -> CGFloat { side == .left ? (binderVisible ? binderTotalWidth : 0) : rightPanelWidth }
+        let before = width(), panelBefore = shownPanel, minBefore = minContentWidth
+        let window = hostWindow ?? NSApp.keyWindow ?? NSApp.windows.first
+        guard let w = window, !w.styleMask.contains(.fullScreen), w.contentView != nil else { change(); return }
+
+        let onScreenLeft = binderOnScreen ? binderTotalWidth : 0
+        let main = pinnedMainWidth ?? max(0, (w.contentView?.bounds.width ?? w.frame.width) - onScreenLeft - (panelOnScreen == nil ? 0 : panelWidth + 1))
+        change()
+        let delta = width() - before
+        guard delta != 0 else { return }
+
+        if delta < 0 { if side == .left { holdBinder = true } else { heldPanel = panelBefore } }
+        pinnedMainWidth = main
+        pinnedToTrailingEdge = side == .left
+        minWidthOverride = min(minBefore, minContentWidth)
+
+        var f = slideTarget ?? w.frame
         f.size.width += delta
-        if let screen = w.screen?.visibleFrame, f.maxX > screen.maxX { f.origin.x = max(screen.minX, screen.maxX - f.width) }
+        if side == .left { f.origin.x -= delta }
+        else if let screen = w.screen?.visibleFrame, f.maxX > screen.maxX { f.origin.x = max(screen.minX, screen.maxX - f.width) }
+        slideTarget = f
+        slideGeneration += 1
+        let mine = slideGeneration
         NSAnimationContext.runAnimationGroup { c in
             c.duration = 0.25
             c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             w.animator().setFrame(f, display: true)
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.slideGeneration == mine else { return }
+                self.pinnedMainWidth = nil; self.holdBinder = false; self.heldPanel = nil
+                self.minWidthOverride = nil; self.slideTarget = nil
+            }
         }
     }
 }

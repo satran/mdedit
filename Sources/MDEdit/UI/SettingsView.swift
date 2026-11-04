@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var prefs: Preferences
 
+    /// Fonts the preview can use: the two that ship in the app, and some that come with macOS.
+    static let viewerFonts = ["Inter", "Literata", "Helvetica Neue", "Avenir Next", "Georgia"]
     static let editorFonts = ["IBM Plex Mono", "JetBrains Mono", "SF Mono", "Menlo", "Source Serif 4"]
         static let presets: [(String, Int)] = [("Narrow", 64), ("Medium", 72), ("Wide", 80)]
     /// The viewer's middle is the specs' column, about 68 characters.
@@ -43,17 +45,12 @@ struct SettingsView: View {
                     preview
                 }
                 section("Viewer") {
-                    row("Template", note: "Serif is Literata, sans is Inter") {
-                        HStack(spacing: 2) {
-                            ForEach([("serif", "Serif"), ("sans", "Sans")], id: \.0) { key, name in
-                                segment(name, on: prefs.viewerTemplate == key) { prefs.viewerTemplate = key }
-                            }
-                        }
-                        .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
+                    row("Font", note: "Inter is the default. The custom stylesheet can override it") {
+                        fontPicker($prefs.viewerFont, Self.viewerFonts, label: "Viewer font")
                     }
                     divider
-                    row("Text size", note: "Serif body; sans runs 2 points smaller") {
-                        stepper($prefs.viewerSize, 14...28, label: "viewer text size")
+                    row("Text size", note: "Body size in points") {
+                        stepper($prefs.viewerSize, 12...28, label: "viewer text size")
                     }
                     divider
                     row("Line width", note: "Characters per line") {

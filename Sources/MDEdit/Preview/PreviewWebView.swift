@@ -28,7 +28,7 @@ struct PreviewRequest {
         switch source { case .markdown(let t): body = t; case .html(_, let t): body = t }
         var h = Hasher()
         h.combine(body); h.combine(o.customCSS ?? "")
-        return "\(identity)|\(o.style.isSerif)|\(o.style.scale)|\(o.style.width)|\(o.loadRemote)|\(h.finalize())"
+        return "\(identity)|\(o.style.family)|\(o.style.scale)|\(o.style.width)|\(o.loadRemote)|\(h.finalize())"
     }
 }
 

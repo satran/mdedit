@@ -224,11 +224,12 @@ final class FindReplaceTests: XCTestCase {
         XCTAssertEqual(ws.find.query, "beta")
     }
 
-    func testTheOutlineAndThePanelShareTheRightHandSide() {
+    func testTheOutlineAndFindShareOnePanelOfOneWidth() {
         ws.outlineVisible = true
-        XCTAssertEqual(ws.rightPanelWidth, 241)
-        ws.showFind(.file); XCTAssertEqual(ws.rightPanelWidth, 361)
-        ws.closeFind(); XCTAssertEqual(ws.rightPanelWidth, 241, "the outline comes back as it was")
+        let w = ws.rightPanelWidth
+        XCTAssertGreaterThan(w, 0)
+        ws.showFind(.file); XCTAssertEqual(ws.rightPanelWidth, w, "switching tabs does not change the width")
+        ws.closeFind(); XCTAssertTrue(ws.outlineVisible, "the outline comes back as it was"); XCTAssertEqual(ws.rightPanelWidth, w)
         ws.showFind(.file); ws.toggleOutline()
         XCTAssertFalse(ws.findVisible); XCTAssertTrue(ws.outlineVisible)
     }

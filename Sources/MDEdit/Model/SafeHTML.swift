@@ -25,6 +25,11 @@ enum SafeHTML {
         return out
     }
 
+    /// Raw HTML without its comments; a comment that is never closed runs to the end, as in CommonMark.
+    static func withoutComments(_ html: String) -> String {
+        html.replacingOccurrences(of: "<!--[\\s\\S]*?(-->|$)", with: "", options: .regularExpression)
+    }
+
     /// A link or image target that is safe to put in an attribute, or nil.
     static func safeTarget(_ destination: String?) -> String? {
         guard let d = destination, !d.isEmpty else { return nil }
@@ -67,7 +72,10 @@ enum SafeHTML {
             let attr = lang.isEmpty ? "" : " class=\"language-\(escape(lang))\""
             return "<pre><code\(attr)>\(escape(c.code))</code></pre>\n"
         case is ThematicBreak: return "<hr />\n"
-        case let h as HTMLBlock: return "<pre><code>\(escape(h.rawHTML))</code></pre>\n"
+        case let h as HTMLBlock:
+            // comments are for the writer: they are not shown, and other raw HTML is shown as code
+            let raw = withoutComments(h.rawHTML)
+            return raw.allSatisfy(\.isWhitespace) ? "" : "<pre><code>\(escape(raw))</code></pre>\n"
         case let t as Markdown.Table: return table(t, pv)
         case let t as Markdown.Text:
             guard let f = pv.flow else { return escape(t.string) }
@@ -78,7 +86,10 @@ enum SafeHTML {
         case let s as Strong: return "<strong>\(kids(s, pv))</strong>"
         case let s as Strikethrough: return "<del>\(kids(s, pv))</del>"
         case let c as InlineCode: pv.flow?.last = c.code.last ?? pv.flow?.last; return "<code>\(escape(c.code))</code>"
-        case let h as InlineHTML: pv.flow?.last = h.rawHTML.last ?? pv.flow?.last; return "<code>\(escape(h.rawHTML))</code>"
+        case let h as InlineHTML:
+            let raw = withoutComments(h.rawHTML)
+            if raw.isEmpty { return "" }
+            pv.flow?.last = raw.last ?? pv.flow?.last; return "<code>\(escape(raw))</code>"
         case is SoftBreak: pv.flow?.last = " "; return "\n"
         case is LineBreak: pv.flow?.last = "\n"; return "<br />\n"
         case let l as Markdown.Link:

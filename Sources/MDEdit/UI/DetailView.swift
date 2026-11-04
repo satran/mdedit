@@ -15,13 +15,8 @@ struct DetailView: View {
                 content.frame(maxWidth: .infinity, maxHeight: .infinity)
                 if prefs.showStatusBar { footer }
             }
-            if ws.findVisible {
-                Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
-                FindPanel(find: ws.find, document: document).frame(width: 360)
-            } else if ws.outlineVisible {
-                Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1)
-                OutlineView(document: document).frame(width: 240)
-            }
+            .frame(width: ws.pinnedMainWidth)
+            if ws.panelOnScreen != nil { RightPanelView(document: document) }
         }
         .background(Color(Palette.paneBg))
         .onAppear { customCSS = CustomCSS.load(ws.rootURL) }
@@ -33,31 +28,51 @@ struct DetailView: View {
 
     // MARK: header
 
+    private var headerDivider: some View { Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1, height: 18) }
+
     private var header: some View {
-        HStack(spacing: 12) {
+        let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
+        // a web page is only shown: nothing here works on Markdown, so the buttons stay, dimmed
+        let canExport = document.url != nil && !ws.showingHTML
+        return HStack(spacing: 12) {
             IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
                 .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
+            headerDivider
             IconButton(symbol: "chevron.left", label: "Back to previous note") { ws.goBack() }
                 .foregroundStyle(Color(Palette.muted)).opacity(ws.visited.isEmpty ? 0.35 : 1).disabled(ws.visited.isEmpty)
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
-            // a web page can only be previewed: the button stays, dimmed
-            IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
-                .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
-                .opacity(ws.showingHTML ? 0.35 : 1).disabled(ws.showingHTML)
-                .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
-            IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
-                .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
             HStack(spacing: 4) {
-                IconButton(symbol: "magnifyingglass", label: ws.findVisible ? "Close find and replace" : "Find and replace") { ws.toggleFindPanel() }
-                    .foregroundStyle(Color(ws.findVisible ? Palette.link : Palette.muted))
-                    .accessibilityAddTraits(ws.findVisible ? .isSelected : [])
-                IconButton(symbol: "sidebar.right", label: ws.outlineVisible && !ws.findVisible ? "Hide outline" : "Show outline") { ws.toggleOutline() }
-                    .foregroundStyle(Color(ws.outlineVisible && !ws.findVisible ? Palette.link : Palette.muted))
+                IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
+                    .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
+                    .opacity(ws.showingHTML ? 0.35 : 1).disabled(ws.showingHTML)
+                    .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
+                shareMenu(name: name).opacity(canExport ? 1 : 0.35).disabled(!canExport)
+                IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
+                    .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
             }
+            headerDivider
+            IconButton(symbol: "sidebar.right", label: ws.panel == nil ? "Show side panel" : "Hide side panel") { ws.togglePanel() }
+                .foregroundStyle(Color(ws.panel != nil ? Palette.link : Palette.muted))
+                .accessibilityAddTraits(ws.panel != nil ? .isSelected : [])
         }
         .padding(.leading, ws.binderVisible ? 16 : 100).padding(.trailing, 16)
+        .animation(.easeInOut(duration: 0.25), value: ws.binderVisible)
         .frame(height: Metrics.headerHeight)
         .background(WindowDragArea())
+    }
+
+    private func shareMenu(name: String) -> some View {
+        Menu {
+            Button("Export as HTML…") { Exporter.shared.saveHTML(markdown: document.text, name: name, prefs: prefs) }
+            Button("Copy as Markdown") { Exporter.shared.copyMarkdown(document.text) }
+            Divider()
+            Button("Print… (PDF in the print panel)") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
+        } label: {
+            Image(systemName: "square.and.arrow.up").font(.system(size: 13)).frame(width: 30, height: 30).contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 30)
+        .foregroundStyle(Color(Palette.muted))
+        .accessibilityLabel("Share").help("Share")
     }
 
     private var breadcrumb: some View {
@@ -144,67 +159,20 @@ struct DetailView: View {
     private var footer: some View {
         let page = ws.showingHTML
         let words = DocumentStore.wordCount(page ? HTMLText.visible(document.text) : document.text)
-        let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
         return HStack(spacing: 2) {
-            if document.url != nil, ws.mode == .view, !page {
-                TemplateSwitch(template: $prefs.viewerTemplate).padding(.trailing, 10)
-            }
             if document.url != nil {
                 Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
             }
             Spacer()
-            if document.url != nil, !page {
-                if ws.mode == .write {
-                    IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
-                    IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle(); DispatchQueue.main.async { ws.focusEditor() } }
-                        .foregroundStyle(Color(ws.typewriter ? Palette.link : Palette.muted))
-                } else {
-                    IconButton(symbol: "printer", label: "Print") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
-                }
-                Menu {
-                    Button("Export as HTML…") { Exporter.shared.saveHTML(markdown: document.text, name: name, prefs: prefs) }
-                    Button("Copy as Markdown") { Exporter.shared.copyMarkdown(document.text) }
-                    Divider()
-                    Button("Print… (PDF in the print panel)") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
-                } label: {
-                    Image(systemName: "square.and.arrow.up").font(.system(size: 13)).frame(width: 30, height: 30).contentShape(Rectangle())
-                }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 30).accessibilityLabel("Export")
+            if document.url != nil, !page, ws.mode == .write {
+                IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
+                IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle(); DispatchQueue.main.async { ws.focusEditor() } }
+                    .foregroundStyle(Color(ws.typewriter ? Palette.link : Palette.muted))
             }
         }
         .font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
         .padding(.leading, 28).padding(.trailing, 12)
         .frame(height: Metrics.footerHeight)
         .overlay(alignment: .top) { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
-    }
-}
-
-/// Serif | Sans, the two reading templates, in the footer while previewing.
-struct TemplateSwitch: View {
-    @Binding var template: String
-
-    var body: some View {
-        HStack(spacing: 2) {
-            item("serif", "Serif", ViewerStyle(template: .serif, serifBody: 20))
-            item("sans", "Sans", ViewerStyle(template: .sans, serifBody: 20))
-        }
-        .padding(2)
-        .background(RoundedRectangle(cornerRadius: 7).fill(Color(Palette.segmentTrack)))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Template")
-    }
-
-    private func item(_ key: String, _ title: String, _ style: ViewerStyle) -> some View {
-        let on = template == key
-        return Button { template = key } label: {
-            Text(title).font(style.font(12.5, weight: .medium))
-                .padding(.horizontal, 10).frame(height: 22)
-                .foregroundStyle(Color(on ? Palette.strongText : Palette.segmentText))
-                .background(RoundedRectangle(cornerRadius: 5).fill(on ? Color(Palette.segmentOn) : .clear).shadow(color: .black.opacity(on ? 0.12 : 0), radius: 1, y: 1))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
