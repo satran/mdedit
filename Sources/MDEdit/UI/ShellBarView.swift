@@ -7,8 +7,6 @@ struct ShellBarView: View {
     @EnvironmentObject var prefs: Preferences
     @State private var query = ""
     @State private var selected: Int?
-    @State private var scripts: [String] = []
-    @State private var history: [String] = []
     @FocusState private var focused: Bool
 
     enum Pick: Hashable { case script(String), recent(String) }
@@ -20,7 +18,7 @@ struct ShellBarView: View {
         return scripts.filter(hit).prefix(20).map(Pick.script) + history.reversed().filter(hit).prefix(8).map(Pick.recent)
     }
 
-    private var picks: [Pick] { Self.picks(scripts: scripts, history: history, query: query) }
+    private var picks: [Pick] { Self.picks(scripts: ws.shellScripts, history: ws.shellRecents, query: query) }
 
     var body: some View {
         let list = picks, running = ws.shellJob != nil
@@ -60,7 +58,6 @@ struct ShellBarView: View {
                 Text(!canRun ? "Commands run on a note in Write mode."
                      : running ? "Running… ⎋ cancels" : ws.shellDestination.detail + ". The selection, or the whole note, goes in on stdin.")
                     .font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted)).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
-                if let log = ws.shellLog { ShellLogView(log: log) { ws.shellLog = nil } }
                 if !list.isEmpty && !running && canRun {
                     VStack(spacing: 0) {
                         ForEach(Array(list.enumerated()), id: \.offset) { i, pick in
@@ -82,13 +79,14 @@ struct ShellBarView: View {
                         }
                     }
                 }
+                if let log = ws.shellLog { ShellLogView(log: log) { ws.shellLog = nil } }
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(Palette.binderBg))
         .onAppear {
-            if let root = ws.rootURL { scripts = ShellFiles.scripts(in: root); history = prefs.shellHistory > 0 ? ShellFiles.history(in: root) : [] }
+            ws.refreshShellLists(prefs: prefs)
             focused = true
         }
         .onChange(of: ws.shellFocusTick) { _, _ in focused = true }
@@ -146,9 +144,11 @@ struct ShellLogView: View {
                     .buttonStyle(.plain).foregroundStyle(Color(Palette.muted)).accessibilityLabel("Close log").pointerCursor()
             }
             if let n = log.note { Text(n).font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted)) }
-            Text(text.isEmpty ? "No output." : text)
-                .font(.system(size: 12, design: .monospaced)).foregroundStyle(Color(Palette.binderText))
-                .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+            if log.showsOutput {
+                Text(text.isEmpty ? "No output." : text)
+                    .font(.system(size: 12, design: .monospaced)).foregroundStyle(Color(Palette.binderText))
+                    .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.field).opacity(0.55)))

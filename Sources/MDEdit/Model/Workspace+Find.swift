@@ -250,6 +250,7 @@ extension Workspace {
         // find and run are visits: remember the outline (or nothing) they came from, and keep it when going between them
         if tab == .find || tab == .run, panel != .find, panel != .run { panelBefore = panel }
         slidePanel(.right) { panel = tab }
+        if tab == .run { refreshShellLists() }
         if tab == .find {
             if showingHTML { find.scope = .folder }          // a page is not edited here
             find.focus = find.focus ?? .find

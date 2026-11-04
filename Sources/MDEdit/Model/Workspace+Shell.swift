@@ -29,6 +29,8 @@ struct ShellLog: Identifiable {
     var command: String
     var result: ShellResult
     var note: String?
+    /// False when the output went into the note: the log then only says what was done.
+    var showsOutput = true
 }
 
 /// What runs: a line typed in the box, or a saved script from `.mdedit/scripts`.
@@ -114,9 +116,17 @@ extension Workspace {
         guard document.url != nil, mode == .write else { return }
         guard prefs.shellEnabled else { message = "Shell commands are off. Turn them on in Settings → Shell."; return }
         if panel == .run { shellFocusTick += 1 } else { openPanel(.run) }
+        refreshShellLists(prefs: prefs)
     }
 
     func cancelShell() { shellJob?.cancel() }
+
+    /// Reads the saved scripts and the history again, so a command that was just run is in the list.
+    func refreshShellLists(prefs: Preferences = .shared) {
+        guard let root = rootURL else { shellScripts = []; shellRecents = []; return }
+        shellScripts = ShellFiles.scripts(in: root)
+        shellRecents = prefs.shellHistory > 0 ? ShellFiles.history(in: root) : []
+    }
 
     /// Runs a command on the open note and puts the result where `destination` says.
     /// Order: save the note, work out what the command sees, run it away from the main thread, then apply the result
@@ -136,6 +146,7 @@ extension Workspace {
             guard !c.isEmpty else { return }
             label = c; arguments = ["-c", c]
             ShellFiles.remember(c, in: root, limit: prefs.shellHistory)
+            refreshShellLists(prefs: prefs)
         case .script(let name):
             guard let text = ShellFiles.script(named: name, in: root) else { message = "The script \(name) could not be read."; return }
             guard approved(name, text, root: root) else { return }
@@ -180,24 +191,29 @@ extension Workspace {
             shellLog = ShellLog(command: label, result: result, note: "The note changed while the command ran, so its output was not applied.")
             return
         }
-        // the output goes into the note, so the run tab has nothing more to show: it closes; "Show in panel" stays to be read
-        if destination != .panel { closeRun() }
+        // the tab stays on Run, as it was: the output that went into the note is only reported, "Show in panel" is shown
+        func done(_ what: String) { shellLog = ShellLog(command: label, result: result, note: what, showsOutput: false) }
         switch destination {
         case .panel:
             shellLog = ShellLog(command: label, result: result)
         case .insert:
             tv.insertOutput(result.stdout, at: NSRange(location: selection.location + selection.length, length: 0))
+            done("The output was inserted at the caret.")
+            if mode == .write { focusEditor() }
         case .replace:
             let target = selection.length > 0 ? selection : NSRange(location: 0, length: (snapshot as NSString).length)
             if result.stdout.isEmpty, target.length > 0,
                !shellConfirm("The command printed nothing.", selection.length > 0 ? "Replace the selection with nothing?" : "Replace the whole note with nothing? You can undo it with ⌘Z.", "Replace") { return }
             tv.insertOutput(result.stdout, at: target)
+            done(selection.length > 0 ? "The output replaced the selection." : "The output replaced the note.")
+            if mode == .write { focusEditor() }
         case .newFile:
             let folder = file.deletingLastPathComponent()
             let url = Self.uniqueURL(in: folder, base: "Output " + file.deletingPathExtension().lastPathComponent, ext: file.pathExtension.isEmpty ? "md" : file.pathExtension)
             do { try Data(result.stdout.utf8).write(to: url, options: .withoutOverwriting) } catch { message = error.localizedDescription; return }
             reload()
             select(url)
+            done("The output is in a new note, \(url.lastPathComponent).")
         }
     }
 }

@@ -249,13 +249,36 @@ final class ShellCommandTests: XCTestCase {
         w.togglePanel(); XCTAssertEqual(w.panel, .outline)
     }
 
-    func testOutputPutInTheNoteClosesTheTabAndOutputToShowStaysToBeRead() {
+    func testTheTabStaysOnRunWhereverTheOutputGoes() {
+        ws.toggleOutline()                       // the panel was on the outline before
         ws.openShellBar(prefs: prefs)
         go("echo more", .insert)
-        XCTAssertNil(ws.panel, "the output is in the note: the tab goes")
-        ws.openShellBar(prefs: prefs)
+        XCTAssertEqual(ws.panel, .run, "it does not fall back to the outline")
+        XCTAssertEqual(ws.shellLog?.showsOutput, false); XCTAssertNotNil(ws.shellLog?.note)
+        go("echo again", .replace)
+        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(tv.string, "again\n")
         go("echo shown", .panel)
-        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(ws.shellLog?.result.stdout, "shown\n")
+        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(ws.shellLog?.result.stdout, "shown\n"); XCTAssertEqual(ws.shellLog?.showsOutput, true)
+        ws.closeRun()
+        XCTAssertEqual(ws.panel, .outline, "Esc still goes back to where the panel was")
+    }
+
+    func testANewFileLeavesTheTabOnRun() {
+        ws.openShellBar(prefs: prefs)
+        go("echo hi", .newFile)
+        XCTAssertEqual(ws.panel, .run)
+        XCTAssertTrue(ws.shellLog?.note?.contains("Output Note.md") == true, "\(String(describing: ws.shellLog?.note))")
+    }
+
+    func testTheSuggestionsAreThereOnOpeningAndANewCommandJoinsThemAtOnce() throws {
+        try s.write(".mdedit/scripts/tidy.sh", "echo tidy"); try s.write(".mdedit/history", "git status\n")
+        ws.openShellBar(prefs: prefs)
+        XCTAssertEqual(ws.shellScripts, ["tidy.sh"]); XCTAssertEqual(ws.shellRecents, ["git status"])
+        go("echo hi", .panel)                 // the tab stays open: the new command is in the list without reopening it
+        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(ws.shellRecents, ["git status", "echo hi"])
+        prefs.shellHistory = 0
+        ws.refreshShellLists(prefs: prefs)
+        XCTAssertTrue(ws.shellRecents.isEmpty, "no history is kept when it is turned off"); XCTAssertEqual(ws.shellScripts, ["tidy.sh"])
     }
 
     func testTheCommandIsInTheMenuOnCommandR() {

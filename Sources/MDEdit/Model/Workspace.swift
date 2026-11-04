@@ -89,6 +89,9 @@ final class Workspace: ObservableObject {
         get { panel == .run }
         set { if newValue { panel = .run } else { closeRun() } }
     }
+    /// What the Run tab suggests: the saved scripts of the folder, and the commands run there before (oldest first).
+    @Published var shellScripts: [String] = []
+    @Published var shellRecents: [String] = []
     /// Counts ⌘R presses, so the command field takes the keyboard again when the tab is already open.
     @Published var shellFocusTick = 0
     @Published var shellLog: ShellLog?

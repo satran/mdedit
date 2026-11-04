@@ -167,7 +167,7 @@ Press ⌘R in the editor. The side panel opens on its **Run** tab (the terminal 
 | New File | The output goes into a new note called `Output <name>` next to the current one, and it opens. |
 | Panel | The output is only shown in the Run tab, under the box. Use this for commands that just do something, like `git add .`. |
 
-Tab in the box cycles through the four choices. Every insert or replace is **one step of Undo** (⌘Z). If the command fails (a non-zero exit), the note is left alone and the error is shown in the Run tab. When the output goes into the note, the tab closes by itself; with Panel, or after an error, it stays so you can read the output. Esc cancels a running command or closes the tab.
+Tab in the box cycles through the four choices. Every insert or replace is **one step of Undo** (⌘Z). If the command fails (a non-zero exit), the note is left alone and the error is shown in the Run tab. The tab stays on Run after every command: when the output went into the note it only says what was done, and with Panel, or after an error, it shows the output. Esc cancels a running command, or closes the tab and goes back to where the panel was.
 
 ### What a command can use
 
