@@ -146,10 +146,11 @@ final class ShellCommandTests: XCTestCase {
     // MARK: when it goes wrong
 
     func testAFailureLeavesTheNoteAloneAndShowsTheError() {
+        ws.openShellBar(prefs: prefs)
         go("echo oops >&2; echo partial; exit 2", .replace)
         XCTAssertEqual(tv.string, "one\ntwo")
         XCTAssertEqual(ws.shellLog?.result.stderr, "oops\n"); XCTAssertEqual(ws.shellLog?.result.status, 2)
-        XCTAssertFalse(ws.shellBarVisible)
+        XCTAssertTrue(ws.shellBarVisible, "the Run tab stays open so the error can be read")
     }
 
     func testATimeoutLeavesTheNoteAlone() {
@@ -222,6 +223,39 @@ final class ShellCommandTests: XCTestCase {
         ws.mode = .write
         ws.openShellBar(prefs: prefs)
         XCTAssertTrue(ws.shellBarVisible)
+    }
+
+    // MARK: the Run tab of the side panel
+
+    func testTheRunTabOpensOnCommandRAndEscGoesBackToWhereThePanelWas() {
+        ws.openShellBar(prefs: prefs)
+        XCTAssertEqual(ws.panel, .run)
+        let tick = ws.shellFocusTick
+        ws.openShellBar(prefs: prefs)
+        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(ws.shellFocusTick, tick + 1, "a second ⌘R puts the keyboard back in the box")
+        ws.closeRun(); XCTAssertNil(ws.panel, "it was closed before")
+        ws.toggleOutline(); ws.openShellBar(prefs: prefs); ws.closeRun()
+        XCTAssertEqual(ws.panel, .outline, "it was the outline before")
+    }
+
+    func testTheRunTabIsAVisitTheToolbarAndTheNextLaunchDoNotOpenOn() {
+        let d = isolatedDefaults()
+        let w = Workspace(defaults: d, recents: RecentFolders(defaults: d))
+        w.open(s.url); w.select(s.path("Note.md")); w.editor.textView = tv; w.mode = .write
+        w.toggleOutline(); w.selectPanel(.run)
+        XCTAssertEqual(w.panel, .run); XCTAssertEqual(w.lastPanel, .outline)
+        XCTAssertNil(Workspace(defaults: d, recents: RecentFolders(defaults: d)).panel, "the next launch does not open on Run")
+        w.togglePanel(); XCTAssertNil(w.panel)
+        w.togglePanel(); XCTAssertEqual(w.panel, .outline)
+    }
+
+    func testOutputPutInTheNoteClosesTheTabAndOutputToShowStaysToBeRead() {
+        ws.openShellBar(prefs: prefs)
+        go("echo more", .insert)
+        XCTAssertNil(ws.panel, "the output is in the note: the tab goes")
+        ws.openShellBar(prefs: prefs)
+        go("echo shown", .panel)
+        XCTAssertEqual(ws.panel, .run); XCTAssertEqual(ws.shellLog?.result.stdout, "shown\n")
     }
 
     func testTheCommandIsInTheMenuOnCommandR() {

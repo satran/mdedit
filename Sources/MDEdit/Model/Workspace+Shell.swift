@@ -113,7 +113,7 @@ extension Workspace {
     func openShellBar(prefs: Preferences = .shared) {
         guard document.url != nil, mode == .write else { return }
         guard prefs.shellEnabled else { message = "Shell commands are off. Turn them on in Settings → Shell."; return }
-        shellBarVisible = true
+        if panel == .run { shellFocusTick += 1 } else { openPanel(.run) }
     }
 
     func cancelShell() { shellJob?.cancel() }
@@ -175,12 +175,13 @@ extension Workspace {
 
     private func finishShell(_ result: ShellResult, label: String, destination: ShellDestination, file: URL, snapshot: String, selection: NSRange) {
         shellJob = nil
-        shellBarVisible = false
         guard result.succeeded else { shellLog = ShellLog(command: label, result: result); return }
         guard let tv = editor.textView, document.url == file, tv.string == snapshot || destination == .newFile || destination == .panel else {
             shellLog = ShellLog(command: label, result: result, note: "The note changed while the command ran, so its output was not applied.")
             return
         }
+        // the output goes into the note, so the run tab has nothing more to show: it closes; "Show in panel" stays to be read
+        if destination != .panel { closeRun() }
         switch destination {
         case .panel:
             shellLog = ShellLog(command: label, result: result)

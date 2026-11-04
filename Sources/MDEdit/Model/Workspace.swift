@@ -42,14 +42,16 @@ final class Workspace: ObservableObject {
     /// The right-hand panel: the outline or find & replace, one at a time; nil is closed.
     @Published var panel: RightPanel? {
         didSet {
-            if let p = panel { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
-            defaults.set(panel != nil, forKey: "rightPanelOpen")
+            // Run is a visit: the toolbar button and the next launch never open on it
+            if let p = panel, p != .run { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
+            defaults.set(panel != nil && panel != .run, forKey: "rightPanelOpen")
             if (oldValue == .outline) != (panel == .outline) { refreshBacklinks() }
         }
     }
     /// The tab the toolbar button opens, and where Esc goes back to from Find.
     var lastPanel: RightPanel = .outline
-    var panelBeforeFind: RightPanel?
+    /// Where Esc goes back to from the find or run tab: the outline, or closed.
+    var panelBefore: RightPanel?
     /// Width of the panel's content in points; the person can drag it. The same for both tabs.
     @Published var panelWidth: CGFloat { didSet { defaults.set(Double(panelWidth), forKey: "rightPanelWidth") } }
     static let panelWidthRange: ClosedRange<CGFloat> = 280...560
@@ -82,7 +84,13 @@ final class Workspace: ObservableObject {
     @Published var wantsTreeFocus = false
     private var enteredFullScreen = false
     // Shell commands (⌘R); the work is in Workspace+Shell.swift
-    @Published var shellBarVisible = false { didSet { if oldValue, !shellBarVisible, mode == .write { DispatchQueue.main.async { [weak self] in self?.focusEditor() } } } }
+    /// The run tab is showing.
+    var shellBarVisible: Bool {
+        get { panel == .run }
+        set { if newValue { panel = .run } else { closeRun() } }
+    }
+    /// Counts ⌘R presses, so the command field takes the keyboard again when the tab is already open.
+    @Published var shellFocusTick = 0
     @Published var shellLog: ShellLog?
     @Published var shellJob: ShellJob?
     @Published var shellDestination: ShellDestination { didSet { defaults.set(shellDestination.rawValue, forKey: "shellDestination") } }

@@ -4,6 +4,7 @@ import SwiftUI
 /// handle on its left edge to drag it wider or narrower.
 struct RightPanelView: View {
     @EnvironmentObject var ws: Workspace
+    @EnvironmentObject var prefs: Preferences
     @ObservedObject var document: DocumentStore
     @State private var dragStart: CGFloat?
 
@@ -17,6 +18,7 @@ struct RightPanelView: View {
                 switch tab {
                 case .find: FindPanel(find: ws.find, document: document)
                 case .outline: OutlineView(document: document)
+                case .run: ShellBarView()
                 }
             }
             .frame(width: ws.panelWidth)
@@ -29,12 +31,14 @@ struct RightPanelView: View {
             HStack(spacing: 2) {
                 item(.outline, "list.bullet.indent", "Outline", tip: "Outline (⌥⌘O)", on: tab == .outline)
                 item(.find, "magnifyingglass", "Find and replace", tip: "Find and replace (⌘F)", on: tab == .find)
+                // shown once the feature is on in Settings (⌘R says so when it is not)
+                if prefs.shellEnabled || tab == .run { item(.run, "terminal", "Run a shell command", tip: "Run a shell command (⌘R)", on: tab == .run) }
             }
             .padding(2)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Panel")
-            Text(tab == .find ? "Find & Replace" : "Outline")
+            Text(tab == .find ? "Find & Replace" : tab == .run ? "Run" : "Outline")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Palette.strongText)).lineLimit(1)
             Spacer(minLength: 0)
         }

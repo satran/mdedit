@@ -226,7 +226,7 @@ final class FindModel: ObservableObject {
 }
 
 extension Workspace {
-    enum RightPanel: String { case outline, find }
+    enum RightPanel: String { case outline, find, run }
 
     /// What the right side takes from the window, divider included; 0 when closed.
     var rightPanelWidth: CGFloat { panel == nil ? 0 : panelWidth + 1 }
@@ -247,7 +247,8 @@ extension Workspace {
 
     /// Shows a tab, opening the panel if it is closed. Switching tabs keeps the width, so the window does not move.
     func openPanel(_ tab: RightPanel) {
-        if tab == .find, panel != .find { panelBeforeFind = panel }
+        // find and run are visits: remember the outline (or nothing) they came from, and keep it when going between them
+        if tab == .find || tab == .run, panel != .find, panel != .run { panelBefore = panel }
         slidePanel(.right) { panel = tab }
         if tab == .find {
             if showingHTML { find.scope = .folder }          // a page is not edited here
@@ -262,7 +263,7 @@ extension Workspace {
 
     func closePanel() {
         slidePanel(.right) { panel = nil }
-        panelBeforeFind = nil
+        panelBefore = nil
         find.refresh()
         find.highlight()
         if mode == .write { focusEditor() }
@@ -271,8 +272,18 @@ extension Workspace {
     /// Esc in Find: back to where the panel was before, the outline or closed.
     func closeFind() {
         guard panel == .find else { return }
-        let back = panelBeforeFind
-        panelBeforeFind = nil
+        leaveVisit()
+    }
+
+    /// Esc in Run, or a command that finished and put its output in the note: back to where the panel was before.
+    func closeRun() {
+        guard panel == .run else { return }
+        leaveVisit()
+    }
+
+    private func leaveVisit() {
+        let back = panelBefore
+        panelBefore = nil
         slidePanel(.right) { panel = back }
         find.refresh()
         find.highlight()

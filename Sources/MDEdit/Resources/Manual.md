@@ -16,7 +16,7 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 - **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
 - **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free and typewriter buttons. The toolbar at the top has the share button.
-- **Side panel** (right, optional): show or hide it with the button at the top right. Two icons at the top of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), and **Find and replace** (⌘F). The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
+- **Side panel** (right, optional): show or hide it with the button at the top right. Icons at the top of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), **Find and replace** (⌘F), and **Run** (⌘R) for shell commands. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
 - The **status bar** at the bottom can be hidden with ⌥⌘B.
 
 ## Working with notes and folders
@@ -156,7 +156,7 @@ For a page, **Write**, **Find** in the file, **Print**, **Export** and **Run She
 
 This is off until you turn it on in **Settings ▸ Shell ▸ Run shell commands**.
 
-Press ⌘R in the editor, type a command, choose where the output goes, and press Return. The selected text, or the whole note if nothing is selected, is sent to the command as its standard input, as in Vim's `!`. The note is saved first.
+Press ⌘R in the editor. The side panel opens on its **Run** tab (the terminal icon at the top of the panel, shown once shell commands are on). Type a command, choose where the output goes, and press Return. Esc closes the tab again, or cancels a command that is running. The selected text, or the whole note if nothing is selected, is sent to the command as its standard input, as in Vim's `!`. The note is saved first.
 
 ### Where the output goes
 
@@ -165,9 +165,9 @@ Press ⌘R in the editor, type a command, choose where the output goes, and pres
 | Insert | The output is added at the caret. |
 | Replace | The output replaces the selection, or the whole note if nothing is selected. |
 | New File | The output goes into a new note called `Output <name>` next to the current one, and it opens. |
-| Panel | The output is only shown in a small panel. Use this for commands that just do something, like `git add .`. |
+| Panel | The output is only shown in the Run tab, under the box. Use this for commands that just do something, like `git add .`. |
 
-Tab in the box cycles through the four choices. Every insert or replace is **one step of Undo** (⌘Z). If the command fails (a non-zero exit), the note is left alone and the error is shown in the panel. Esc cancels a running command or closes the box.
+Tab in the box cycles through the four choices. Every insert or replace is **one step of Undo** (⌘Z). If the command fails (a non-zero exit), the note is left alone and the error is shown in the Run tab. When the output goes into the note, the tab closes by itself; with Panel, or after an error, it stays so you can read the output. Esc cancels a running command or closes the tab.
 
 ### What a command can use
 

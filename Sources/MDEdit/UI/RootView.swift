@@ -37,17 +37,6 @@ struct RootView: View {
                 }
             }
         }
-        .overlay {
-            if ws.shellBarVisible {
-                ZStack(alignment: .top) {
-                    Color.clear.contentShape(Rectangle()).onTapGesture { if ws.shellJob == nil { ws.shellBarVisible = false } }
-                    ShellBarView().padding(.top, 70)
-                }
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if let log = ws.shellLog { ShellLogView(log: log) { ws.shellLog = nil }.padding(16) }
-        }
         .alert("Something went wrong", isPresented: Binding(get: { ws.message != nil }, set: { if !$0 { ws.message = nil } })) {
             Button("OK") { ws.message = nil }
         } message: { Text(ws.message ?? "") }
