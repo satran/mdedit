@@ -48,13 +48,13 @@ p.note{margin:6px 0 0;max-width:1100px;color:var(--note);font-size:13px}
 </style></head><body>
 <header>
 <h1>Agent access: the Review tab</h1>
-<p class="note">An agent connects to the app's local MCP server and proposes changes. They appear as cards in a fourth tab of the side panel, shown only while agent access is on in Settings. Nothing changes in a note until you press Accept, and one Accept is one step of Undo. Orange marks what is new.</p>
+<p class="note">An agent connects to the app's local MCP server and proposes changes. They appear as cards in a fourth tab of the side panel, shown only while agent access is on in Settings. Nothing changes in a note until you press Accept, and one Accept is one step of Undo. Orange marks what is new. This is the first release: plain diff cards with Accept and Reject, no keyboard shortcuts, no Accept all, no new-note cards.</p>
 </header>
 
 <section><h2>1 · Pending suggestions: the card in focus is marked in the editor</h2>
 <div class="win">
   <div class="main">
-    <div class="head"><span>‹</span><span class="sp"><b>DORA, you have a naming problem</b></span><span>◉</span><span class="dot new">▤</span></div>
+    <div class="head"><span>‹</span><span class="sp"><b>DORA, you have a naming problem</b></span><span>◉</span><span>▤</span></div>
     <div class="doc"><div><span class="m">## Two acronyms, one question</span>
 
 Read them next to the regulation and the
@@ -65,30 +65,24 @@ overlap is hard to miss:
 - **Lead time** → `nothing`
 
 The Act has no opinion on speed.</div></div>
-    <div class="foot">179 words · 1 min read</div>
+    <div class="foot">179 words · 1 min read <span class="new" style="margin-left:14px;color:var(--link)">2 suggestions</span></div>
   </div>
   <div class="panel">
-    <div class="ph new" style="margin:0 12px;padding:0 4px;height:40px">Review <span>3 pending</span></div>
+    <div class="ph new" style="margin:0 12px;padding:0 4px;height:40px">Review <span>2 pending</span></div>
     <div class="pb">
       <div class="card sel">
         <div class="ct"><b>Name the incident process</b><i>Claude Code · 2 min</i></div>
         <div class="why">DORA calls it “ICT-related incident management”, so the note should too.</div>
         <div class="df"><div class="rm">- **Time to restore** → <u>incident management</u></div><div class="ad">+ **Time to restore** → <u>ICT-related</u> incident management</div></div>
-        <div class="ac"><span class="btn">Reject</span><span class="btn p">Accept</span><span class="keys">⌘↩ accept · ⌫ reject</span></div>
+        <div class="ac"><span class="btn">Reject</span><span class="btn p">Accept</span></div>
       </div>
       <div class="card">
         <div class="ct"><b>Fix the Lead time bullet</b><i>Claude Code · 2 min</i></div>
         <div class="df"><div class="rm">- **Lead time** → <u>`nothing`</u></div><div class="ad">+ **Lead time** → <u>change management (indirectly)</u></div></div>
         <div class="ac"><span class="btn">Reject</span><span class="btn">Accept</span></div>
       </div>
-      <div class="card">
-        <div class="ct"><b>New note: Incident glossary.md</b><i>Claude Code · 1 min</i></div>
-        <div class="why">Definitions pulled from this note, 14 lines.</div>
-        <div class="df"><div class="ad">+ # Incident glossary</div><div class="ad">+ **Major incident**: an incident with high impact…</div></div>
-        <div class="ac"><span class="btn">Reject</span><span class="btn">Accept</span></div>
       </div>
-    </div>
-    <div class="tabbar"><div class="seg"><i>☰</i><i>⌕</i><i>›_</i><i class="sel new">✓</i></div><em>Accept all in this note</em></div>
+    <div class="tabbar"><div class="seg"><i>☰</i><i>⌕</i><i>›_</i><i class="sel new">✓</i></div></div>
   </div>
 </div></section>
 
@@ -100,7 +94,7 @@ The Act has no opinion on speed.</div></div>
     <div class="pb"><div class="card stale">
       <div class="ct"><b>Tighten the intro</b><span class="tag">Changed since proposed</span></div>
       <div class="df"><div class="rm">- Say “DORA” to a room of <u>engineers and most of them</u>…</div></div>
-      <div class="ac"><span class="btn">Dismiss</span><span class="btn">Re-check</span><span class="keys">no mark in the editor</span></div>
+      <div class="ac"><span class="btn">Dismiss</span><span class="keys">no mark in the editor; pending again if the text matches again</span></div>
     </div></div></div>
 </div></section>
 
