@@ -7,7 +7,7 @@ import Combine
     static let shared = AgentServerController()
 
     @Published private(set) var state: MCPServer.State = .stopped
-    var bridge: any AgentBridge = NoWindowBridge()
+    var bridge: any AgentBridge = AgentTools()
 
     private var server: MCPServer?
     private var token = ""

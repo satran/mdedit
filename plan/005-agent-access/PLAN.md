@@ -1,6 +1,6 @@
 # 005 · Agent access: an MCP server inside MDEdit, and a Review tab for suggested edits
 
-Status: steps 1 and 2 are committed (settings model; entitlement and policy). Step 3 (server and Settings) is built, not yet committed. Steps 4 to 6 are planned. The mockup is [design.html](design.html) (open it in a browser; it follows the system's light and dark). The review of the first draft of this plan is summarised in "What changed after review" at the end.
+Status: steps 1 to 3 are committed (settings model; entitlement and policy; server and Settings). Step 4 (read tools and window choice) is built, not yet committed. Steps 5 and 6 are planned. The mockup is [design.html](design.html) (open it in a browser; it follows the system's light and dark). The review of the first draft of this plan is summarised in "What changed after review" at the end.
 
 ## Problem
 
