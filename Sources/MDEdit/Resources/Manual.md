@@ -188,6 +188,27 @@ Files in `.mdedit/scripts` inside your folder are listed first when you open the
 
 Commands run inside the same sandbox as MDEdit: they can read and change the folder you opened and nothing else. A command is stopped after the time limit set in Settings (30 seconds by default), and anything over 5 MB of output is cut off.
 
+## Agent access
+
+An agent such as Claude Code can look at what you are editing and **suggest** changes. It is off until you turn it on in **Settings ▸ Agents**. Nothing an agent sends changes a note until you press **Accept**.
+
+**Connecting Claude Code.** Turn on Agent access, then press **Copy command** and paste it in a terminal. It looks like this (with your own token):
+
+```
+claude mcp add --transport http mdedit http://127.0.0.1:47821/mcp --header "Authorization: Bearer <token>"
+```
+
+The command contains the token, so it also lands in your shell history. **Regenerate** makes a new token and signs every agent out. An agent that has the token can read every note in the folder that is open.
+
+**What an agent can do.** It can ask which note is open, what is selected and whether there are unsaved changes; read a note (the text on screen if the note is open with unsaved changes); and suggest replacing one passage with another.
+
+**The Review tab.** While Agent access is on, the side panel gets a fourth tab, with the checklist icon in its bottom row. Each suggestion is a card with the agent's reason and the lines removed and added. When one is waiting, the status bar says "1 suggestion"; click it to open the tab. The panel never opens by itself.
+
+- **Click a card** to open its note and see the passage that would be replaced, tinted red behind the text.
+- **Accept** makes the change as one step of Undo (⌘Z). **Reject** drops the suggestion.
+- If you change the passage by hand, the card dims and says "Changed since proposed". It can only be dismissed, and it comes back to normal if the text matches again.
+- Suggestions are not kept: quitting, closing the window, or turning Agent access off forgets them.
+
 ## Settings
 
 Open them with **MDEdit ▸ Settings…** (⌘,).
@@ -195,6 +216,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 - **Appearance:** light, dark, or follow the system.
 - **Editor:** the font and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
 - **Viewer:** the font, the text size, the line width, and whether remote pictures and stylesheets are loaded.
+- **Agents:** the on/off switch, the port, and the token (Copy command, Regenerate). Off by default.
 - **Shell:** the on/off switch, the shell program (`/bin/sh` by default), the search path, the time limit, how much history to keep, and extra environment variables.
 
 ## The command palette

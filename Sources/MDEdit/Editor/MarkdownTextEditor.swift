@@ -191,7 +191,9 @@ struct MarkdownTextEditor: NSViewRepresentable {
 
 /// Lets the rest of the app reach the editor (jump to a heading).
 final class EditorBridge {
-    weak var textView: EditorTextView?
+    weak var textView: EditorTextView? { didSet { if let tv = textView, tv !== oldValue { onAttach?() } } }   // assigned on every SwiftUI update: only a new view counts
+    /// Called when an editor view arrives, so state drawn behind the text (the selected suggestion) reaches it.
+    var onAttach: (() -> Void)?
     /// The keyboard should land in the editor as soon as there is one in a window. Switching Write/View or distraction-free
     /// replaces the editor view, so asking the current one is not enough: the new one takes the request when it arrives.
     private(set) var wantsFocus = false

@@ -31,6 +31,9 @@ final class EditorTextView: NSTextView {
     /// What is drawn behind the text: code blocks as one tinted band, inline code as chips.
     private var codeBlocks: [NSRange] = []
     private var inlineCode: [NSRange] = []
+    /// The passage an agent's selected suggestion would replace, tinted like removed text. Drawn behind the text, never stored in it
+    /// (Find clears every temporary background attribute, so a mark kept there would be lost).
+    var suggestionMark: NSRange? { didSet { if oldValue != suggestionMark { needsDisplay = true } } }
 
     static let gutter: CGFloat = 72
     static let verticalInset: CGFloat = 48
@@ -364,7 +367,7 @@ final class EditorTextView: NSTextView {
     /// Code blocks are one tinted band that reaches 2 ch past the text on each side; inline code is a small rounded chip.
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        guard let lm = layoutManager, let tc = textContainer, !codeBlocks.isEmpty || !inlineCode.isEmpty else { return }
+        guard let lm = layoutManager, let tc = textContainer, !codeBlocks.isEmpty || !inlineCode.isEmpty || suggestionMark != nil else { return }
         let origin = textContainerOrigin, ch = charWidth
         let columnLeft = origin.x + Self.gutter, columnWidth = max(0, tc.size.width - Self.gutter)
         Palette.codeBand.setFill()
@@ -392,6 +395,17 @@ final class EditorTextView: NSTextView {
                 let box = lm.boundingRect(forGlyphRange: part, in: tc)
                 let chip = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)
                 if chip.intersects(rect) { NSBezierPath(roundedRect: chip, xRadius: 3, yRadius: 3).fill() }
+            }
+        }
+        if let m = suggestionMark, m.length > 0, NSMaxRange(m) <= (string as NSString).length {
+            Palette.removedBg.setFill()
+            let g = lm.glyphRange(forCharacterRange: m, actualCharacterRange: nil)
+            lm.enumerateLineFragments(forGlyphRange: g) { _, _, _, fragmentGlyphs, _ in
+                let part = NSIntersectionRange(g, fragmentGlyphs)
+                guard part.length > 0 else { return }
+                let box = lm.boundingRect(forGlyphRange: part, in: tc)
+                let r = NSRect(x: box.minX + origin.x - 2, y: box.minY + origin.y, width: box.width + 4, height: natural)
+                if r.intersects(rect) { NSBezierPath(roundedRect: r, xRadius: 3, yRadius: 3).fill() }
             }
         }
     }

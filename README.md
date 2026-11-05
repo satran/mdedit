@@ -56,6 +56,7 @@ Original design intent is in `plan/PLAN.md` (historical: some details have moved
 ```
 Sources/MDEdit/
   MDEditApp.swift          App entry: WindowGroup(for: UUID) — one Workspace per window; AppCommands; Settings scene
+  Agents/                  Agent access: MCPServer (loopback HTTP), AgentTools, AgentWindows, ProposalStore (see below)
   Model/                   Observable state and file logic (no views)
     Workspace.swift        THE per-window model: opened folder, tree, selection, mode, panels, rename/move/trash,
                            drops, wiki open, backlinks, keyboard navigation, window layout toggles
@@ -108,6 +109,10 @@ Key ideas:
 ## Shell commands (⌘R)
 
 The Run tab of the side panel (`UI/ShellBarView.swift`, `RightPanelView`); what a command did, or its output when it was only to be shown, appears under the box; the tab stays on Run after a command. Off until enabled in Settings → Shell. `Model/ShellRunner.swift` is the only place that starts a program (`posix_spawn`, own process group, no inherited files, killed with its whole group when done), plus `ShellEnvironment` (clean env + `MD_*`, `KEY=value` extras) and `ShellOutput.clean` (strips escapes/bidi/NUL). `Model/Workspace+Shell.swift` is the flow: save the note, selection (or whole note) to stdin, run off the main thread, apply the output as one undo step (insert / replace / new file / panel) only if the note is unchanged. Saved scripts live in `<folder>/.mdedit/scripts` and need approval of their exact text; history is `<folder>/.mdedit/history` (0600, hidden from the binder). Tests: `ShellRunnerTests` (security), `ShellCommandTests` (feature). Plan and decisions: `plan/features/shell-scripting.md`.
+
+## Agent access (plan `plan/005-agent-access/PLAN.md`)
+
+Off until Settings → Agents is switched on. `Agents/MCPServer.swift` is an MCP server (streamable HTTP, no streaming) on 127.0.0.1: one request per connection, `POST /mcp`, checks in order path/method → Host → Origin → bearer token (constant-time), 1 MB body, 8 connections, 10 s per request. It is the only file that may create an `NWListener` (`make audit` checks), and it knows nothing of the editor: tool calls go to an `AgentBridge` (`AgentTools`) on the main actor. `AgentServerController` starts, stops and restarts it from the preferences (never under the test runner). Tools: `get_context` and `read_note` (`AgentTools`, window chosen by `AgentWindows`: the key window, else the one that was key most recently), `propose_edit` and `get_proposal` (`Agents/Proposal.swift`, `ProposalStore`: in memory, `old` must match exactly once, re-checked 250 ms after the text changes, 20 open per window). `Workspace.accept` (`Model/Workspace+Suggestions.swift`) is the one place agent text reaches a note, after a click: it goes through `EditorTextView.applySuggestion`, so it is one undo step and `DocumentStore` stays in charge of saving. The Review tab is `UI/ReviewPanelView.swift` (`RightPanel.review`, a visit like Run: never saved or restored); the selected card's passage is painted by `EditorTextView.drawBackground` from `suggestionMark` (not a temporary attribute: Find clears those). Tests: `AgentProtocolTests` (raw sockets, `Support/RawHTTPClient.swift`), `AgentToolsTests`, `ProposalTests`, `ProposalSafetyTests`, `ReviewPanelTests`.
 
 ## Testing — read `TESTING.md`
 

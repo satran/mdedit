@@ -97,6 +97,10 @@ final class SnapshotTests: XCTestCase {
     func testWriteDark() throws { try render(dark: true, mode: .write, name: "write-dark") }
     func testOutlineLight() throws { try render(dark: false, mode: .write, name: "outline-light", outline: true) }
     func testFindPanelLight() throws { try render(dark: false, mode: .write, name: "find-light", panel: .find) }
+    func testReviewPanelLight() throws {
+        // two suggestions, one to look at in build/snapshots (the tab's real assertions are in ReviewPanelTests)
+        try render(dark: false, mode: .write, name: "review-light", panel: .review)
+    }
     func testFocusLight() throws { try render(dark: false, mode: .write, name: "focus-light", focus: true, size: NSSize(width: 1440, height: 900)) }
 
     func testSettings() throws {

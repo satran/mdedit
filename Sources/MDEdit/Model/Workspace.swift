@@ -42,15 +42,17 @@ final class Workspace: ObservableObject {
     /// The right-hand panel: the outline or find & replace, one at a time; nil is closed.
     @Published var panel: RightPanel? {
         didSet {
-            // Run is a visit: the toolbar button and the next launch never open on it
-            if let p = panel, p != .run { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
-            defaults.set(panel != nil && panel != .run, forKey: "rightPanelOpen")
+            // Run and Review are visits: the toolbar button and the next launch never open on them
+            if let p = panel, p != .run, p != .review { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
+            defaults.set(panel != nil && panel != .run && panel != .review, forKey: "rightPanelOpen")
             if (oldValue == .outline) != (panel == .outline) { refreshBacklinks() }
         }
     }
     /// The tab the toolbar button opens, and where Esc goes back to from Find.
     var lastPanel: RightPanel = .outline
-    /// Where Esc goes back to from the find or run tab: the outline, or closed.
+    /// The suggestion whose passage is painted in the editor (picked by clicking its card in the Review tab).
+    @Published var selectedProposal: String? { didSet { if oldValue != selectedProposal { refreshSuggestionMark() } } }
+    /// Where Esc goes back to from the find, run or review tab: the outline, or closed.
     var panelBefore: RightPanel?
     /// Width of the panel's content in points; the person can drag it. The same for both tabs.
     @Published var panelWidth: CGFloat { didSet { defaults.set(Double(panelWidth), forKey: "rightPanelWidth") } }
@@ -130,7 +132,7 @@ final class Workspace: ObservableObject {
         self.recents = recents
         windowKey = id.map { ".\($0.uuidString)" } ?? ""
         typewriter = defaults.bool(forKey: "typewriter")
-        let tab = defaults.string(forKey: "rightPanelTab").flatMap(RightPanel.init(rawValue:)) ?? .outline
+        let tab = defaults.string(forKey: "rightPanelTab").flatMap(RightPanel.init(rawValue:)).flatMap { $0 == .review ? nil : $0 } ?? .outline
         let open = defaults.object(forKey: "rightPanelOpen") as? Bool ?? defaults.bool(forKey: "outlineVisible")
         lastPanel = tab
         panel = open && tab == .outline ? .outline : nil      // find does not come back open: its fields start empty
@@ -138,6 +140,7 @@ final class Workspace: ObservableObject {
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
         shellDestination = defaults.string(forKey: "shellDestination").flatMap(ShellDestination.init(rawValue:)) ?? .insert
         find.ws = self
+        editor.onAttach = { [weak self] in self?.refreshSuggestionMark() }
         restore()
     }
 

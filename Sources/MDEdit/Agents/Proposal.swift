@@ -130,9 +130,11 @@ enum AcceptOutcome: Equatable { case applied, stale, blocked(String) }
         let text = ws.document.text
         for i in items.indices where items[i].isOpen && items[i].workspace === ws && items[i].url == open {
             let found = Self.matches(of: items[i].old, in: text)
-            if found.count == 1 { items[i].status = .pending; items[i].range = found[0] }
-            else { items[i].status = .stale; items[i].range = nil }
+            let status: ProposalStatus = found.count == 1 ? .pending : .stale
+            let range = found.count == 1 ? found[0] : nil
+            if items[i].status != status || items[i].range != range { items[i].status = status; items[i].range = range }
         }
+        ws.refreshSuggestionMark()
     }
 
     private func watch(_ ws: Workspace) {
@@ -176,7 +178,9 @@ enum AcceptOutcome: Equatable { case applied, stale, blocked(String) }
     }
 
     private func purge() {
+        // Writing to a @Published array publishes even when nothing changes, and views are rebuilt for it: only write when needed
         let cutoff = Date().addingTimeInterval(-retention)
-        items.removeAll { !$0.isOpen && ($0.decidedAt ?? .distantPast) < cutoff }
+        let expired: (Proposal) -> Bool = { !$0.isOpen && ($0.decidedAt ?? .distantPast) < cutoff }
+        if items.contains(where: expired) { items.removeAll(where: expired) }
     }
 }

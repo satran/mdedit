@@ -4,6 +4,7 @@ struct DetailView: View {
     @EnvironmentObject var ws: Workspace
     @EnvironmentObject var prefs: Preferences
     @ObservedObject var document: DocumentStore
+    @ObservedObject private var proposals = ProposalStore.shared
     /// `.mdedit/preview.css` of the opened folder, read again when the folder changes.
     @State private var customCSS: String?
 
@@ -162,6 +163,12 @@ struct DetailView: View {
         return HStack(spacing: 2) {
             if document.url != nil {
                 Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
+            }
+            let waiting = prefs.agentsEnabled ? proposals.items.filter { $0.status == .pending && $0.workspace === ws }.count : 0
+            if waiting > 0 {
+                Text("·").padding(.horizontal, 4)
+                Button { ws.openPanel(.review) } label: { Text("\(waiting) \(waiting == 1 ? "suggestion" : "suggestions")").foregroundStyle(Color(Palette.link)) }
+                    .buttonStyle(.plain).accessibilityLabel("\(waiting) suggestions waiting. Open the Review tab")
             }
             Spacer()
             if document.url != nil, !page, ws.mode == .write {
