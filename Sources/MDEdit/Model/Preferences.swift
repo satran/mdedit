@@ -1,4 +1,5 @@
 import SwiftUI
+import Security
 
 /// What Settings changes. Fonts fall back when a family is not installed.
 final class Preferences: ObservableObject {
@@ -41,6 +42,28 @@ final class Preferences: ObservableObject {
     /// Commands kept in `.mdedit/history` in the folder; 0 keeps none.
     @Published var shellHistory: Int { didSet { d.set(shellHistory, forKey: "shellHistory") } }
 
+    /// Agent access: a local server that lets an agent read the editor's context and propose edits. Off until turned on here.
+    @Published var agentsEnabled: Bool { didSet { d.set(agentsEnabled, forKey: "agentsEnabled") } }
+    /// The loopback port the server listens on.
+    @Published var agentPort: Int { didSet { d.set(agentPort, forKey: "agentPort") } }
+    /// The bearer token an agent must send. Made on first use; a new one signs every agent out.
+    @Published private(set) var agentToken: String { didSet { d.set(agentToken, forKey: "agentToken") } }
+
+    static let agentPortRange = 1024...65_535
+    static let defaultAgentPort = 47_821
+
+    /// 32 random bytes from the system, as 64 hex characters.
+    static func makeAgentToken() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            // never fall back to something guessable: two UUIDs are 244 random bits from the same source
+            return (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased()
+        }
+        return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    func regenerateAgentToken() { agentToken = Self.makeAgentToken() }
+
     init(defaults: UserDefaults = AppEnvironment.defaults) {
         d = defaults
         editorFont = d.string(forKey: "editorFont") ?? "IBM Plex Mono"
@@ -62,6 +85,13 @@ final class Preferences: ObservableObject {
         shellEnvironment = String((d.string(forKey: "shellEnvironment") ?? "").prefix(16 * 1024))
         shellTimeout = min(600, max(1, d.object(forKey: "shellTimeout") as? Int ?? 30))
         shellHistory = min(500, max(0, d.object(forKey: "shellHistory") as? Int ?? 50))
+        agentsEnabled = d.bool(forKey: "agentsEnabled")
+        agentPort = min(Self.agentPortRange.upperBound, max(Self.agentPortRange.lowerBound, d.object(forKey: "agentPort") as? Int ?? Self.defaultAgentPort))
+        // a stored token that is not what we make (short, odd characters) is replaced, never trusted
+        let saved = d.string(forKey: "agentToken") ?? ""
+        let valid = saved.count == 64 && saved.allSatisfy { $0.isHexDigit && !$0.isUppercase }
+        agentToken = valid ? saved : Self.makeAgentToken()
+        if !valid { d.set(agentToken, forKey: "agentToken") }
     }
 
     func applyTheme() {

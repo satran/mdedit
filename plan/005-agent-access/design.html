@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent access · design</title>
+<style>
+:root{--pane:#fff;--binder:#f4f5f7;--border:#e2e5e9;--hair:#eff1f3;--text:#2a2d31;--strong:#15171a;--muted:#686e76;--field:#e7e9ed;--chip:#f2f4f7;
+  --link:#2f6fdb;--seg:#eef0f3;--segon:#fff;--segtext:#5f656d;--page:#ecebe6;--ink:#1f1e1d;--note:#6b6a68;
+  --rmbg:#fbe2df;--rmink:#9b2c2c;--adbg:#dcf2e3;--adink:#1e6b3a;--warnbg:#fbeccb;--warnink:#7a5200}
+@media (prefers-color-scheme:dark){:root{--pane:#1e1f22;--binder:#25262a;--border:#34363b;--hair:#2c2e33;--text:#dcdfe3;--strong:#f3f4f6;--muted:#9ba1a9;--field:#303237;--chip:#2c2e33;
+  --link:#6fa3f7;--seg:#2b2d31;--segon:#42454c;--segtext:#b3b8bf;--page:#161618;--ink:#e6e4df;--note:#9a9893;
+  --rmbg:#4a2a2a;--rmink:#f0a0a0;--adbg:#1f3d2b;--adink:#8edba8;--warnbg:#4a3c1c;--warnink:#e8c46a}}
+*{box-sizing:border-box}
+html{background:var(--page);color:var(--ink);font:14px/1.45 -apple-system,system-ui,"Inter",sans-serif}
+body{margin:0;padding:40px 48px 80px;display:flex;flex-direction:column;gap:44px}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;font-weight:600;margin:0 0 10px;color:var(--note)}
+p.note{margin:6px 0 0;max-width:1100px;color:var(--note);font-size:13px}
+.win{width:1100px;height:560px;background:var(--pane);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.18),0 12px 40px rgba(0,0,0,.12);display:flex;overflow:hidden;color:var(--text);font-size:13px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{height:52px;display:flex;align-items:center;padding:0 16px;gap:12px;border-bottom:1px solid var(--hair);color:var(--muted)}
+.head b{color:var(--text);font-weight:500}.head .sp{flex:1}
+.dot{position:relative}.dot:after{content:"";position:absolute;right:-5px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--link)}
+.doc{flex:1;padding:44px 0 0;overflow:hidden}.doc div{max-width:560px;margin:0 auto;font:15px/1.8 ui-monospace,Menlo,monospace;color:var(--text);white-space:pre-wrap}
+.doc .m{color:var(--muted)}.doc .mk{background:var(--rmbg);border-radius:4px;padding:2px 0;box-shadow:0 0 0 2px var(--rmbg)}
+.foot{height:44px;border-top:1px solid var(--hair);display:flex;align-items:center;padding:0 12px 0 28px;color:var(--muted);font-size:12px}
+.panel{width:361px;border-left:1px solid var(--border);background:var(--binder);display:flex;flex-direction:column}
+.ph{height:52px;display:flex;align-items:center;padding:0 16px;font-weight:600;color:var(--strong);gap:8px}
+.ph span{font-weight:400;color:var(--muted)}
+.pb{flex:1;padding:0 12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.card{background:var(--pane);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.card.sel{border:2px solid var(--link)}.card.stale{opacity:.75}
+.ct{padding:10px 12px 4px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ct b{font-weight:600;color:var(--strong);font-size:13px}.ct i{font-style:normal;font-size:11px;color:var(--muted);white-space:nowrap}
+.why{padding:0 12px 9px;color:var(--muted);font-size:12px;line-height:1.45}
+.df{font:11.5px/1.55 ui-monospace,Menlo,monospace;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.df div{padding:1px 12px;white-space:pre-wrap}.rm{background:var(--rmbg);color:var(--rmink)}.ad{background:var(--adbg);color:var(--adink)}
+.rm u{text-decoration:line-through}.ad u{text-decoration:underline}
+.ac{display:flex;gap:6px;padding:8px 12px;align-items:center}
+.btn{height:26px;padding:0 11px;border-radius:7px;border:1px solid var(--border);background:var(--chip);color:var(--text);font:inherit;font-size:12px;display:grid;place-items:center}
+.btn.p{background:var(--strong);color:var(--pane);border-color:transparent}
+.keys{margin-left:auto;font-size:11px;color:var(--muted)}
+.tag{font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--warnbg);color:var(--warnink)}
+.tabbar{height:44px;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px}
+.seg{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--seg)}
+.seg i{width:38px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--segtext);font-style:normal;font-size:11px}
+.seg i.sel{background:var(--segon);color:var(--strong);box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.tabbar em{margin-left:auto;font-style:normal;font-size:12px;color:var(--muted)}
+.empty{margin:auto;text-align:center;color:var(--muted);font-size:12.5px;max-width:230px}.empty b{display:block;color:var(--strong);font-size:13px;margin-bottom:4px}
+.new{outline:2px solid #e8590c;outline-offset:2px;border-radius:7px}
+</style></head><body>
+<header>
+<h1>Agent access: the Review tab</h1>
+<p class="note">An agent connects to the app's local MCP server and proposes changes. They appear as cards in a fourth tab of the side panel, shown only while agent access is on in Settings. Nothing changes in a note until you press Accept, and one Accept is one step of Undo. Orange marks what is new.</p>
+</header>
+
+<section><h2>1 · Pending suggestions: the card in focus is marked in the editor</h2>
+<div class="win">
+  <div class="main">
+    <div class="head"><span>‹</span><span class="sp"><b>DORA, you have a naming problem</b></span><span>◉</span><span class="dot new">▤</span></div>
+    <div class="doc"><div><span class="m">## Two acronyms, one question</span>
+
+Read them next to the regulation and the
+overlap is hard to miss:
+
+- **Time to restore** → <span class="mk">incident management</span>
+- **Change failure rate** → ICT change management
+- **Lead time** → `nothing`
+
+The Act has no opinion on speed.</div></div>
+    <div class="foot">179 words · 1 min read</div>
+  </div>
+  <div class="panel">
+    <div class="ph new" style="margin:0 12px;padding:0 4px;height:40px">Review <span>3 pending</span></div>
+    <div class="pb">
+      <div class="card sel">
+        <div class="ct"><b>Name the incident process</b><i>Claude Code · 2 min</i></div>
+        <div class="why">DORA calls it “ICT-related incident management”, so the note should too.</div>
+        <div class="df"><div class="rm">- **Time to restore** → <u>incident management</u></div><div class="ad">+ **Time to restore** → <u>ICT-related</u> incident management</div></div>
+        <div class="ac"><span class="btn">Reject</span><span class="btn p">Accept</span><span class="keys">⌘↩ accept · ⌫ reject</span></div>
+      </div>
+      <div class="card">
+        <div class="ct"><b>Fix the Lead time bullet</b><i>Claude Code · 2 min</i></div>
+        <div class="df"><div class="rm">- **Lead time** → <u>`nothing`</u></div><div class="ad">+ **Lead time** → <u>change management (indirectly)</u></div></div>
+        <div class="ac"><span class="btn">Reject</span><span class="btn">Accept</span></div>
+      </div>
+      <div class="card">
+        <div class="ct"><b>New note: Incident glossary.md</b><i>Claude Code · 1 min</i></div>
+        <div class="why">Definitions pulled from this note, 14 lines.</div>
+        <div class="df"><div class="ad">+ # Incident glossary</div><div class="ad">+ **Major incident**: an incident with high impact…</div></div>
+        <div class="ac"><span class="btn">Reject</span><span class="btn">Accept</span></div>
+      </div>
+    </div>
+    <div class="tabbar"><div class="seg"><i>☰</i><i>⌕</i><i>›_</i><i class="sel new">✓</i></div><em>Accept all in this note</em></div>
+  </div>
+</div></section>
+
+<section><h2>2 · The text moved under a suggestion</h2>
+<div class="win" style="height:330px">
+  <div class="main"><div class="head"><span class="sp"><b>DORA, you have a naming problem</b></span></div>
+    <div class="doc"><div>Say “DORA” to a room of engineers and most of them will think of the four **DevOps metrics**. <span class="m">(edited by hand since the suggestion)</span></div></div></div>
+  <div class="panel"><div class="ph">Review <span>1 pending</span></div>
+    <div class="pb"><div class="card stale">
+      <div class="ct"><b>Tighten the intro</b><span class="tag">Changed since proposed</span></div>
+      <div class="df"><div class="rm">- Say “DORA” to a room of <u>engineers and most of them</u>…</div></div>
+      <div class="ac"><span class="btn">Dismiss</span><span class="btn">Re-check</span><span class="keys">no mark in the editor</span></div>
+    </div></div></div>
+</div></section>
+
+<section><h2>3 · Nothing pending</h2>
+<div class="win" style="height:250px">
+  <div class="main"><div class="head"><span class="sp"><b>DORA, you have a naming problem</b></span></div></div>
+  <div class="panel"><div class="ph">Review</div>
+    <div class="pb"><div class="empty"><b>No suggestions</b>Suggestions from connected agents show up here, and nothing changes until you accept it.</div></div>
+    <div class="tabbar"><div class="seg"><i>☰</i><i>⌕</i><i>›_</i><i class="sel">✓</i></div></div></div>
+</div></section>
+</body></html>
