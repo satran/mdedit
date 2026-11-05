@@ -50,7 +50,7 @@ New file in the project? `make test` runs `xcodegen` first, so a new test file i
 1. **Treat every note, file name and dropped file as hostile.** Never build a path from text without `Workspace.cleanName`; never open a link without `LinkPolicy.decide`; never put note text in HTML without going through `Exporter.safeHTML`.
 2. **Never write to a file the user did not change.** Anything that saves goes through `DocumentStore` (it keeps encodings, symlinks, and refuses to overwrite an outside change).
 3. **Nothing recursive without a limit.** Parsing goes through `MarkdownLimits.clamp`; folder scans stop at `BinderNode.maxDepth`; inline styling stops at `MarkdownSyntax.maxInlineLength`.
-4. **No new entitlement without a reason.** `make audit` and `ProjectPolicyTests` fail on any entitlement outside the expected four.
+4. **No new entitlement without a reason.** `make audit` and `ProjectPolicyTests` fail on any entitlement outside the expected five (the fifth, `network.server`, is for agent access and only `Agents/MCPServer.swift` may listen, on loopback).
 5. **Add the test for the bug before fixing the bug.**
 
 ## Known gaps (not covered by automated tests)

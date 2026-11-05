@@ -6,13 +6,13 @@ bad() { echo "AUDIT FAIL: $1"; fail=1; }
 ok()  { echo "ok: $1"; }
 
 # 1. Entitlements are exactly the ones the app needs.
-ALLOWED="com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write com.apple.security.network.client"
+ALLOWED="com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write com.apple.security.network.client com.apple.security.network.server"
 found=$(/usr/libexec/PlistBuddy -c "Print" MDEdit.entitlements | grep -E "^\s+com\.apple" | awk '{print $1}')
 for e in $found; do
   case " $ALLOWED " in *" $e "*) ;; *) bad "unexpected entitlement $e";; esac
 done
 for e in $ALLOWED; do echo "$found" | grep -q "^$e$" || bad "missing entitlement $e"; done
-[ $fail -eq 0 ] && ok "entitlements are the expected four (sandbox, user-selected files, bookmarks, network client)"
+[ $fail -eq 0 ] && ok "entitlements are the expected five (sandbox, user-selected files, bookmarks, network client, network server for agent access)"
 
 # 2. The built app really is sandboxed.
 if [ -d build/MDEdit.app ]; then
@@ -40,6 +40,15 @@ grep -rn "WKWebView(" Sources | grep -v "configuration" && bad "WKWebView create
 # every call that opens something must be one of the vetted ones below (links go through LinkPolicy first)
 grep -rn "NSWorkspace.shared.open(" Sources | grep -v "case \.openWeb\|case \.openFile\|LinkPolicy.isProgram(node.url)\|else { NSWorkspace.shared.open(node.url) }\|LinkPolicy.webSchemes" | while read -r l; do echo "REVIEW: $l"; done
 [ $fail -eq 0 ] && ok "no unsafe API patterns"
+
+# 3b. The one listening socket: only MCPServer may open one, only on loopback, and the app has no URL scheme.
+grep -rln "NWListener" Sources | grep -v "Agents/MCPServer.swift" | while read -r l; do echo "NWListener outside MCPServer: $l"; done | grep . && bad "a listener is created outside Agents/MCPServer.swift"
+grep -rn "0\.0\.0\.0\|::\"" Sources | grep -v "^Sources/MDEdit/Resources" | grep -i "listen\|bind\|endpoint" && bad "something may listen on all interfaces"
+if [ -f Sources/MDEdit/Agents/MCPServer.swift ]; then
+  grep -q "requiredLocalEndpoint" Sources/MDEdit/Agents/MCPServer.swift || bad "MCPServer must bind with requiredLocalEndpoint (loopback only)"
+fi
+grep -q "CFBundleURLTypes" Sources/MDEdit/Info.plist && bad "Info.plist declares a URL scheme"
+[ $fail -eq 0 ] && ok "listener rules hold (MCPServer only, loopback, no URL scheme)"
 
 # 4. No force-try or fatalError in the app outside of constant regex setup.
 n=$(grep -rn "fatalError\|try!" Sources | grep -v "NSRegularExpression(pattern" | wc -l | tr -d ' ')

@@ -205,7 +205,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 
 - Notes are saved as ordinary files, in the folder you chose. Nothing else is stored in that folder except `.mdedit` if you use shell commands.
 - MDEdit works inside the macOS App Sandbox. It can only open the folders you pick, and it keeps access to them with a bookmark so you do not have to choose them again.
-- Nothing is sent anywhere. The only network use is a picture on the web, and only if you allow it in Settings.
+- Nothing is sent anywhere. The only network use is a picture on the web, and only if you allow it in Settings. When agent access is switched on (off by default), the app also accepts connections from programs on your own Mac, and from nowhere else.
 - If a note was changed elsewhere while you had unsaved edits, MDEdit saves your edits to a copy beside it rather than losing them.
 
 ## Troubleshooting

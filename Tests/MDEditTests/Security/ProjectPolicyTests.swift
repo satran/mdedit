@@ -16,8 +16,11 @@ final class ProjectPolicyTests: XCTestCase {
     func testItHasOnlyTheAccessItNeeds() {
         XCTAssertEqual(entitlement("com.apple.security.files.user-selected.read-write") as? Bool, true)
         XCTAssertEqual(entitlement("com.apple.security.files.bookmarks.app-scope") as? Bool, true)
+        // The one network privilege beyond the client: agent access (plan 005) listens on the loopback address only.
+        // `scripts/audit.sh` checks that only Agents/MCPServer.swift opens a listener and that it binds to loopback.
+        XCTAssertEqual(entitlement("com.apple.security.network.server") as? Bool, true)
         let forbidden = [
-            "com.apple.security.files.all", "com.apple.security.files.user-selected.executable", "com.apple.security.network.server",
+            "com.apple.security.files.all", "com.apple.security.files.user-selected.executable",
             "com.apple.security.files.downloads.read-write", "com.apple.security.assets.pictures.read-write", "com.apple.security.assets.music.read-write",
             "com.apple.security.assets.movies.read-write", "com.apple.security.device.camera", "com.apple.security.device.microphone",
             "com.apple.security.device.usb", "com.apple.security.device.bluetooth", "com.apple.security.personal-information.addressbook",

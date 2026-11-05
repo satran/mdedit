@@ -29,6 +29,7 @@ targets:
         com.apple.security.files.user-selected.read-write: true
         com.apple.security.files.bookmarks.app-scope: true
         com.apple.security.network.client: true
+        com.apple.security.network.server: true
     info:
       path: Sources/MDEdit/Info.plist
       properties:
