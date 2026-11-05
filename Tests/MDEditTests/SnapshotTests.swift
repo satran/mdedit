@@ -50,9 +50,15 @@ final class SnapshotTests: XCTestCase {
     ```
 
     ~~Struck~~ and https://dora.dev
+
+    The line above
+    ```
+    This is a code block
+    ```
+    The line below the code block.
     """
 
-    func render(dark: Bool, mode: Mode, name: String, outline: Bool = false, focus: Bool = false, size: NSSize = NSSize(width: 1280, height: 820)) throws {
+    func render(dark: Bool, mode: Mode, name: String, outline: Bool = false, panel: Workspace.RightPanel? = nil, focus: Bool = false, size: NSSize = NSSize(width: 1280, height: 820)) throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("snap-\(UUID().uuidString)")
         for d in ["Ideas", "Draft/A love letter to Regulations"] { try fm.createDirectory(at: dir.appendingPathComponent(d), withIntermediateDirectories: true) }
@@ -65,6 +71,7 @@ final class SnapshotTests: XCTestCase {
         ws.mode = mode
         ws.outlineVisible = outline
         if outline { ws.refreshBacklinks() }
+        if let panel { ws.panel = panel }
 
         let host: NSHostingView<AnyView>
         if focus {
@@ -89,6 +96,7 @@ final class SnapshotTests: XCTestCase {
     func testWriteLight() throws { try render(dark: false, mode: .write, name: "write-light") }
     func testWriteDark() throws { try render(dark: true, mode: .write, name: "write-dark") }
     func testOutlineLight() throws { try render(dark: false, mode: .write, name: "outline-light", outline: true) }
+    func testFindPanelLight() throws { try render(dark: false, mode: .write, name: "find-light", panel: .find) }
     func testFocusLight() throws { try render(dark: false, mode: .write, name: "focus-light", focus: true, size: NSSize(width: 1440, height: 900)) }
 
     func testSettings() throws {

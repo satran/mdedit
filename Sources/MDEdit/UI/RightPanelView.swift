@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The right-hand panel: the outline or find & replace, chosen with the two icons at the top. One width for both, and a
+/// The right-hand panel: the outline, find & replace or run, chosen with the icons in its bottom row. One width for both, and a
 /// handle on its left edge to drag it wider or narrower.
 struct RightPanelView: View {
     @EnvironmentObject var ws: Workspace
@@ -14,12 +14,12 @@ struct RightPanelView: View {
             handle
             VStack(spacing: 0) {
                 header(tab)
-                Rectangle().fill(Color(Palette.binderBorder)).frame(height: 1)
                 switch tab {
                 case .find: FindPanel(find: ws.find, document: document)
                 case .outline: OutlineView(document: document)
                 case .run: ShellBarView()
                 }
+                tabBar(tab)
             }
             .frame(width: ws.panelWidth)
             .background(Color(Palette.binderBg))
@@ -28,6 +28,18 @@ struct RightPanelView: View {
 
     private func header(_ tab: Workspace.RightPanel) -> some View {
         HStack(spacing: 12) {
+            Text(tab == .find ? "Find & Replace" : tab == .run ? "Run" : "Outline")
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Palette.strongText)).lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: Metrics.headerHeight)
+        .background(WindowDragArea())
+    }
+
+    /// The bottom row, level with the status bar beside it: which of the panel's tabs is showing.
+    private func tabBar(_ tab: Workspace.RightPanel) -> some View {
+        HStack(spacing: 0) {
             HStack(spacing: 2) {
                 item(.outline, "list.bullet.indent", "Outline", tip: "Outline (⌥⌘O)", on: tab == .outline)
                 item(.find, "magnifyingglass", "Find and replace", tip: "Find and replace (⌘F)", on: tab == .find)
@@ -38,13 +50,11 @@ struct RightPanelView: View {
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Panel")
-            Text(tab == .find ? "Find & Replace" : tab == .run ? "Run" : "Outline")
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Palette.strongText)).lineLimit(1)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .frame(height: Metrics.headerHeight)
-        .background(WindowDragArea())
+        .frame(height: Metrics.footerHeight)
+        .overlay(alignment: .top) { Rectangle().fill(Color(Palette.binderBorder)).frame(height: 1) }
     }
 
     private func item(_ tab: Workspace.RightPanel, _ symbol: String, _ label: String, tip: String, on: Bool) -> some View {

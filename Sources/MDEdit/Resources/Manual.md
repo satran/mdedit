@@ -16,7 +16,7 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 - **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
 - **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free and typewriter buttons. The toolbar at the top has the share button.
-- **Side panel** (right, optional): show or hide it with the button at the top right. Icons at the top of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), **Find and replace** (⌘F), and **Run** (⌘R) for shell commands. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
+- **Side panel** (right, optional): show or hide it with the button at the top right. Icons in the bottom row of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), **Find and replace** (⌘F), and **Run** (⌘R) for shell commands. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
 - The **status bar** at the bottom can be hidden with ⌥⌘B.
 
 ## Working with notes and folders
@@ -95,7 +95,7 @@ A block of `key: value` lines between `---` lines at the very top of a note is *
 
 ## Find and replace
 
-⌘F opens the side panel on its **Find and replace** tab (or click the magnifying-glass icon at the top of the panel). Press Esc to go back to where the panel was: the outline, or closed. The panel has two scopes, chosen at the top.
+⌘F opens the side panel on its **Find and replace** tab (or click the magnifying-glass icon in the bottom row of the panel). Press Esc to go back to where the panel was: the outline, or closed. The panel has two scopes, chosen at the top.
 
 ### This file
 
@@ -156,7 +156,7 @@ For a page, **Write**, **Find** in the file, **Print**, **Export** and **Run She
 
 This is off until you turn it on in **Settings ▸ Shell ▸ Run shell commands**.
 
-Press ⌘R in the editor. The side panel opens on its **Run** tab (the terminal icon at the top of the panel, shown once shell commands are on). Type a command, choose where the output goes, and press Return. Esc closes the tab again, or cancels a command that is running. The selected text, or the whole note if nothing is selected, is sent to the command as its standard input, as in Vim's `!`. The note is saved first.
+Press ⌘R in the editor. The side panel opens on its **Run** tab (the terminal icon in the bottom row of the panel, shown once shell commands are on). Type a command, choose where the output goes, and press Return. Esc closes the tab again, or cancels a command that is running. The selected text, or the whole note if nothing is selected, is sent to the command as its standard input, as in Vim's `!`. The note is saved first.
 
 ### Where the output goes
 

@@ -321,25 +321,25 @@ struct FindPanel: View {
 
     // MARK: footer
 
-    /// The same height and rule as the status bar beside it, so the two line up along the bottom of the window.
-    private var footer: some View {
-        HStack(spacing: 8) {
-            if let n = find.note {
-                Image(systemName: "checkmark.circle").font(.system(size: 11)).foregroundStyle(Color(Palette.green))
-                Text(n).lineLimit(2).font(.system(size: 11.5))
-                Spacer(minLength: 4)
-                if find.canUndo { Button("Undo") { find.undoLast() }.buttonStyle(.plain).foregroundStyle(Color(Palette.link)).pointerCursor().tip("Take the replace back (⌘Z)") }
-            } else if find.scope == .folder {
-                Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
-                Text("A replace across files can be undone with ⌘Z").lineLimit(1).minimumScaleFactor(0.85)
-            } else {
-                HStack(spacing: 12) { Text("⌘F Find"); Text("⌥⌘F Replace"); Text("⇧⌘F Find in folder"); Text("⌘G Next") }.lineLimit(1).minimumScaleFactor(0.85)
+    /// What the last replace did, or a reminder about replacing across files. Nothing shows when there is nothing to say.
+    @ViewBuilder private var footer: some View {
+        if find.note != nil || find.scope == .folder {
+            HStack(spacing: 8) {
+                if let n = find.note {
+                    Image(systemName: "checkmark.circle").font(.system(size: 11)).foregroundStyle(Color(Palette.green))
+                    Text(n).lineLimit(2).font(.system(size: 11.5))
+                    Spacer(minLength: 4)
+                    if find.canUndo { Button("Undo") { find.undoLast() }.buttonStyle(.plain).foregroundStyle(Color(Palette.link)).pointerCursor().tip("Take the replace back (⌘Z)") }
+                } else {
+                    Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
+                    Text("A replace across files can be undone with ⌘Z").lineLimit(1).minimumScaleFactor(0.85)
+                }
             }
+            .font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 34)
+            .overlay(alignment: .top) { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
         }
-        .font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: Metrics.footerHeight)
-        .overlay(alignment: .top) { Rectangle().fill(Color(Palette.paneBorder)).frame(height: 1) }
     }
 }

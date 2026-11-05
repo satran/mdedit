@@ -46,13 +46,22 @@ final class FindPanelTests: XCTestCase {
         }
     }
 
-    func testThePanelFooterIsExactlyAsHighAsTheStatusBar() throws {
-        let (h, _) = host(height: 600)
+    /// The panel's bottom row (the tab icons) is as high as the status bar beside it, so the two rules line up.
+    func testThePanelTabBarIsExactlyAsHighAsTheStatusBar() throws {
+        let v = AnyView(RightPanelView(document: ws.document).environmentObject(ws).environmentObject(Preferences(defaults: isolatedDefaults())).frame(width: 361, height: 600))
+        let h = NSHostingView(rootView: v)
+        h.frame = NSRect(x: 0, y: 0, width: 361, height: 600)
+        let w = NSWindow(contentRect: h.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.appearance = NSAppearance(named: .aqua)
+        w.contentView = h; w.makeKeyAndOrderFront(nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        addTeardownBlock { w.close() }
         let rep = try XCTUnwrap(h.bitmapImageRepForCachingDisplay(in: h.bounds))
         h.cacheDisplay(in: h.bounds, to: rep)
         let scale = CGFloat(rep.pixelsHigh) / 600
         // from the bottom edge upward, at a column with nothing in it, the first row that is not the panel's colour is the rule
-        let x = Int(350 * scale)
+        let x = Int(340 * scale)
         func px(_ y: Int) -> NSColor? { rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) }
         let base = try XCTUnwrap(px(rep.pixelsHigh - 3))
         var y = rep.pixelsHigh - 3

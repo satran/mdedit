@@ -48,6 +48,8 @@ final class EditorTextView: NSTextView {
 
     /// Body text sits on a 1.65 line (28 px at 17 px), so one blank line is exactly one line of rhythm.
     static let leading: CGFloat = 1.65
+    /// Space kept clear above and below a code block's band.
+    static let codeAir: CGFloat = 14
 
     private func paragraph(first: CGFloat, head: CGFloat) -> NSMutableParagraphStyle {
         let p = NSMutableParagraphStyle()
@@ -284,6 +286,17 @@ final class EditorTextView: NSTextView {
             }
             storage.addAttribute(.paragraphStyle, value: p, range: NSRange(location: line.range.location, length: line.range.length))
         }
+        // air around a code block: its band reaches past the text, so the lines before and after sit clear of it
+        for block in codeBlocks where NSMaxRange(block) <= storage.length {
+            let ns = storage.string as NSString
+            let first = ns.paragraphRange(for: NSRange(location: block.location, length: 0))
+            let last = ns.paragraphRange(for: NSRange(location: max(block.location, NSMaxRange(block) - 1), length: 0))
+            for (range, before) in [(first, true), (last, false)] {
+                let p = ((storage.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle) ?? NSParagraphStyle.default).mutableCopy() as! NSMutableParagraphStyle
+                if before { p.paragraphSpacingBefore = Self.codeAir } else { p.paragraphSpacing = Self.codeAir }
+                storage.addAttribute(.paragraphStyle, value: p, range: range)
+            }
+        }
         if focusDim {
             let ns = storage.string as NSString
             let here = ns.paragraphRange(for: selection)
@@ -360,7 +373,11 @@ final class EditorTextView: NSTextView {
             var union = NSRect.null
             lm.enumerateLineFragments(forGlyphRange: g) { frag, _, _, _, _ in union = union.union(frag) }
             guard !union.isNull else { continue }
-            let band = NSRect(x: columnLeft - 2 * ch, y: union.minY + origin.y - 6, width: columnWidth + 4 * ch, height: union.height + 12)
+            // the line fragments carry the air before the first line and, after the last, the air and the line spacing:
+            // the band hugs the text. (The first line of a block has the backticks high in its line, so the bottom takes 3 less.)
+            let f = baseFont, lineSpacing = max(0, style.size * Self.leading - (f.ascender - f.descender + f.leading))
+            let top = union.minY + Self.codeAir - 6, bottom = union.maxY - Self.codeAir - lineSpacing + 3
+            let band = NSRect(x: columnLeft - 2 * ch, y: top + origin.y, width: columnWidth + 4 * ch, height: max(0, bottom - top))
             if band.intersects(rect) { NSBezierPath(roundedRect: band, xRadius: 8, yRadius: 8).fill() }
         }
         Palette.inlineCode.setFill()
