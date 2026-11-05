@@ -34,7 +34,7 @@ import Combine
 
     private func apply(enabled: Bool, port: Int) {
         server?.stop(); server = nil
-        guard enabled else { state = .stopped; return }
+        guard enabled else { state = .stopped; ProposalStore.shared.withdrawAll(); return }
         let s = MCPServer(port: port, token: token, bridge: bridge)
         s.onState { [weak self] st in Task { @MainActor in if self?.server === s { self?.state = st } } }
         server = s

@@ -7,12 +7,15 @@ import AppKit
     static let maxNoteBytes = 200 * 1024
 
     private let windows: AgentWindows
-    init(windows: AgentWindows = .shared) { self.windows = windows }
+    let store: ProposalStore
+    init(windows: AgentWindows = .shared, store: ProposalStore = .shared) { self.windows = windows; self.store = store }
 
     func call(_ call: AgentToolCall) -> AgentToolResult {
         switch call.name {
         case "get_context": return getContext()
         case "read_note": return readNote(call.arguments["path"] as? String)
+        case "propose_edit": return proposeEdit(call)
+        case "get_proposal": return getProposal(call.arguments["id"] as? String)
         default: return .error("not_available", "\(call.name) is not available in this version of MDEdit yet.")   // propose_edit and get_proposal arrive with suggestions
         }
     }
@@ -61,6 +64,26 @@ import AppKit
             stack.append(h)
         }
         return stack.map(\.title)
+    }
+
+    // MARK: propose_edit, get_proposal
+
+    private func proposeEdit(_ call: AgentToolCall) -> AgentToolResult {
+        guard let ws = windows.front() else { return .error("no_window", "No MDEdit window is open.") }
+        let a = call.arguments
+        guard let path = a["path"] as? String, let old = a["old"] as? String, let new = a["new"] as? String,
+              let title = a["title"] as? String, let reason = a["reason"] as? String else {
+            return .error("invalid_arguments", "path, old, new, title and reason are all required strings.")
+        }
+        switch store.propose(in: ws, path: path, old: old, new: new, title: title, reason: reason, client: call.client) {
+        case .failure(let e): return .error(e.code, e.message)
+        case .success(let p): return Self.ok(["id": p.id, "status": p.status.rawValue])
+        }
+    }
+
+    private func getProposal(_ id: String?) -> AgentToolResult {
+        guard let id, let r = store.report(id) else { return .error("unknown_proposal", "No suggestion with that id, or it was decided more than 10 minutes ago.") }
+        return Self.ok(["id": id, "status": r.status, "message": r.message])
     }
 
     // MARK: read_note
@@ -122,7 +145,7 @@ import AppKit
         return (String(decoding: data, as: UTF8.self), true)
     }
 
-    private static func ok(_ o: [String: Any]) -> AgentToolResult {
+    static func ok(_ o: [String: Any]) -> AgentToolResult {
         let d = (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])) ?? Data()
         return AgentToolResult(json: String(decoding: d, as: UTF8.self), isError: false)
     }
