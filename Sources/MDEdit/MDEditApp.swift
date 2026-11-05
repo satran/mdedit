@@ -7,6 +7,8 @@ struct MDEditApp: App {
     init() {
         // windows, not tabs: this also removes Show Tab Bar and Show All Tabs from the menus
         NSWindow.allowsAutomaticWindowTabbing = false
+        // agent access: listens only while the switch in Settings is on
+        AgentServerController.shared.start()
     }
 
     var body: some Scene {

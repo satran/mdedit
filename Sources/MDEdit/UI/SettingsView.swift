@@ -99,12 +99,50 @@ struct SettingsView: View {
                     }
                     .padding(.leading, 16).padding(.trailing, 14).padding(.vertical, 10)
                 }
+                agentsSection
             }
             .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 24)
         }
         .frame(width: 680, height: 560)
         .background(Color(Palette.binderBg))
         .foregroundStyle(Color(Palette.binderText))
+    }
+
+    // MARK: agent access
+
+    @ObservedObject private var agent = AgentServerController.shared
+
+    private var agentsSection: some View {
+        section("Agents") {
+            row("Agent access", note: "Lets an agent such as Claude Code read what you are editing and suggest changes. Nothing changes until you press Accept") {
+                Toggle("Agent access", isOn: $prefs.agentsEnabled).labelsHidden().toggleStyle(.switch)
+            }
+            if prefs.agentsEnabled {
+                divider
+                row("Port", note: agent.statusText) {
+                    TextField("", value: Binding(get: { prefs.agentPort }, set: { prefs.agentPort = min(Preferences.agentPortRange.upperBound, max(Preferences.agentPortRange.lowerBound, $0)) }), format: .number.grouping(.never))
+                        .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 80).accessibilityLabel("Agent access port")
+                }
+                divider
+                row("Token", note: "Anyone who can read this app's settings can use the token. It keeps out web pages and other users, not other software running as you. An agent with the token can read every note in the open folder") {
+                    HStack(spacing: 8) {
+                        Text(String(repeating: "•", count: 12)).font(.system(size: 12, design: .monospaced)).foregroundStyle(Color(Palette.muted))
+                        Button("Copy command") { copyConnectCommand() }
+                        Button("Regenerate") { prefs.regenerateAgentToken() }
+                    }
+                }
+                divider
+                Text("Copy command puts the token on the clipboard inside a claude mcp add line, so it also lands in your shell history. Regenerate signs every agent out.")
+                    .font(.system(size: 11.5)).foregroundStyle(Color(Palette.muted)).frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 16).padding(.trailing, 14).padding(.vertical, 10)
+            }
+        }
+    }
+
+    private func copyConnectCommand() {
+        let cmd = "claude mcp add --transport http mdedit http://127.0.0.1:\(prefs.agentPort)/mcp --header \"Authorization: Bearer \(prefs.agentToken)\""
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(cmd, forType: .string)
     }
 
     // MARK: pieces
