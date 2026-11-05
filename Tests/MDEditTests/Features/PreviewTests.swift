@@ -21,6 +21,12 @@ final class PreviewTests: XCTestCase {
 
     // MARK: the page
 
+    func testTaskBoxesAreDrawnByThePageSoTheyLineUpWithTheText() {
+        let css = page("- [ ] a\n")
+        XCTAssertTrue(css.contains("li > input[type=checkbox] {"))
+        XCTAssertTrue(css.contains("appearance: none; font-size: inherit"), "the native box is tiny and rides above the line")
+    }
+
     func testEveryBlockKindIsInThePageAndPropertiesComeFirst() {
         let h = body("---\ntitle: T\ntags: [a, b]\ndone: true\n---\n# H\n\npara\n\n> q\n\n- a\n- [x] b\n\n1. x\n\n```swift\nlet a = 1\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n---\n\n![alt](pic.png)\n")
         let order = ["class=\"props\"", "<h1>", "<p>para", "<blockquote>", "<ul>", "type=\"checkbox\"", "<ol>", "<pre><code class=\"language-swift\">", "<table>", "<hr", "<img src=\"pic.png\""]

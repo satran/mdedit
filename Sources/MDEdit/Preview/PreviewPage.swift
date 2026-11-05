@@ -172,7 +172,11 @@ enum PreviewPage {
         li > ul, li > ol { margin: \(num(s.itemGap))px 0 0; }
         \(bullet)
         li:has(> input[type=checkbox])::before { content: none; }
-        li > input[type=checkbox] { position: absolute; left: 0; top: 0.42em; margin: 0; width: 0.85em; height: 0.85em; accent-color: var(--green); }
+        li > input[type=checkbox] { -webkit-appearance: none; appearance: none; font-size: inherit; position: absolute; left: 0; top: 0.36em; margin: 0; width: 0.8em; height: 0.8em;
+                                    border: 1.5px solid var(--bullet); border-radius: 0.2em; background: none; }
+        li > input[type=checkbox]:checked { background: var(--green); border-color: var(--green); }
+        li > input[type=checkbox]:checked::after { content: ""; position: absolute; left: 0.22em; top: 0.04em; width: 0.15em; height: 0.34em;
+                                                   border: solid var(--pane); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
         li:has(> input[type=checkbox]:checked) { color: var(--done); text-decoration: line-through; }
         pre { margin: \(num(s.codeTop))px 0 \(num(s.codeBottom))px; padding: 16px 20px; background: var(--band); border-radius: 8px; overflow-x: auto;
               font: \(num(s.codeSize))px/\(num(s.codeLeading)) \(mono); color: var(--code); font-variant-numeric: normal; }
