@@ -66,6 +66,16 @@ extension XCTestCase {
         XCTAssertLessThan(took, budget, "\(label) took \(String(format: "%.2f", took))s, budget \(budget)s", file: file, line: line)
         return took
     }
+
+    /// The same for an async body.
+    @discardableResult
+    func withinAsync(_ budget: TimeInterval, _ label: String, file: StaticString = #filePath, line: UInt = #line, _ body: () async throws -> Void) async rethrows -> TimeInterval {
+        let start = Date()
+        try await body()
+        let took = Date().timeIntervalSince(start)
+        XCTAssertLessThan(took, budget, "\(label) took \(String(format: "%.2f", took))s, budget \(budget)s", file: file, line: line)
+        return took
+    }
 }
 
 /// Repeatable randomness for fuzz tests: a failing seed can be replayed.

@@ -48,6 +48,10 @@ fi
 grep -q "CFBundleURLTypes" Sources/MDEdit/Info.plist && bad "Info.plist declares a URL scheme"
 [ $fail -eq 0 ] && ok "listener rules hold (MCPServer only, loopback, no URL scheme)"
 
+# 3c. The template engine only reads (plan 006): its source is checked for write, process and network APIs, and the checks themselves are tested.
+scripts/audit-templates.sh || bad "template source rules"
+scripts/audit-templates-selftest.sh || bad "template audit self-test"
+
 # 4. No force-try or fatalError in the app outside of constant regex setup.
 n=$(grep -rn "fatalError\|try!" Sources | grep -v "NSRegularExpression(pattern" | wc -l | tr -d ' ')
 [ "$n" = "0" ] && ok "no fatalError / try! outside constant regexes" || { bad "$n uses of fatalError/try!"; grep -rn "fatalError\|try!" Sources | grep -v "NSRegularExpression(pattern"; }

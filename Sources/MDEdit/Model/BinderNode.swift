@@ -23,15 +23,16 @@ final class BinderNode: Identifiable {
     static let documentExtensions: Set<String> = markdownExtensions.union(["txt"])
     static let htmlExtensions: Set<String> = ["html", "htm"]
 
-    /// Reads the tree below `url`: folders first, then files, each in natural order. Hidden files are skipped.
-    static func scan(_ url: URL, fileManager fm: FileManager = .default, depth: Int = 0) -> BinderNode {
-        // deeper than any real folder tree: a guard against loops and hostile folders
-        guard depth < maxDepth else { return BinderNode(url: url, isFolder: true) }
-        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey]
-        let urls = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])) ?? []
+    /// One level of a folder: subfolders (not yet read) first, then files, each in natural order. Hidden entries, packages and
+    /// links to folders are skipped; links to files are kept. `rawCount` is how many entries the folder held before any were skipped.
+    static func entries(of url: URL, fileManager fm: FileManager = .default) -> (nodes: [BinderNode], rawCount: Int) {
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .isHiddenKey]
+        let urls = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: [])) ?? []
         var folders: [BinderNode] = [], files: [BinderNode] = []
         for u in urls {
+            if u.lastPathComponent.hasPrefix(".") { continue }
             let v = try? u.resourceValues(forKeys: Set(keys))
+            if v?.isHidden == true { continue }
             if v?.isSymbolicLink == true {
                 // a link to a folder could lead back into this one, or out of it; links to files are fine
                 var d: ObjCBool = false
@@ -39,13 +40,21 @@ final class BinderNode: Identifiable {
                 files.append(BinderNode(url: u, isFolder: false))
             } else if v?.isDirectory == true {
                 if v?.isPackage == true { continue }
-                folders.append(scan(u, fileManager: fm, depth: depth + 1))
+                folders.append(BinderNode(url: u, isFolder: true))
             } else {
                 files.append(BinderNode(url: u, isFolder: false))
             }
         }
         let order: (BinderNode, BinderNode) -> Bool = { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return BinderNode(url: url, isFolder: true, children: folders.sorted(by: order) + files.sorted(by: order))
+        return (folders.sorted(by: order) + files.sorted(by: order), urls.count)
+    }
+
+    /// Reads the tree below `url`: folders first, then files, each in natural order. Hidden files are skipped.
+    static func scan(_ url: URL, fileManager fm: FileManager = .default, depth: Int = 0) -> BinderNode {
+        // deeper than any real folder tree: a guard against loops and hostile folders
+        guard depth < maxDepth else { return BinderNode(url: url, isFolder: true) }
+        let kids = entries(of: url, fileManager: fm).nodes.map { $0.isFolder ? scan($0.url, fileManager: fm, depth: depth + 1) : $0 }
+        return BinderNode(url: url, isFolder: true, children: kids)
     }
 
     /// The rows to show, in order: a folder's children follow it when it is expanded.

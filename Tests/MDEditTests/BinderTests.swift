@@ -50,4 +50,24 @@ final class BinderTests: XCTestCase {
         XCTAssertEqual(WikiIndex.resolve(WikiLink(target: "Letter/Dora#Intro", alias: nil), from: from, in: root)?.lastPathComponent, "Dora.md")
         XCTAssertNil(WikiIndex.resolve(WikiLink(target: "Missing", alias: nil), from: from, in: root))
     }
+
+    // MARK: entries (one level, shared with templates)
+
+    func testEntriesIsOneLevelFoldersFirstAndCountsEverythingTheFolderHeld() throws {
+        let s = try Scratch(["b.md": "x", "a.md": "x", "Z/inner.md": "x", "A folder/x.md": "x", ".hidden.md": "x", "Pack.app/Contents/x": "x", "pic.png": Data([1])])
+        defer { s.remove() }
+        let out = BinderNode.entries(of: s.url)
+        XCTAssertEqual(out.nodes.map(\.name), ["A folder", "Z", "a", "b", "pic.png"], "folders first, natural order, not recursive")
+        XCTAssertTrue(out.nodes.filter(\.isFolder).allSatisfy { $0.children.isEmpty })
+        XCTAssertEqual(out.rawCount, 7, "hidden entries and the package are counted before they are skipped")
+    }
+
+    func testEntriesSkipsLinksToFoldersAndKeepsLinksToFiles() throws {
+        let s = try Scratch(["real.md": "x", "Dir/n.md": "x"]); defer { s.remove() }
+        try FileManager.default.createSymbolicLink(at: s.path("dirlink"), withDestinationURL: s.path("Dir"))
+        try FileManager.default.createSymbolicLink(at: s.path("filelink.md"), withDestinationURL: s.path("real.md"))
+        let names = BinderNode.entries(of: s.url).nodes.map(\.name)
+        XCTAssertFalse(names.contains("dirlink"))
+        XCTAssertTrue(names.contains("filelink"))
+    }
 }

@@ -127,12 +127,7 @@ import AppKit
     }
 
     /// Cuts to at most `bytes` of UTF-8 without splitting a character.
-    static func cut(_ s: String, bytes: Int) -> (String, Bool) {
-        guard s.utf8.count > bytes else { return (s, false) }
-        var data = Data(s.utf8.prefix(bytes))
-        while !data.isEmpty, String(data: data, encoding: .utf8) == nil { data.removeLast() }
-        return (String(decoding: data, as: UTF8.self), true)
-    }
+    static func cut(_ s: String, bytes: Int) -> (String, Bool) { TextCut.cut(s, bytes: bytes) }
 
     static func ok(_ o: [String: Any]) -> AgentToolResult {
         let d = (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])) ?? Data()
