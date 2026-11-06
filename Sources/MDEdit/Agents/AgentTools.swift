@@ -111,30 +111,19 @@ import AppKit
 
     struct PathError: Error { let code: String, message: String }
 
-    /// A path from an agent, made safe: relative, inside the folder after symlinks are followed, no hidden parts, a note file.
+    /// A path from an agent, made safe by `SafePath`: relative, inside the folder after symlinks are followed, no hidden parts, a note file.
     static func resolve(_ path: String, in root: URL) -> Result<URL, PathError> {
-        func fail(_ c: String, _ m: String) -> Result<URL, PathError> { .failure(PathError(code: c, message: m)) }
-        if path.hasPrefix("/") || path.hasPrefix("~") { return fail("outside_folder", "Use a path relative to the folder.") }
-        let parts = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
-        if parts.contains("..") { return fail("outside_folder", "The path leaves the folder.") }
-        if parts.contains(where: { $0.hasPrefix(".") }) { return fail("not_a_note", "Hidden files are not available.") }
-        guard let last = parts.last, BinderNode.documentExtensions.contains((last as NSString).pathExtension.lowercased()) else {
-            return fail("not_a_note", "Only .md, .markdown and .txt notes are available.")
+        switch SafePath.resolve(path, in: root, kind: .note) {
+        case .success(let u): return .success(u)
+        case .failure(let f): return .failure(PathError(code: f.code, message: f.message))
         }
-        let rootR = root.resolvingSymlinksInPath()
-        let url = parts.reduce(rootR) { $0.appendingPathComponent($1) }.resolvingSymlinksInPath()
-        guard url.path.hasPrefix(rootR.path + "/") else { return fail("outside_folder", "The path leaves the folder.") }
-        let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isPackageKey])
-        guard values?.isRegularFile == true, values?.isPackage != true else { return fail("not_a_note", "No such note.") }
-        return .success(url)
     }
 
     // MARK: helpers
 
     static func relative(_ url: URL?, in root: URL?) -> String? {
-        guard let url, let root else { return nil }
-        let u = url.resolvingSymlinksInPath().path, r = root.resolvingSymlinksInPath().path + "/"
-        return u.hasPrefix(r) ? String(u.dropFirst(r.count)) : nil
+        guard let url, let root, let below = SafePath.relative(url, in: root), !below.isEmpty else { return nil }
+        return below
     }
 
     /// Cuts to at most `bytes` of UTF-8 without splitting a character.
