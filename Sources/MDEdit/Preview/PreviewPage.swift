@@ -28,6 +28,26 @@ enum PreviewPage {
         return path.isEmpty ? nil : URL(fileURLWithPath: path)
     }
 
+    /// Where a rendered template is served: a fixed hidden name at the root of the opened folder, so paths in the page mean "relative to
+    /// the opened folder". `PreviewFiles` answers this address from memory before it looks at any file.
+    static func templateAddress(root: URL) -> URL { url(forFile: root.standardizedFileURL.appendingPathComponent(".mdedit-template.html")) }
+
+    /// A small page for a render that failed. Every dynamic string is escaped.
+    static func errorPage(title: String, message: String, line: Int?) -> String {
+        let where_ = line.map { "<p class=\"line\">Line \($0)</p>" } ?? ""
+        return """
+        <!doctype html>
+        <html><head><meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+        <title>\(SafeHTML.escape(title))</title>
+        <style>
+        :root { color-scheme: light dark; }
+        body { font: 15px -apple-system, sans-serif; margin: 3em auto; max-width: 34em; padding: 0 1.5em; line-height: 1.5; }
+        h1 { font-size: 1.25em; } .line { opacity: .7; }
+        </style></head><body><h1>\(SafeHTML.escape(title))</h1><p>\(SafeHTML.escape(message))</p>\(where_)</body></html>
+        """
+    }
+
     // MARK: page
 
     static func html(markdown: String, title: String, options: Options) -> String {

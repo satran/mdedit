@@ -212,19 +212,6 @@ final class PreviewTests: XCTestCase {
 
     // MARK: in a real web view
 
-    private func wait(_ ok: @autoclosure () -> Bool, _ what: String, timeout: TimeInterval = 8, file: StaticString = #filePath, line: UInt = #line) {
-        let end = Date().addingTimeInterval(timeout)
-        while !ok(), Date() < end { RunLoop.current.run(until: Date().addingTimeInterval(0.02)) }
-        XCTAssertTrue(ok(), "timed out: \(what)", file: file, line: line)
-    }
-
-    private func js(_ c: PreviewController, _ code: String) -> Any? {
-        var out: Any?, done = false
-        c.webView.evaluateJavaScript(code, in: nil, in: .defaultClient) { r in out = try? r.get(); done = true }
-        wait(done, code)
-        return out
-    }
-
     private func controller(opened: [URL] = []) -> PreviewController {
         let c = PreviewController(open: { _ in })
         c.webView.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
@@ -246,17 +233,17 @@ final class PreviewTests: XCTestCase {
         try s.write("Notes/sub/deep.png", png())
         let c = controller()
         c.show(request("# Title\n\n![a](pic.png)\n\n![b](sub/deep.png)\n\n![c](../../../../etc/hosts.png)"))
-        wait(c.loads >= 1, "page")
-        wait((js(c, "[...document.images].map(i => i.complete ? i.naturalWidth : -1).join(',')") as? String) == "3,3,0", "pictures: inside the folder load, outside does not")
-        XCTAssertEqual(js(c, "getComputedStyle(document.querySelector('h1')).fontSize") as? String, "34px")
-        XCTAssertEqual(js(c, "document.querySelector('main').getBoundingClientRect().width") as? Double, 648)
+        waitFor(c.loads >= 1, "page")
+        waitFor((pageJS(c, "[...document.images].map(i => i.complete ? i.naturalWidth : -1).join(',')") as? String) == "3,3,0", "pictures: inside the folder load, outside does not")
+        XCTAssertEqual(pageJS(c, "getComputedStyle(document.querySelector('h1')).fontSize") as? String, "34px")
+        XCTAssertEqual(pageJS(c, "document.querySelector('main').getBoundingClientRect().width") as? Double, 648)
     }
 
     func testRelativeLinksResolveAgainstTheNotesFolder() throws {
         let c = controller()
         c.show(request("[x](sub/other.md) [y](../Two.md) [[Goals]]"))
-        wait(c.loads >= 1, "page")
-        let hrefs = js(c, "[...document.querySelectorAll('a')].map(a => a.href).join(' ')") as? String ?? ""
+        waitFor(c.loads >= 1, "page")
+        let hrefs = pageJS(c, "[...document.querySelectorAll('a')].map(a => a.href).join(' ')") as? String ?? ""
         XCTAssertTrue(hrefs.contains("mdedit-file://local" + s.path("Notes/sub/other.md").path), hrefs)
         XCTAssertTrue(hrefs.contains("mdedit-file://local" + s.path("Two.md").path), hrefs)
         XCTAssertTrue(hrefs.contains("mdedit://wiki/Goals"), hrefs)
@@ -266,10 +253,10 @@ final class PreviewTests: XCTestCase {
         try s.write("evil.html", "<title>before</title><script>document.title = 'ran'</script><body onload=\"document.title='onload'\"><img src=x onerror=\"document.title='onerror'\"><p id=p>text</p></body>")
         let c = controller()
         c.show(PreviewRequest(source: .html(s.path("evil.html"), text: ""), title: "", noteFolder: s.url, root: s.url, options: options()))
-        wait(c.loads >= 1, "page")
+        waitFor(c.loads >= 1, "page")
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-        XCTAssertEqual(js(c, "document.title") as? String, "before")
-        XCTAssertEqual(js(c, "document.getElementById('p').textContent") as? String, "text", "the page itself is shown")
+        XCTAssertEqual(pageJS(c, "document.title") as? String, "before")
+        XCTAssertEqual(pageJS(c, "document.getElementById('p').textContent") as? String, "text", "the page itself is shown")
     }
 
     func testAPageCanUseItsOwnRelativeStylesheetsAndPictures() throws {
@@ -278,45 +265,45 @@ final class PreviewTests: XCTestCase {
         try s.write("site/index.html", "<link rel=stylesheet href=style.css><p>x</p><img src=pic.png>")
         let c = controller()
         c.show(PreviewRequest(source: .html(s.path("site/index.html"), text: "a"), title: "", noteFolder: s.path("site"), root: s.url, options: options()))
-        wait(c.loads >= 1, "page")
-        wait((js(c, "getComputedStyle(document.querySelector('p')).color") as? String) == "rgb(1, 2, 3)", "stylesheet")
-        wait((js(c, "document.images[0].naturalWidth") as? Int) == 3, "picture")
+        waitFor(c.loads >= 1, "page")
+        waitFor((pageJS(c, "getComputedStyle(document.querySelector('p')).color") as? String) == "rgb(1, 2, 3)", "stylesheet")
+        waitFor((pageJS(c, "document.images[0].naturalWidth") as? Int) == 3, "picture")
     }
 
     func testAPageCannotReadOutsideTheOpenedFolder() throws {
         try s.write("site/index.html", "<img src=\"../../outside.png\"><img src=\"/etc/hosts\"><p>x</p>")
         let c = controller()
         c.show(PreviewRequest(source: .html(s.path("site/index.html"), text: "b"), title: "", noteFolder: s.path("site"), root: s.path("site"), options: options()))
-        wait(c.loads >= 1, "page")
+        waitFor(c.loads >= 1, "page")
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-        XCTAssertEqual(js(c, "[...document.images].map(i => i.naturalWidth).join(',')") as? String, "0,0")
+        XCTAssertEqual(pageJS(c, "[...document.images].map(i => i.naturalWidth).join(',')") as? String, "0,0")
     }
 
     func testCustomCSSStylesTheNote() throws {
         let c = controller()
         c.show(request("# T", css: "h1 { color: rgb(9, 8, 7); letter-spacing: 3px }"))
-        wait(c.loads >= 1, "page")
-        XCTAssertEqual(js(c, "getComputedStyle(document.querySelector('h1')).color") as? String, "rgb(9, 8, 7)")
+        waitFor(c.loads >= 1, "page")
+        XCTAssertEqual(pageJS(c, "getComputedStyle(document.querySelector('h1')).color") as? String, "rgb(9, 8, 7)")
     }
 
     func testEditingTheTextReloadsAndKeepsTheScrollPosition() throws {
         let long = (1...200).map { "Paragraph \($0)\n" }.joined(separator: "\n")
         let c = controller()
         c.show(request(long))
-        wait(c.loads >= 1, "page")
-        _ = js(c, "window.scrollTo(0, 900)")
-        wait((js(c, "window.scrollY") as? Double ?? 0) > 800, "scrolled")
+        waitFor(c.loads >= 1, "page")
+        _ = pageJS(c, "window.scrollTo(0, 900)")
+        waitFor((pageJS(c, "window.scrollY") as? Double ?? 0) > 800, "scrolled")
         c.show(request(long + "\nmore"))
-        wait(c.loads >= 2, "reload")
-        wait((js(c, "window.scrollY") as? Double ?? 0) > 800, "the reader's place is kept")
+        waitFor(c.loads >= 2, "reload")
+        waitFor((pageJS(c, "window.scrollY") as? Double ?? 0) > 800, "the reader's place is kept")
         c.show(PreviewRequest(source: .markdown("short"), title: "Another", noteFolder: s.url, root: s.url, options: options()))
-        wait(c.loads >= 3, "another note")
-        XCTAssertEqual(js(c, "window.scrollY") as? Double, 0)
+        waitFor(c.loads >= 3, "another note")
+        XCTAssertEqual(pageJS(c, "window.scrollY") as? Double, 0)
     }
 
     func testNothingReloadsWhenNothingChanged() {
         let c = controller()
-        c.show(request("same")); wait(c.loads >= 1, "page")
+        c.show(request("same")); waitFor(c.loads >= 1, "page")
         c.show(request("same"))
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         XCTAssertEqual(c.loads, 1)
@@ -343,7 +330,7 @@ final class PreviewTests: XCTestCase {
     func testAClickOpensThroughTheAppAndTheViewNeverNavigates() throws {
         var opened: [URL] = []
         let c = PreviewController(open: { opened.append($0) })
-        c.show(request("x")); wait(c.loads >= 1, "page")
+        c.show(request("x")); waitFor(c.loads >= 1, "page")
         XCTAssertEqual(decide(c, "https://example.com/a", .linkActivated), .cancel)
         XCTAssertEqual(decide(c, "mdedit-file://local" + s.path("Two.md").path, .linkActivated), .cancel)
         XCTAssertEqual(decide(c, "mdedit://wiki/Goals", .linkActivated), .cancel)
@@ -356,22 +343,22 @@ final class PreviewTests: XCTestCase {
 
     func testTheSameKeyDoesNotLetALoadSlipThrough() {
         let c = controller()
-        c.show(request("a")); wait(c.loads >= 1, "first")
+        c.show(request("a")); waitFor(c.loads >= 1, "first")
         XCTAssertEqual(decide(c, "https://evil.example/", .other), .cancel, "after the page is up, nothing else loads on its own")
     }
 
     func testTheContentRulesBlockTheWeb() throws {
         var rules: WKContentRuleList?, done = false
         PreviewRules.shared.whenReady { rules = PreviewRules.shared.list; done = true }
-        wait(done, "rules")
+        waitFor(done, "rules")
         XCTAssertNotNil(rules, "the block list compiles")
-        XCTAssertTrue(PreviewRules.json.contains("^https?://") && PreviewRules.json.contains("\"block\""))
+        XCTAssertTrue(PreviewRules.noRemoteJSON.contains("^https?://") && PreviewRules.noRemoteJSON.contains("\"block\""))
     }
 
     func testPageLoadsEvenWhenRemoteContentIsAllowed() {
         let c = controller()
-        c.show(request("# T ![x](https://127.0.0.1:9/never.png)", remote: true)); wait(c.loads >= 1, "page")
-        XCTAssertEqual(js(c, "document.querySelector('h1') !== null") as? Bool, true)
+        c.show(request("# T ![x](https://127.0.0.1:9/never.png)", remote: true)); waitFor(c.loads >= 1, "page")
+        XCTAssertEqual(pageJS(c, "document.querySelector('h1') !== null") as? Bool, true)
     }
 }
 

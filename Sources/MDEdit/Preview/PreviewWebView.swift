@@ -7,6 +7,8 @@ struct PreviewRequest {
     enum Source: Equatable {
         case markdown(String)
         case html(URL, text: String)
+        /// A rendered template (plan 006): served from memory at `PreviewPage.templateAddress(root:)`, under the template rules.
+        case template(rendered: String)
     }
     var source: Source
     var title = ""
@@ -18,18 +20,24 @@ struct PreviewRequest {
 
     /// The note itself, so a reload of the same one keeps its scroll position.
     var identity: String {
-        switch source { case .markdown: return "md:" + (noteFolder?.path ?? "") + "/" + title; case .html(let u, _): return "html:" + u.path }
+        switch source {
+        case .markdown: return "md:" + (noteFolder?.path ?? "") + "/" + title
+        case .html(let u, _): return "html:" + u.path
+        case .template: return "template:" + (root?.path ?? "")
+        }
     }
 
     /// Everything a page is made of. Equal keys: nothing to reload.
     var key: String {
         let o = options
         let body: String
-        switch source { case .markdown(let t): body = t; case .html(_, let t): body = t }
+        switch source { case .markdown(let t): body = t; case .html(_, let t): body = t; case .template(let t): body = t }
         var h = Hasher()
         h.combine(body); h.combine(o.customCSS ?? "")
-        return "\(identity)|\(o.style.family)|\(o.style.scale)|\(o.style.width)|\(o.loadRemote)|\(h.finalize())"
+        return "\(identity)|\(o.style.family)|\(o.style.scale)|\(o.style.width)|\(isTemplate ? false : o.loadRemote)|\(h.finalize())"
     }
+
+    var isTemplate: Bool { if case .template = source { return true }; return false }
 }
 
 /// Serves what a page loads. A page can read the opened folder and the app's own fonts, and nothing else on the Mac.
@@ -38,9 +46,30 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     var loadRemote = false
     static let maxBytes = 50 * 1024 * 1024
 
+    /// A rendered template, held in memory and answered at `templateURL` before any file is looked up, so a real file of that name
+    /// cannot take its place. Set and cleared by the controller together with the request.
+    var templatePage: String?
+    var templateURL: URL?
+    /// For template pages: a path with a hidden part below the opened folder (also one reached through a link) is not served.
+    var refuseHidden = false
+
     func allows(_ file: URL) -> Bool {
         let path = file.resolvingSymlinksInPath().path
-        return roots.contains { path.hasPrefix($0.resolvingSymlinksInPath().path + "/") }
+        for root in roots {
+            let r = root.resolvingSymlinksInPath().path
+            guard path.hasPrefix(r + "/") else { continue }
+            if refuseHidden, path.dropFirst(r.count + 1).split(separator: "/").contains(where: { $0.hasPrefix(".") }) { continue }
+            return true
+        }
+        return false
+    }
+
+    /// The body and headers for the template address, or nil for any other address.
+    func templateResponse(for url: URL) -> (data: Data, headers: [String: String])? {
+        guard let page = templatePage, let t = templateURL, url.absoluteString == t.absoluteString else { return nil }
+        let data = Data(page.utf8)
+        return (data, ["Content-Type": "text/html; charset=utf-8", "Content-Length": String(data.count),
+                       "Content-Security-Policy": PreviewPage.csp(loadRemote: false)])
     }
 
     private func bundled(_ name: String) -> URL? {
@@ -56,6 +85,11 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, start task: any WKURLSchemeTask) {
+        if let url = task.request.url, let page = templateResponse(for: url) {
+            guard let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: page.headers) else { return fail(task, .badServerResponse) }
+            task.didReceive(response); task.didReceive(page.data); task.didFinish()
+            return
+        }
         guard let url = task.request.url, let file = resolve(url) else { return fail(task, .noPermissionsToReadFile) }
         var isDir: ObjCBool = false
         let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int) ?? 0
@@ -77,26 +111,38 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     private func fail(_ task: any WKURLSchemeTask, _ code: URLError.Code) { task.didFailWithError(URLError(code)) }
 }
 
-/// Keeps pages from reaching the web: images, styles, fonts, scripts and requests to http(s) are blocked at the web view.
+/// A compiled web-view content rule list. `shared` keeps ordinary pages from reaching the web (images, styles, fonts, scripts and
+/// similar requests to http(s) are blocked); `template` blocks every http(s) request of any type, for rendered templates.
 @MainActor final class PreviewRules {
-    static let shared = PreviewRules()
+    static let shared = PreviewRules(identifier: "in.ranjeev.mdedit.noremote", json: noRemoteJSON)
+    static let template = PreviewRules(identifier: "in.ranjeev.mdedit.template", json: templateJSON)
+
+    nonisolated static let noRemoteJSON = """
+    [{"trigger":{"url-filter":"^https?://","resource-type":["image","style-sheet","script","font","raw","svg-document","media"]},"action":{"type":"block"}}]
+    """
+    /// No `resource-type`: the rule matches every type of request.
+    nonisolated static let templateJSON = """
+    [{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}}]
+    """
+
+    let identifier: String
+    let json: String
     private(set) var list: WKContentRuleList?
     private(set) var ready = false
     private var compiling = false
     private var waiting: [() -> Void] = []
 
-    static let json = """
-    [{"trigger":{"url-filter":"^https?://","resource-type":["image","style-sheet","script","font","raw","svg-document","media"]},"action":{"type":"block"}}]
-    """
+    init(identifier: String, json: String) { self.identifier = identifier; self.json = json }
 
     func whenReady(_ f: @escaping () -> Void) {
         if ready { f(); return }
         waiting.append(f)
         guard !compiling else { return }
         compiling = true
-        WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "in.ranjeev.mdedit.noremote", encodedContentRuleList: Self.json) { [weak self] list, _ in
+        WKContentRuleListStore.default().compileContentRuleList(forIdentifier: identifier, encodedContentRuleList: json) { [weak self] list, _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                // `list` is nil when compiling failed: ready, but with nothing to apply
                 self.list = list; self.ready = true; self.compiling = false
                 let w = self.waiting; self.waiting = []
                 w.forEach { $0() }
@@ -113,6 +159,9 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     var open: (URL) -> Void
     /// Counts finished loads; the tests wait on it.
     private(set) var loads = 0
+
+    /// The rule list for rendered templates; a test can supply its own.
+    var templateRules = PreviewRules.template
 
     private var key = ""
     private var identity = ""
@@ -143,12 +192,19 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
         let sameNote = r.identity == identity
         key = k; identity = r.identity
         files.roots = [r.root, r.noteFolder].compactMap { $0 }
-        files.loadRemote = r.options.loadRemote
+        files.loadRemote = r.isTemplate ? false : r.options.loadRemote
+        files.refuseHidden = r.isTemplate
+        if case .template(let page) = r.source, let root = r.root {
+            files.templatePage = page; files.templateURL = PreviewPage.templateAddress(root: root)
+        } else { files.templatePage = nil; files.templateURL = nil }
         generation += 1
         let mine = generation
+        let rules: PreviewRules? = r.isTemplate ? templateRules : (r.options.loadRemote ? nil : PreviewRules.shared)
         let go = { [weak self] in
             guard let self, self.generation == mine else { return }
-            self.apply(rules: !r.options.loadRemote)
+            // a template page is only shown under its rule list: if there is none (compiling failed), it is not loaded
+            if r.isTemplate, rules?.list == nil { self.showCompileFailure(); return }
+            self.apply(rules: rules?.list)
             if sameNote {
                 self.webView.evaluateJavaScript("window.scrollY", in: nil, in: .defaultClient) { result in
                     MainActor.assumeIsolated {
@@ -160,13 +216,20 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
                 self.load(r, scrollTo: nil)
             }
         }
-        if r.options.loadRemote { go() } else { PreviewRules.shared.whenReady(go) }
+        if let rules { rules.whenReady(go) } else { go() }
     }
 
-    private func apply(rules block: Bool) {
+    private func apply(rules list: WKContentRuleList?) {
         let c = webView.configuration.userContentController
         c.removeAllContentRuleLists()
-        if block, let list = PreviewRules.shared.list { c.add(list) }
+        if let list { c.add(list) }
+    }
+
+    private func showCompileFailure() {
+        allowNext = true
+        files.templatePage = nil
+        webView.loadHTMLString(PreviewPage.errorPage(title: "Page not shown", message: "The rules that keep a template page off the web could not be loaded.", line: nil),
+                               baseURL: URL(string: "about:blank"))
     }
 
     private func load(_ r: PreviewRequest, scrollTo y: Double?) {
@@ -179,6 +242,9 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
             webView.loadHTMLString(html, baseURL: base ?? URL(string: "\(PreviewPage.scheme)://none/"))
         case .html(let url, _):
             webView.load(URLRequest(url: PreviewPage.url(forFile: url)))
+        case .template:
+            guard let root = r.root else { return showCompileFailure() }
+            webView.load(URLRequest(url: PreviewPage.templateAddress(root: root)))
         }
     }
 

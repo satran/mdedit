@@ -49,6 +49,8 @@ enum TemplateEvaluator {
         do {
             try budget.checkNow()
             try interp.run(nodes)
+            // layer 3 of the containment: a tag that could open a connection means no page
+            if let unsafe = TemplateOutputGuard.check(interp.out) { return .failure(unsafe) }
             return .success(interp.out)
         } catch let e as TemplateError {
             return .failure(e)
