@@ -6,7 +6,7 @@ final class TemplatePerformanceTests: XCTestCase {
     func testAHundredNoteIndexWithASectionEach() async throws {
         let s = try Scratch(); defer { s.remove() }
         for i in 0..<120 { try s.write(String(format: "notes/n%03d.md", i), "# Note \(i)\n\n## Summary\n\n" + String(repeating: "Some **text** and a [[link]]. ", count: 40)) }
-        let t = #"{% files "notes" as items %}{% for f in items %}<h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a></h2>{% section f.path "Summary" as t %}{{ t|markdown }}{% endfor %}"#
+        let t = #"{% files "notes" limit 100 as items %}{% for f in items %}<h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a></h2>{% section f.path "Summary" as t %}{{ t|markdown }}{% endfor %}"#
         var page = ""
         await withinAsync(1.0, "a 100-note index") {
             let r = await TemplateEvaluator.render(text: t, root: s.url, cancel: CancelFlag())

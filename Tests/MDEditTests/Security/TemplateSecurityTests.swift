@@ -58,11 +58,12 @@ final class TemplateSecurityTests: XCTestCase {
             "{% include \"a.md\" %}", "{% extends \"a\" %}", "{% block x %}{% endblock %}", "{% now \"Y\" %}", "{% filter upper %}x{% endfilter %}",
             "{% ifnot x %}y{% endif %}", "{% break %}", "{% for i in 1...5 %}x{% endfor %}", "{% for i in items.count() %}x{% endfor %}", "{% load x %}",
             "{{ x|safe }}", "{{ x|lower }}", "{{ x|upper }}", "{{ x|join:\", \" }}", "{{ x|escape }}", "{{ x.method() }}", "{{ x|default }}",
-            "{% if a and b %}x{% endif %}", "{% if a or b %}x{% endif %}", "{% if not a %}x{% endif %}", "{% if a %}x{% elif b %}y{% endif %}",
-            "{% lines \"a.md\" 1 2 as t %}", "{% field \"a.md\" \"k\" as t %}", "{% files \"\" recursive as i %}", "{% comment %}x{% endcomment %}",
+            "{% if a and %}x{% endif %}", "{% if or b %}x{% endif %}", "{% if a == %}x{% endif %}", "{% elif b %}", "{% if a %}x{% elif %}y{% endif %}",
+            "{% lines \"a.md\" 1 2 as t %}", "{% field \"a.md\" \"k\" as t %}", "{% files \"\" recursive recursive as i %}", "{% comment %}x{% endcomment %}",
+            "{% macro x %}", "{% set a = 1 %}", "{{ x|date }}", "{{ x|length:1 }}", "{% include %}", "{% tasks \"a.md\" %}", "{% sort a by 1 as b %}", "{% where a as b %}",
             "{% for x in items %}no end", "{% if a %}no end", "{% endfor %}", "{% else %}", "{{ unclosed", "{% unclosed", "{# unclosed",
             "{{ a b }}", "{% files \"\" as 1x %}", "{% files \"\" as x_error %}", "{% files \"\" sort \"size\" as i %}", "{% section \"a.md\" as t %}",
-            "{{ \"bad \\n escape\" }}", "{{ for }}", "{{ -5 }}", "{{ 1234567890 }}",
+            "{{ \"bad \\n escape\" }}", "{{ for }}", "{{ -1234567890 }}", "{{ 1234567890 }}",
         ]
         for t in bad {
             let e = T.run(t, in: s)

@@ -10,6 +10,11 @@ import AppKit
     let store: ProposalStore
     init(windows: AgentWindows = .shared, store: ProposalStore = .shared) { self.windows = windows; self.store = store }
 
+    func callAsync(_ call: AgentToolCall) async -> AgentToolResult {
+        if call.name == "render_template" { return await renderTemplate(call) }
+        return self.call(call)
+    }
+
     func call(_ call: AgentToolCall) -> AgentToolResult {
         switch call.name {
         case "get_context": return getContext()
@@ -84,6 +89,64 @@ import AppKit
     private func getProposal(_ id: String?) -> AgentToolResult {
         guard let id, let r = store.report(id) else { return .error("unknown_proposal", "No suggestion with that id, or it was decided more than 10 minutes ago.") }
         return Self.ok(["id": id, "status": r.status, "message": r.message])
+    }
+
+    // MARK: render_template
+
+    static let maxRenderedBytes = 300 * 1024
+
+    /// The same render as the button, on the template's file as saved on disk, with an optional `query` and `today`. No warning, no sheet and no
+    /// window state: it only reads, and the answer goes to the agent that asked.
+    private func renderTemplate(_ call: AgentToolCall) async -> AgentToolResult {
+        guard let ws = windows.front() else { return .error("no_window", "No MDEdit window is open.") }
+        guard let root = ws.rootURL else { return .error("no_window", "The window has no folder open.") }
+        guard let path = call.arguments["path"] as? String, !path.isEmpty else { return .error("not_a_template", "path is required.") }
+        let url: URL
+        switch SafePath.resolve(path, in: root, kind: .page) {
+        case .failure(let e): return .error(e.code, e.message)
+        case .success(let u): url = u
+        }
+        guard let data = try? Data(contentsOf: url), data.count <= TemplateLimits.standard.templateBytes, let text = String(data: data, encoding: .utf8) else {
+            return .error("not_a_template", "That file cannot be read as a template (text, at most 64 KB).")
+        }
+        var now = Date()
+        if let t = call.arguments["today"] as? String, !t.isEmpty {
+            guard let d = TemplateDates.parse(t) else { return .error("bad_date", "today must be a date, yyyy-MM-dd.") }
+            now = d.addingTimeInterval(12 * 3600)
+        }
+        let query = Workspace.queryParameters((call.arguments["query"] as? String) ?? "")
+        let result = await Self.renderWithDeadline(text: text, root: root, now: now, query: query)
+        switch result {
+        case .success(let html):
+            let (cut, truncated) = Self.cut(html, bytes: Self.maxRenderedBytes)
+            return Self.ok(["ok": true, "path": Self.relative(url, in: root) ?? path, "bytes": html.utf8.count, "html": cut, "truncated": truncated, "notice": Self.notice])
+        case .failure(let e):
+            var err: [String: Any] = ["title": e.title, "message": e.message]
+            if let l = e.line { err["line"] = l }
+            return Self.ok(["ok": false, "path": Self.relative(url, in: root) ?? path, "error": err])
+        }
+    }
+
+    /// The render, with a deadline of its own: a read blocked in the system cannot be interrupted, and the agent must not wait for it.
+    private static func renderWithDeadline(text: String, root: URL, now: Date, query: [String: String]) async -> Result<String, TemplateError> {
+        let flag = CancelFlag()
+        let limits = TemplateLimits.standard
+        return await withCheckedContinuation { (k: CheckedContinuation<Result<String, TemplateError>, Never>) in
+            let once = Once()
+            Task.detached {
+                let r = await TemplateEvaluator.render(text: text, root: root, cancel: flag, limits: limits, now: now, query: query)
+                if once.first() { k.resume(returning: r) }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + limits.clock + 0.5) {
+                flag.cancel()
+                if once.first() { k.resume(returning: .failure(.timeout)) }
+            }
+        }
+    }
+
+    private final class Once: @unchecked Sendable {
+        private let lock = NSLock(); private var done = false
+        func first() -> Bool { lock.lock(); defer { lock.unlock() }; if done { return false }; done = true; return true }
     }
 
     // MARK: read_note

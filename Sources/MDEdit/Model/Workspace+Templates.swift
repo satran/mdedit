@@ -25,6 +25,7 @@ extension Workspace {
     /// A document was opened or reloaded: stop a running render, forget its result, and show the banner again if the page has tags.
     func resetTemplateState(url: URL?, text: String) {
         templateGeneration += 1
+        templateQuery = [:]
         if renderBusy { templateCancel.cancel() }
         let next: TemplateState = Self.isTemplateCandidate(url: url, text: text) ? .needsRender : .notTemplate
         if templateState != next { templateState = next }
@@ -54,9 +55,9 @@ extension Workspace {
         templateCancel = flag
         templateState = .rendering
         renderBusy = true
-        let limits = templateLimits, source = templateSource
+        let limits = templateLimits, source = templateSource, query = templateQuery
         Task { @MainActor [weak self] in
-            let result = await TemplateEvaluator.render(text: text, root: root, cancel: flag, limits: limits, source: source)
+            let result = await TemplateEvaluator.render(text: text, root: root, cancel: flag, limits: limits, source: source, query: query)
             self?.renderFinished(result, generation: generation)
         }
         // the clock is also watched from here: a read blocked in the operating system cannot be interrupted,
@@ -87,15 +88,20 @@ extension Workspace {
 
     /// Back to the plain page and the Render button.
     func showTemplateSource() {
-        switch templateState { case .rendered, .failed: templateState = .needsRender; default: break }
+        switch templateState { case .rendered, .failed: templateQuery = [:]; templateState = .needsRender; default: break }
     }
 
     /// A click in a rendered template page. Links to notes and files behave as on any page, relative to the opened folder;
     /// a web or mail address asks first, with the whole address, and Cancel is the default.
     func openTemplateLink(_ url: URL) {
+        // a link to the rendered page itself, `?due=overdue`: render again with those parameters
+        if url.scheme == PreviewPage.scheme, let rootURL, url.path == PreviewPage.templateAddress(root: rootURL).path {
+            rerender(query: Self.queryParameters(url, limits: templateLimits)); return
+        }
         switch LinkPolicy.decide(url, noteFolder: rootURL, root: rootURL) {
         case .wiki(let t): openWiki(t)
         case .openWeb(let u):
+            if let rootURL, TemplateTrust.isTrusted(u, root: rootURL, defaults: defaults) { openAddress(u); return }
             let text = u.absoluteString
             let shown = text.firstIndex(of: "?").map { String(text[..<$0]) + "\n" + String(text[$0...]) } ?? text
             let detail = u.scheme?.lowercased() == "mailto"
@@ -107,5 +113,46 @@ extension Workspace {
         case .reveal(let u): NSWorkspace.shared.activateFileViewerSelecting([u])
         case .ignore: break
         }
+    }
+
+    // MARK: query and trusted addresses
+
+    /// The `?key=value&key=value` of a link as text values: keys are plain names (at most 20), a value is at most 256 characters.
+    static func queryParameters(_ url: URL, limits: TemplateLimits = .standard) -> [String: String] {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return [:] }
+        return parseQuery(items.map { ($0.name, $0.value ?? "") }, limits: limits)
+    }
+
+    /// `due=overdue&priority=A`, for a tool that cannot send a record.
+    static func queryParameters(_ text: String, limits: TemplateLimits = .standard) -> [String: String] {
+        var c = URLComponents(); c.query = text
+        return parseQuery((c.queryItems ?? []).map { ($0.name, $0.value ?? "") }, limits: limits)
+    }
+
+    private static func parseQuery(_ items: [(String, String)], limits: TemplateLimits) -> [String: String] {
+        var out: [String: String] = [:]
+        for (k, v) in items {
+            guard let f = k.unicodeScalars.first, f.isASCII, f.properties.isAlphabetic || f == "_",
+                  k.unicodeScalars.allSatisfy({ $0.isASCII && ($0.properties.isAlphabetic || $0 == "_" || ("0"..."9").contains($0)) }), k.count <= 40,
+                  out[k] != nil || out.count < limits.queryKeys else { continue }
+            out[k] = String(v.prefix(limits.queryValueLength))
+        }
+        return out
+    }
+
+    /// Renders the page that is showing again with new query parameters (a click on a link such as `?due=overdue`).
+    func rerender(query: [String: String]) {
+        guard case .rendered = templateState, !renderBusy else { return }
+        templateQuery = query
+        templateState = .needsRender
+        render()
+    }
+
+    /// The command "Trusted Addresses for Templates…": the hosts that open without asking, for this folder.
+    func editTrustedAddresses() {
+        guard let rootURL else { return }
+        let current = TemplateTrust.trustedHosts(root: rootURL, defaults: defaults).joined(separator: "\n")
+        guard let edited = editTrustedHosts(current) else { return }
+        TemplateTrust.setTrustedHosts(edited.components(separatedBy: .newlines), root: rootURL, defaults: defaults)
     }
 }

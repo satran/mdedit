@@ -198,7 +198,8 @@ final class MCPServer: @unchecked Sendable {
             let bridge = self.bridge
             let idBox = IDBox(id)
             Task { @MainActor in
-                let r = bridge?.call(call) ?? .error("no_window", "No MDEdit window is open.")
+                let r: AgentToolResult
+                if let bridge { r = await bridge.callAsync(call) } else { r = .error("no_window", "No MDEdit window is open.") }
                 let out = Self.json(["jsonrpc": "2.0", "id": idBox.id as Any,
                                      "result": ["content": [["type": "text", "text": r.json]], "isError": r.isError] as [String: Any]])
                 reply(200, out)

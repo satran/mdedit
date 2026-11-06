@@ -37,6 +37,7 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
             else if let url = Workspace.pickFolder(), let id = Workspace.stash(url, defaults: AppEnvironment.defaults) { newWindow(id) }
         },
         Cmd(id: "new-window", title: "New Window", place: .file, key: "n", modifiers: [.command, .option]) { newWindow(UUID()) },
+        Cmd(id: "template-hosts", title: "Trusted Addresses for Templates…", enabled: hasRoot) { ws?.editTrustedAddresses() },
         Cmd(id: "same-folder", title: "New Window with This Folder", place: .file, enabled: hasRoot) { ws?.openInNewWindow() },
         Cmd(id: "new-doc", title: "New Document", place: .file, key: "n", enabled: hasRoot, dividerBefore: true) { ws?.newDocument() },
         Cmd(id: "new-folder", title: "New Folder", place: .file, key: "n", modifiers: [.command, .shift], enabled: hasRoot) { ws?.newFolder() },

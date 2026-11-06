@@ -26,9 +26,9 @@ final class TemplateLimitTests: XCTestCase {
     }
 
     func testForDepthAndBlockDepth() {
-        let two = "{% for a in n %}{% for b in n %}x{% endfor %}{% endfor %}"
-        XCTAssertNotNil(T.run(two, in: s).success)
-        XCTAssertTrue(T.isLimit(T.error("{% for a in n %}{% for b in n %}{% for c in n %}x{% endfor %}{% endfor %}{% endfor %}", in: s)))
+        let three = "{% for a in n %}{% for b in n %}{% for c in n %}x{% endfor %}{% endfor %}{% endfor %}"
+        XCTAssertNotNil(T.run(three, in: s).success)
+        XCTAssertTrue(T.isLimit(T.error("{% for a in n %}{% for b in n %}{% for c in n %}{% for d in n %}x{% endfor %}{% endfor %}{% endfor %}{% endfor %}", in: s)))
         func nested(_ n: Int) -> String { String(repeating: "{% if 1 %}", count: n) + "x" + String(repeating: "{% endif %}", count: n) }
         XCTAssertNotNil(T.run(nested(10), in: s).success)
         XCTAssertTrue(T.isLimit(T.error(nested(11), in: s)))
@@ -41,9 +41,11 @@ final class TemplateLimitTests: XCTestCase {
     }
 
     func testItemsInAList() throws {
-        for i in 0..<101 { try s.write("many/\(i).md", "# \(i)") }
-        XCTAssertEqual(T.page(#"{% files "many" as i %}{% for f in i %}x{% endfor %}"#, in: s).count, 100)
-        XCTAssertEqual(T.page(#"{% files "many" limit 101 as i %}{% for f in i %}x{% endfor %}"#, in: s).count, 100)
+        for i in 0..<6 { try s.write("many/\(i).md", "# \(i)") }
+        let l = with { $0.listItems = 5 }
+        XCTAssertEqual(T.page(#"{% files "many" as i %}{% for f in i %}x{% endfor %}"#, in: s, limits: l).count, 5)
+        XCTAssertEqual(T.page(#"{% files "many" limit 6 as i %}{% for f in i %}x{% endfor %}"#, in: s, limits: l).count, 5)
+        XCTAssertEqual(T.page(#"{% files "many" limit 6 as i %}{% for f in i %}x{% endfor %}"#, in: s, limits: with { $0.listItems = 6 }).count, 6)
     }
 
     func testBytesPerSection() {
@@ -103,7 +105,7 @@ final class TemplateLimitTests: XCTestCase {
     }
 
     func testEveryNodeTypeChargesTheBudget() {
-        let nodes = ["x", "{{ 1 }}", "{% for a in n %}{% endfor %}", "{% if 1 %}{% endif %}", #"{% files "" as i %}"#, #"{% section "a.md" "S" as t %}"#, #"{% meta "a.md" as m %}"#]
+        let nodes = ["x", "{{ 1 }}", "{% for a in n %}{% endfor %}", "{% if 1 %}{% endif %}", #"{% files "" as i %}"#, #"{% section "a.md" "S" as t %}"#, #"{% meta "a.md" as m %}"#, #"{% tasks "a.md" as t %}"#, #"{% data "d.json" as d %}"#, #"{% include "i.html" %}"#, "{% sort n by \"k\" as x %}", "{% where n k as x %}", "{% groupby n by \"k\" as x %}", "{% verbatim %}x{% endverbatim %}", "<!-- c -->"]
         for n in nodes {
             XCTAssertTrue(T.isLimit(T.error(n, in: s, limits: with { $0.steps = 0 })), "\(n) does not call charge()")
         }

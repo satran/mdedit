@@ -72,9 +72,11 @@ final class TemplateTests: XCTestCase {
 
     func testMoreThanAHundredNotesListTheFirstHundred() throws {
         for i in 0..<101 { try s.write(String(format: "many/n%03d.md", i), "# N\(i)") }
-        let p = T.page(#"{% files "many" as items %}{% for f in items %}x{% endfor %}"#, in: s)
+        var l = TemplateLimits.standard; l.listItems = 100
+        let p = T.page(#"{% files "many" as items %}{% for f in items %}x{% endfor %}"#, in: s, limits: l)
         XCTAssertEqual(p.count, 100)
-        XCTAssertEqual(T.page(#"{% files "many" limit 500 as items %}{% for f in items %}x{% endfor %}"#, in: s).count, 100, "a limit over 100 is 100")
+        XCTAssertEqual(T.page(#"{% files "many" limit 500 as items %}{% for f in items %}x{% endfor %}"#, in: s, limits: l).count, 100, "a limit over the cap is the cap")
+        XCTAssertEqual(T.page(#"{% files "many" as items %}{% for f in items %}x{% endfor %}"#, in: s).count, 101, "the standard cap is 500")
     }
 
     func testSectionRules() throws {

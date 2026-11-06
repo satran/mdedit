@@ -8,7 +8,14 @@ enum SafePath {
         case note
         /// A folder (not a package). `""` is the opened folder itself.
         case folder
+        /// An HTML page (`.html`, `.htm`), a regular file: for `include` and for listing pages.
+        case page
+        /// A data file (`.json`, `.yaml`, `.yml`), a regular file.
+        case data
     }
+
+    static let pageExtensions: Set<String> = ["html", "htm"]
+    static let dataExtensions: Set<String> = ["json", "yaml", "yml"]
 
     struct Failure: Error, Equatable {
         let code: String
@@ -21,10 +28,20 @@ enum SafePath {
         let parts = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         if parts.contains("..") { return fail("outside_folder", "The path leaves the folder.") }
         if parts.contains(where: { $0.hasPrefix(".") }) { return fail("not_a_note", "Hidden files are not available.") }
-        if kind == .note {
+        switch kind {
+        case .note:
             guard let last = parts.last, BinderNode.documentExtensions.contains((last as NSString).pathExtension.lowercased()) else {
                 return fail("not_a_note", "Only .md, .markdown and .txt notes are available.")
             }
+        case .page:
+            guard let last = parts.last, pageExtensions.contains((last as NSString).pathExtension.lowercased()) else {
+                return fail("not_a_note", "Only .html and .htm pages are available.")
+            }
+        case .data:
+            guard let last = parts.last, dataExtensions.contains((last as NSString).pathExtension.lowercased()) else {
+                return fail("not_a_note", "Only .json, .yaml and .yml files are available.")
+            }
+        case .folder: break
         }
         let rootR = root.resolvingSymlinksInPath()
         let url = parts.reduce(rootR) { $0.appendingPathComponent($1) }.resolvingSymlinksInPath()
@@ -37,6 +54,8 @@ enum SafePath {
         switch kind {
         case .note:
             guard values?.isRegularFile == true, values?.isPackage != true else { return fail("not_a_note", "No such note.") }
+        case .page, .data:
+            guard values?.isRegularFile == true, values?.isPackage != true else { return fail("not_a_note", "No such file.") }
         case .folder:
             guard values?.isDirectory == true, values?.isPackage != true else { return fail("not_a_note", "No such folder.") }
         }

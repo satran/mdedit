@@ -523,6 +523,20 @@ Where the code differs from the plan above, or the plan left a choice:
 *   **A smaller link sheet.** The address is in a 380 by 54 point scrolling box and the line above it is one short sentence, so the dialog is small. Cancel is still the default and the whole address is still shown, with the query on its own line.
 *   **Meta is a note's, not the template's.** `{% meta path as m %}` reads the properties block of a note (cap `metaBytes`, 16 KB, read from the top). A first version put a meta block in the template file itself; that was a misunderstanding and is removed.
 
+## Extended after the agents' requests (2026-11-06)
+
+`docs/mdedit-template-requests.md` asked for more. Everything that fits the safety rules was built; the guide in `docs/html-templates.md` is the reference for the tags. What changed in the design:
+
+*   **Logic and values:** `and`, `or`, `not`, `elif`, `in`, `< <= > >=`, filters in conditions, filter arguments that are variables, `length`, `today`, `now`, `days_until`, `days_since`, `date`, `week`. The earlier cuts (Decision 8) were scope, not safety. Loops may nest 3 deep, all blocks 10, 4,000 parts.
+*   **More reads, same rules:** `tasks` (task lines with `@name(value)` attributes), `data` (JSON, and the flat YAML subset), `include` (visible `.html` pages, `with name=value`, 3 deep, 50 per render), `files ... recursive pages match`. `SafePath` has two more kinds (`.page`, `.data`); hidden files, links out and links to hidden targets are refused for them too. Lists are capped at 500 items.
+*   **Lists as views:** `sort`, `where`, `groupby` only reorder, filter or group a list. No tag makes a list longer than the one it reads, so the loop bound still comes from lists the app supplied.
+*   **`markdown`:** wiki links resolve against a scan of the whole folder (counted against the entry limit); `markdown:folder` rebases relative links and pictures and drops a link that would leave the opened folder.
+*   **`query`:** a link to the rendered page itself carries `?key=value` to a new render (no sheet, no new warning); values are text, escaped on print, at most 20 plain-named keys of 256 characters.
+*   **Braces:** HTML comments and `{% verbatim %}` are copied as they are.
+*   **Trusted addresses:** a per-folder list of https hosts that open from a rendered page without the sheet. It is kept in the app's settings and edited from the command palette, never in the folder. This weakens "asks first" for hosts the person lists; a template can still send note text to a listed host, which the person chose to trust.
+*   **`render_template` tool:** the agent server renders a template (path, optional `query` and `today`) with the same engine and returns the page or the error. It replaces the requested command-line program, which would be a second executable outside the sandbox.
+*   **Not built:** the command-line renderer, `{% macro %}` (include with values covers it), nested YAML, a trusted-hosts file in the folder.
+
 ## Appendix: what the spike found (2026-11-05)
 
 Run in a scratch package with Stencil 0.15.1 and in a scratch sandboxed app with embedded helpers; none of this code is in the repository. It is the evidence for rejecting Alternatives D and E.

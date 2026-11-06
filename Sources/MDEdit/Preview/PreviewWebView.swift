@@ -265,7 +265,9 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
         if allowNext, action.navigationType == .other { allowNext = false; return .allow }
         if action.navigationType == .linkActivated, let url {
             if let current = webView.url, url.fragment != nil, strip(url) == strip(current) { return .allow }
-            self.open(PreviewPage.file(from: url) ?? url)
+            // a link to the rendered page itself (`?due=overdue`) keeps its address, so the query reaches the template
+            if url.scheme == PreviewPage.scheme, let t = files.templateURL, url.path == t.path { self.open(url) }
+            else { self.open(PreviewPage.file(from: url) ?? url) }
         }
         // reloads, meta refresh, forms, scripts' navigations: the page stays where it is
         return .cancel

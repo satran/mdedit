@@ -22,6 +22,12 @@ struct AgentToolResult: Sendable {
 
 @MainActor protocol AgentBridge: AnyObject {
     func call(_ call: AgentToolCall) -> AgentToolResult
+    /// For tools that take time (a template render); the server uses this one.
+    func callAsync(_ call: AgentToolCall) async -> AgentToolResult
+}
+
+extension AgentBridge {
+    func callAsync(_ call: AgentToolCall) async -> AgentToolResult { self.call(call) }
 }
 
 /// Used until the editor tools exist, and whenever no window is open.
@@ -45,6 +51,9 @@ enum AgentToolSpec {
         tool("propose_edit", "Suggest a change to a note. Nothing changes until the person accepts it in the app. `old` must match the note's text exactly once.",
              ["path": "Path relative to the folder", "old": "Exact text to replace (must occur once)", "new": "Replacement text (may be empty)",
               "title": "Short title (up to 120 characters)", "reason": "Why (up to 500 characters)"], required: ["path", "old", "new", "title", "reason"]),
+        tool("render_template", "Render an HTML template in the open folder with the same engine and limits as the Render button, and return the page or the error with its line number. Reads only; nothing is written and nothing opens. Use it to test a template before handing it over.",
+             ["path": "Path of the .html or .htm template, relative to the folder", "query": "Optional query values the page sees as `query`, like due=overdue&priority=A",
+              "today": "Optional date, yyyy-MM-dd, to render as if it were that day"], required: ["path"]),
         tool("get_proposal", "The state of a suggestion: pending, stale, accepted, rejected or withdrawn. Returns at once; poll.", ["id": "The id from propose_edit"], required: ["id"]),
     ]
 }

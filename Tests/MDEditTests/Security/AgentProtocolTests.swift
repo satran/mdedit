@@ -42,10 +42,10 @@ final class AgentProtocolTests: XCTestCase {
         XCTAssertNotNil((result?["capabilities"] as? [String: Any])?["tools"])
     }
 
-    func testToolsListHasTheFourToolsWithSchemas() async {
+    func testToolsListHasTheFiveToolsWithSchemas() async {
         let r = await rpc(#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#)
         let tools = (json(r)["result"] as? [String: Any])?["tools"] as? [[String: Any]] ?? []
-        XCTAssertEqual(tools.compactMap { $0["name"] as? String }, ["get_context", "read_note", "propose_edit", "get_proposal"])
+        XCTAssertEqual(tools.compactMap { $0["name"] as? String }, ["get_context", "read_note", "propose_edit", "render_template", "get_proposal"])
         XCTAssertTrue(tools.allSatisfy { $0["inputSchema"] is [String: Any] })
     }
 

@@ -114,6 +114,10 @@ final class Workspace: ObservableObject {
     /// Tests can supply a source (for example one that sleeps) and smaller limits.
     var templateSource: TemplateSource?
     var templateLimits = TemplateLimits.standard
+    /// The parameters of the link that was clicked on the rendered page (`?due=overdue`), seen by the template as `query`.
+    var templateQuery: [String: String] = [:]
+    /// Shows the trusted web addresses for this folder (one per line) and returns the edited text, or nil for Cancel. Tests answer it.
+    var editTrustedHosts: (_ current: String) -> String? = { ConfirmPrompt.editText("Trusted addresses for templates", "Web addresses that open from a rendered page without asking, one host per line: example.com, or *.example.com for every host below it. Only https. They apply to this folder.", $0) }
     var templateCancel = CancelFlag()
     var templateGeneration = 0
     private var templateObserver: AnyCancellable?

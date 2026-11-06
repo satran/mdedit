@@ -150,9 +150,9 @@ For a page, **Write**, **Find** in the file, **Print** and **Export** are unavai
 
 An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is never rendered by itself: not when you open it, not when a note changes. After you edit the template, press Render again.
 
-The first time you press Render in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Render just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes. Hidden files are never read.
+The first time you press Render in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Render just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes, unless you listed that host with **Trusted Addresses for Templates…** in the command palette (one host per line, `example.com` or `*.example.com`, https only, for this folder). Hidden files are never read.
 
-A small example, an index of the notes in `journal` with each note's Summary. Each note's own meta block (see below) is read with `{% meta %}`:
+A small example, an index of the notes in `journal` with each note's Summary:
 
 ```
 <h1>Journal</h1>
@@ -162,18 +162,26 @@ A small example, an index of the notes in `journal` with each note's Summary. Ea
   <h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a> {{ f.modified }}</h2>
   <p>{{ m.author|default:"unknown" }}</p>
   {% section f.path "Summary" as text %}
-  {{ text|markdown }}
+  {{ text|markdown:f.folder }}
 {% empty %}
   <p>No notes yet.</p>
 {% endfor %}
 ```
 
-- `{{ value }}` prints a value; text is escaped. Filters: `default:"text"`, `urlencode` (for addresses) and `markdown` (turns text into formatted HTML). Write attributes in quotes: `href="{{ f.path|urlencode }}"`.
-- `{% for x in list %}…{% empty %}…{% endfor %}` and `{% if a == b %}…{% else %}…{% endif %}` (`==` or `!=`, or one value alone).
-- `{% files "folder" [sort "name"|"modified"] [reverse] [limit N] as items %}` lists the notes and folders one level down. Each item has `name`, `path`, `kind`, `title`, `modified` and `size`. At most 100 items.
-- `{% section "path" "Heading" as text %}` reads the text under a heading of a note. If it cannot, `text` is empty and `text_error` says why (`not available`, `too large`, `not text`, `unreadable`, `read budget used`). A note over 64 KB is not read.
-- `{% meta "path" as m %}` reads the meta block of a note: the `key: value` lines between `---` lines at the top of the note (the same block the View shows as a properties card). Then `{{ m.title }}`, `{% for t in m.tags %}…{% endfor %}` and `{% if m.draft %}` work. A list is a list; `true` is the text true and `false` is empty. A key the note does not have is empty. If the note cannot be read, `m` is empty and `m_error` says why (`not available`, `not text`, `unreadable`, `read budget used`). Only the top of the note is read, so a long note still gives its meta.
-- Paths mean "relative to the open folder", wherever the template file is. A picture or link inside text from a note does too, not relative to that note's own folder.
+- `{{ value }}` prints a value; text is escaped. Write attributes in quotes: `href="{{ f.path|urlencode }}"`. Filters: `default:"text"`, `urlencode`, `markdown` (formatted HTML; `[[wiki links]]` become links to the notes; `markdown:folder` makes relative links and pictures relative to that folder), `length`, `days_until`, `days_since`, `date:"EEE d MMM"`, `week`.
+- `today` is today's date and `now` the time (`2026-11-06`, `2026-11-06 14:30`). Dates are text, so `t.attrs.due < today` works. `{% if t.attrs.due|days_until < 0 %}` is true for a date in the past.
+- `{% for x in list %}…{% empty %}…{% endfor %}` and `{% if a == b and not c %}…{% elif …%}…{% else %}…{% endif %}`. Comparisons: `== != < <= > >= in`. Loops nest 3 deep, all blocks together 10.
+- `{% files "folder" [recursive] [pages] [match "2026-*.md"] [sort "name"|"modified"] [reverse] [limit N] as items %}` lists notes and folders (`recursive`: every level, files only; `pages`: also `.html` files). Each item has `name`, `path`, `folder`, `ext`, `kind`, `title`, `modified` and `size`. At most 500 items.
+- `{% section "path" "Heading" as text %}` reads the text under a heading of a note. A note over 64 KB is not read.
+- `{% meta "path" as m %}` reads a note's properties block (the `key: value` lines between `---` lines at the top): `{{ m.title }}`, `{% for t in m.tags %}…{% endfor %}`, `{% if m.draft %}`. `true` is the text true and `false` is empty. Only the top of the note is read.
+- `{% tasks "path" as ts %}` reads the `- [ ]` and `- [x]` lines of a note: `t.done`, `t.text`, `t.line`, `t.is_sub`, `t.attrs.due` (from `@due(2026-11-10)`) and `t.context` (the lines under it).
+- `{% data "path.json" as d %}` reads a JSON file (or a flat YAML one) from a visible folder.
+- `{% sort list by "key" desc as x %}`, `{% where list key == value as x %}` and `{% groupby list by "key" as g %}` make views of a list. Missing values sort last.
+- `{% include "page.html" with name=value %}` runs another page of the folder here.
+- A link on the page to itself with a query, `<a href="?due=overdue">`, renders it again with `query.due`.
+- If a file cannot be read, the result is empty and `<name>_error` says why (`not available`, `too large`, `not text`, `unreadable`, `read budget used`).
+- Braces inside an HTML comment, or between `{% verbatim %}` and `{% endverbatim %}`, are copied as they are.
+- Paths mean "relative to the open folder", wherever the template file is. A picture or link inside text from a note is relative to the open folder too, unless you use `markdown:f.folder`.
 - Templates read the notes as saved on disk, not unsaved edits. The language has no other tags: anything else is a syntax error with a line number.
 - A page that contains a tag able to open a connection (anything but a relative stylesheet among `<link>`, and `<base>`, `<iframe>`, `<object>`, `<embed>`, `<meta http-equiv>`, `ping` or `formaction`) is not shown.
 - A render stops at 2 seconds, 200,000 steps, 2 MB of output, or when you press **Cancel**.
