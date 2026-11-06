@@ -26,6 +26,10 @@ final class RawHTTPClient {
     /// Opens a connection and sends nothing more (to hold one of the connection slots).
     static func open(port: Int, send: String = "") -> Int32 {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
+        // The server answers 411/413 and closes while a big body is still being sent. Without this, the write to the
+        // closed socket raises SIGPIPE, which ends the whole test process.
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
         var a = sockaddr_in(); a.sin_family = sa_family_t(AF_INET); a.sin_port = in_port_t(port).bigEndian; a.sin_addr.s_addr = inet_addr("127.0.0.1")
         let ok = withUnsafePointer(to: &a) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
         if ok != 0 { close(fd); return -1 }
