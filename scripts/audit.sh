@@ -36,7 +36,7 @@ grep -rnE "NSAppleScript|Process\(\)|NSTask|popen\(|execv|fork\(\)|posix_spawn|(
 grep -rn "loadFileURL\|allowFileAccessFromFileURLs\|NSWorkspace.shared.open(.*launch" Sources && bad "web view file access or launching"
 grep -rn "WKWebView(" Sources | grep -v "configuration" && bad "WKWebView created without a configuration (JavaScript would be on)"
 # every call that opens something must be one of the vetted ones below (links go through LinkPolicy first)
-grep -rn "NSWorkspace.shared.open(" Sources | grep -v "case \.openWeb\|case \.openFile\|LinkPolicy.isProgram(node.url)\|else { NSWorkspace.shared.open(node.url) }\|LinkPolicy.webSchemes" | while read -r l; do echo "REVIEW: $l"; done
+grep -rn "NSWorkspace.shared.open(" Sources | grep -v "case \.openWeb\|case \.openFile\|LinkPolicy.isProgram(node.url)\|else { NSWorkspace.shared.open(node.url) }\|LinkPolicy.webSchemes\|var openAddress: (URL) -> Void = { NSWorkspace.shared.open(\$0) }" | while read -r l; do echo "REVIEW: $l"; done
 [ $fail -eq 0 ] && ok "no unsafe API patterns"
 
 # 3b. The one listening socket: only MCPServer may open one, only on loopback, and the app has no URL scheme.

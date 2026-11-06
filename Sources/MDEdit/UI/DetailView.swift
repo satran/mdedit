@@ -13,6 +13,7 @@ struct DetailView: View {
             VStack(spacing: 0) {
                 header
                 banner
+                TemplateBanner(ws: ws)
                 content.frame(maxWidth: .infinity, maxHeight: .infinity)
                 if prefs.showStatusBar { footer }
             }
@@ -102,13 +103,7 @@ struct DetailView: View {
     }
 
     private func bar(_ text: String, actions: [(String, () -> Void)]) -> some View {
-        HStack(spacing: 12) {
-            Text(text).font(.system(size: 12.5))
-            Spacer()
-            ForEach(Array(actions.enumerated()), id: \.offset) { _, a in Button(a.0, action: a.1).controlSize(.small) }
-        }
-        .padding(.horizontal, 28).frame(height: 34)
-        .background(Color(Palette.chip))
+        InfoBar(text: text, actions: actions.map { InfoBar.Action(title: $0.0, run: $0.1) })
     }
 
     // MARK: content
@@ -138,6 +133,17 @@ struct DetailView: View {
 
     private var previewRequest: PreviewRequest {
         let url = document.url
+        // a rendered template, or the page saying why there is none; every other state shows the file as it is
+        switch ws.templateState {
+        case .rendered(let html):
+            return PreviewRequest(source: .template(rendered: html), title: "", noteFolder: ws.rootURL, root: ws.rootURL,
+                                  options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
+        case .failed(let e):
+            let page = PreviewPage.errorPage(title: e.title, message: e.message, line: e.line)
+            return PreviewRequest(source: .template(rendered: page), title: "", noteFolder: ws.rootURL, root: ws.rootURL,
+                                  options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
+        default: break
+        }
         let source: PreviewRequest.Source = ws.showingHTML && url != nil ? .html(url!, text: document.text) : .markdown(document.text)
         return PreviewRequest(source: source, title: url?.deletingPathExtension().lastPathComponent ?? "", noteFolder: url?.deletingLastPathComponent(),
                               root: ws.rootURL, options: .init(style: prefs.viewerStyle, loadRemote: prefs.loadRemoteImages, customCSS: ws.showingHTML ? nil : customCSS))
@@ -145,6 +151,7 @@ struct DetailView: View {
 
     /// A click in the preview: the same rules for notes and pages.
     private func openLink(_ url: URL) {
+        if case .rendered = ws.templateState { ws.openTemplateLink(url); return }
         switch LinkPolicy.decide(url, noteFolder: document.url?.deletingLastPathComponent(), root: ws.rootURL) {
         case .wiki(let t): ws.openWiki(t)
         case .openWeb(let u): NSWorkspace.shared.open(u)

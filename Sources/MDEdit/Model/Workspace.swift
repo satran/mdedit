@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import AppKit
 import UniformTypeIdentifiers
 
@@ -98,6 +99,25 @@ final class Workspace: ObservableObject {
     private(set) var index = WikiIndex(root: nil)
 
     let document = DocumentStore()
+
+    // MARK: HTML templates (plan 006; the actions are in Workspace+Templates.swift)
+
+    /// Where the open HTML page stands: a plain page, a page with template tags, a render in progress or its outcome.
+    @Published var templateState: TemplateState = .notTemplate
+    /// True while a render task is still running, also after the preview gave up on it (a read blocked in the operating system).
+    @Published var renderBusy = false
+    /// Asks a question with an action button and Cancel (title, detail, button, scrolling text, Cancel is the default). Tests answer it.
+    var templateConfirm: (_ title: String, _ detail: String, _ button: String, _ scrollingText: String?, _ cancelIsDefault: Bool) -> Bool =
+        { ConfirmPrompt.ask($0, $1, $2, scrollingText: $3, cancelIsDefault: $4) }
+    /// Hands an address to the system. Tests look at what would be opened.
+    var openAddress: (URL) -> Void = { NSWorkspace.shared.open($0) }
+    /// Tests can supply a source (for example one that sleeps) and smaller limits.
+    var templateSource: TemplateSource?
+    var templateLimits = TemplateLimits.standard
+    var templateCancel = CancelFlag()
+    var templateGeneration = 0
+    private var templateObserver: AnyCancellable?
+
     private var watcher: FolderWatcher?
     private var scoped: URL?
     let defaults: UserDefaults
@@ -121,6 +141,8 @@ final class Workspace: ObservableObject {
         panelWidth = min(Self.panelWidthRange.upperBound, max(Self.panelWidthRange.lowerBound, CGFloat(defaults.object(forKey: "rightPanelWidth") as? Double ?? 360)))
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
         find.ws = self
+        templateObserver = Publishers.CombineLatest(document.$url, document.$text)
+            .sink { [weak self] url, text in self?.resetTemplateState(url: url, text: text) }
         editor.onAttach = { [weak self] in self?.refreshSuggestionMark() }
         restore()
     }

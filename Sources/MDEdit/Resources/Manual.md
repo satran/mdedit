@@ -146,6 +146,35 @@ HTML files (`.html`, `.htm`) in the folder appear in the binder with a globe ico
 
 For a page, **Write**, **Find** in the file, **Print** and **Export** are unavailable and the eye button is dimmed. Pages are not part of wiki links, the outline or Find in Folder. Reopen the page to see changes to its stylesheets or pictures; changes to the page itself show on their own.
 
+### Templates
+
+An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is never rendered by itself: not when you open it, not when a note changes. After you edit the template, press Render again.
+
+The first time you render a version of a template, MDEdit shows you the whole template and asks. It remembers your answer for that exact text, in this folder. Change one character and it asks again. A template can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes. Hidden files are never read.
+
+A small example, an index of the notes in `journal` with each note's Summary:
+
+```
+<h1>Journal</h1>
+{% files "journal" sort "modified" reverse limit 10 as items %}
+{% for f in items %}
+  <h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a> {{ f.modified }}</h2>
+  {% section f.path "Summary" as text %}
+  {{ text|markdown }}
+{% empty %}
+  <p>No notes yet.</p>
+{% endfor %}
+```
+
+- `{{ value }}` prints a value; text is escaped. Filters: `default:"text"`, `urlencode` (for addresses) and `markdown` (turns text into formatted HTML). Write attributes in quotes: `href="{{ f.path|urlencode }}"`.
+- `{% for x in list %}…{% empty %}…{% endfor %}` and `{% if a == b %}…{% else %}…{% endif %}` (`==` or `!=`, or one value alone).
+- `{% files "folder" [sort "name"|"modified"] [reverse] [limit N] as items %}` lists the notes and folders one level down. Each item has `name`, `path`, `kind`, `title`, `modified` and `size`. At most 100 items.
+- `{% section "path" "Heading" as text %}` reads the text under a heading of a note. If it cannot, `text` is empty and `text_error` says why (`not available`, `too large`, `not text`, `unreadable`, `read budget used`). A note over 64 KB is not read.
+- Paths mean "relative to the open folder", wherever the template file is. A picture or link inside text from a note does too, not relative to that note's own folder.
+- Templates read the notes as saved on disk, not unsaved edits. The language has no other tags: anything else is a syntax error with a line number.
+- A page that contains a tag able to open a connection (anything but a relative stylesheet among `<link>`, and `<base>`, `<iframe>`, `<object>`, `<embed>`, `<meta http-equiv>`, `ping` or `formaction`) is not shown.
+- A render stops at 2 seconds, 200,000 steps, 2 MB of output, or when you press **Cancel**.
+
 ## Printing and exporting
 
 - **Print… / PDF** (⌘P, or in the share menu) prints the note as it looks in the View. Choose **PDF** in the bottom left of the print panel to save a PDF.

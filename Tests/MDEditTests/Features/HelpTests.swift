@@ -13,6 +13,7 @@ final class HelpTests: XCTestCase {
         }
         XCTAssertGreaterThan(HelpManual.source.count, 8_000, "the manual file is missing or empty")
         XCTAssertEqual(Set(titles).count, titles.count, "two pages share a title")
+        XCTAssertTrue(HelpManual.source.contains("Templates"), "the manual explains templates")
     }
 
     func testEveryPageHasContentAndParses() {

@@ -17,12 +17,12 @@ Output is a short list of failures and the totals. The full log is `build/test.l
 
 | Folder | Question it answers | Examples |
 |---|---|---|
-| `Tests/MDEditTests/Features` | Does every feature do what it should? | recent folders, windows, preferences, palette, outline, search, backlinks, wiki links, viewer |
+| `Tests/MDEditTests/Features` | Does every feature do what it should? | recent folders, windows, preferences, palette, outline, search, backlinks, wiki links, viewer, template tags, trust, preview delivery |
 | top level (`SyntaxTests`, `BinderTests`, `WorkspaceTests`, `DropTests`, `KeyboardNavTests`, `FrontMatterTests`, `ViewerTests`, `CommandTests`, `SnapshotTests`) | The original per-area suites | Markdown styling, binder tree, rename/move, drag and drop, arrow keys, front matter |
-| `Safety` | Is a file ever changed when it should not be, or an edit lost? | encodings, BOM, symlinks, outside changes, closing mid-autosave, read-only folders, odd file names, folder loops, random action fuzzing |
-| `Security` | Can a malicious note or file do harm? | links (`javascript:`, `file:`, programs, `..`), exported HTML and print (script, handlers, CSP), entitlements, no URL scheme |
+| `Safety` | Is a file ever changed when it should not be, or an edit lost? | encodings, BOM, symlinks, outside changes, closing mid-autosave, read-only folders, odd file names, folder loops, random action fuzzing, `SafePath`, template limits and fuzz |
+| `Security` | Can a malicious note or file do harm? | links (`javascript:`, `file:`, programs, `..`), exported HTML and print (script, handlers, CSP), entitlements, no URL scheme, hostile templates and the output guard |
 | `Safety/HostileInputTests` | Can text built to hang or crash the parsers do so? | 100,000 nested quotes, quadratic regexes, NUL bytes, 2 MB lines, random soup |
-| `Performance` | Is it still fast? | 3,000-note folder, 400 KB note styling, export, backlinks over 1,000 notes |
+| `Performance` | Is it still fast? | 3,000-note folder, 400 KB note styling, export, backlinks over 1,000 notes, template render times |
 
 `make test` runs the app itself as the test host, with its settings redirected to a scratch domain
 (`AppEnvironment`), so a test run never reads or changes your real folders, recent list or preferences.
@@ -47,10 +47,10 @@ New file in the project? `make test` runs `xcodegen` first, so a new test file i
 
 ## Rules that every new feature should follow
 
-1. **Treat every note, file name and dropped file as hostile.** Never build a path from text without `Workspace.cleanName`; never open a link without `LinkPolicy.decide`; never put note text in HTML without going through `Exporter.safeHTML`.
+1. **Treat every note, file name, dropped file and template as hostile.** Never build a path from text without `Workspace.cleanName`; never open a link without `LinkPolicy.decide`; never put note text in HTML without going through `Exporter.safeHTML`.
 2. **Never write to a file the user did not change.** Anything that saves goes through `DocumentStore` (it keeps encodings, symlinks, and refuses to overwrite an outside change).
 3. **Nothing recursive without a limit.** Parsing goes through `MarkdownLimits.clamp`; folder scans stop at `BinderNode.maxDepth`; inline styling stops at `MarkdownSyntax.maxInlineLength`.
-4. **No new entitlement without a reason.** `make audit` and `ProjectPolicyTests` fail on any entitlement outside the expected five (the fifth, `network.server`, is for agent access and only `Agents/MCPServer.swift` may listen, on loopback).
+4. **No new entitlement without a reason.** `make audit` and `ProjectPolicyTests` fail on any entitlement outside the expected five (the fifth, `network.server`, is for agent access and only `Agents/MCPServer.swift` may listen, on loopback). `make audit` also checks the template engine's source for write, process and network APIs and allows file access only in `Templates/TemplateSources.swift` and `Model/SafePath.swift`.
 5. **Add the test for the bug before fixing the bug.**
 
 ## Known gaps (not covered by automated tests)

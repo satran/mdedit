@@ -45,6 +45,7 @@ make coverage                  # per-file line coverage of the last test run
 | Find & replace | ⌘F / ⌥⌘F / ⇧⌘F open the side panel on its Find tab (`UI/FindPanel.swift`, `UI/RightPanelView.swift`): This file (marks in the editor via temporary attributes, one-undo replace) or Folder (grouped results with checkboxes, diff preview, replace on disk with a ⌘Z that restores every file if unchanged since). Engine: `Model/FindReplace.swift` (`FindEngine`, `FolderFind`; UTF-16 ranges, caps and a time limit); state: `Model/Workspace+Find.swift`. Tests: `FindEngineTests`, `FindReplaceTests`. Search Binder moved to ⇧⌘B |
 | Help | Help ▸ MDEdit Help (⌘?) opens the manual: `Resources/Manual.md` cut into pages at its `##` headings (searchable), plus a shortcuts page generated from the command list. Edit the manual there; `HelpTests` checks that the keys it names match the menus. Not an Apple Help Book: those need an indexed bundle that the Help Viewer caches and does not reliably open for unnotarised apps |
 | HTML files | `.html`/`.htm` open in the same web view with no editor (forced preview; Write, Find in file, Print, Export disabled; the eye button is dimmed). Not notes: no wiki links, outline or folder search |
+| HTML templates | An HTML file with `{%` or `{{` gets a Render bar. Render fills it in from the opened folder with our own small Django-style language (`files`, `section`, `for`, `if`, three filters); read-only; asks once per version of the file (hash in the app settings); no network request on its own; a click on a web or mail link asks first. See `plan/006-html-templates/PLAN.md` |
 | Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer font/size/width, remote pictures and stylesheets (off by default), status bar, distraction-free behaviour |
 
 Original design intent is in `plan/PLAN.md` (historical: some details have moved on) and `plan/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Preview/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.
@@ -61,6 +62,7 @@ Sources/MDEdit/
     Workspace.swift        THE per-window model: opened folder, tree, selection, mode, panels, rename/move/trash,
                            drops, wiki open, backlinks, keyboard navigation, window layout toggles
     DocumentStore.swift    The open file: load/save, encodings, outside-change detection, autosave, recovery copy
+    SafePath.swift         The one check for a path from an agent or a template (inside the folder, no hidden part, symlinks resolved)
     BinderNode.swift       Folder scan -> tree (symlink-safe, depth-capped); rows for the binder
     WikiLink.swift         [[ ]] parsing, WikiIndex (name -> files, nearest-folder resolution)
     LinkPolicy.swift       What a clicked link may do (web/mail only; files only inside the folder; programs revealed, never run)
@@ -82,6 +84,7 @@ Sources/MDEdit/
     MarkdownTextEditor.swift       NSViewRepresentable + Coordinator (Return/Tab/Backspace list behaviour, selection), EditorBridge
     MarkdownFormatting.swift       PURE format transformations (text + selection -> edit); EditorFormatting.swift applies them
   Preview/                 View mode and HTML files (WKWebView)
+  Templates/               Template engine for HTML files: parser, evaluator, read-only sources, trust record, output guard
     PreviewPage.swift      Note -> page: CSS from the type specs, CSP, wiki links/addresses/punctuation, properties card, custom CSS
     PreviewWebView.swift   Controller: lock-down (no JS, content rules, navigation), the mdedit-file scheme handler, scroll keeping
     ViewerStyle.swift      Every viewer size/space/colour (type specs, sans); the page CSS is generated from it
@@ -137,7 +140,7 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 ## Rules for changes
 
 1. **Files are sacred.** Never write to a file the user did not change. All saving goes through `DocumentStore` (keeps encoding/BOM/symlink/permissions/Finder tags, refuses to overwrite an outside change, saves on close/quit/switch, makes an `(unsaved changes)` copy on conflict). Files that are not text or > 10 MB are shown as an error and never written.
-2. **Treat every note, file name, link and dropped file as hostile.** File names go through `Workspace.cleanName`; links through `LinkPolicy.decide`; exported HTML through `SafeHTML` (swift-markdown's own `HTMLFormatter` does **not** escape anything — never use it); Markdown goes through `MarkdownLimits.clamp` before parsing.
+2. **Treat every note, file name, link, dropped file, template and the files a template reads as hostile.** File names go through `Workspace.cleanName`; links through `LinkPolicy.decide`; exported HTML through `SafeHTML` (swift-markdown's own `HTMLFormatter` does **not** escape anything — never use it); Markdown goes through `MarkdownLimits.clamp` before parsing.
 3. **Nothing recursive or quadratic without a limit.** Scans stop at `BinderNode.maxDepth`; inline styling skips lines over `MarkdownSyntax.maxInlineLength`; parsers have time budgets in `HostileInputTests`.
 4. **No new entitlement.** Exactly five are allowed (sandbox, user-selected read-write, app-scope bookmarks, network client, network server). The server one is for agent access: only `Agents/MCPServer.swift` may listen, only on loopback, and it is off unless the person turns it on (`make audit` checks the first two); `make audit` and `ProjectPolicyTests` fail otherwise. Release builds must not carry `get-task-allow` (`CODE_SIGN_INJECT_BASE_ENTITLEMENTS: false`). There is no URL scheme and no AppleScript. The app starts no program at all: `make audit` fails on any call that would (`posix_spawn`, `Process`, `NSTask`, `popen`, `exec*`, `fork`, `system`). Shell commands were removed in plan 007.
 5. **Add the test first for a bug**, and one for each new feature (`scripts/new-test.sh`). Add commands to `Commands.swift`, not to individual views.
