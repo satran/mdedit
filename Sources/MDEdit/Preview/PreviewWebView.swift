@@ -166,7 +166,18 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     private var key = ""
     private var identity = ""
     private var generation = 0
-    private var allowNext = false
+    /// The addresses of the loads this controller started and that have not been through the navigation policy yet. A load of ours is
+    /// allowed once per entry; a page's own navigation (a reload, a form, meta refresh) is not in the list and is cancelled. It is a list,
+    /// not a flag: two loads close together (a blank page, then the rendered one) must both be allowed, whatever order the policy
+    /// answers come in, or the second page stays blank.
+    private var expected: [String] = []
+
+    private func expect(_ url: URL?) {
+        expected.append(Self.normalized(url))
+        if expected.count > 8 { expected.removeFirst(expected.count - 8) }
+    }
+
+    private static func normalized(_ url: URL?) -> String { (url ?? URL(string: "about:blank")!).absoluteString }
     private var restoreY: Double?
 
     init(open: @escaping (URL) -> Void) {
@@ -226,7 +237,7 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
     }
 
     private func showCompileFailure() {
-        allowNext = true
+        expect(URL(string: "about:blank"))
         files.templatePage = nil
         webView.loadHTMLString(PreviewPage.errorPage(title: "Page not shown", message: "The rules that keep a template page off the web could not be loaded.", line: nil),
                                baseURL: URL(string: "about:blank"))
@@ -234,17 +245,21 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
 
     private func load(_ r: PreviewRequest, scrollTo y: Double?) {
         restoreY = y
-        allowNext = true
         switch r.source {
         case .markdown(let text):
             let html = PreviewPage.html(markdown: text, title: r.title, options: r.options)
-            let base = r.noteFolder.map { PreviewPage.url(forFile: $0, directory: true) }
-            webView.loadHTMLString(html, baseURL: base ?? URL(string: "\(PreviewPage.scheme)://none/"))
+            let base = r.noteFolder.map { PreviewPage.url(forFile: $0, directory: true) } ?? URL(string: "\(PreviewPage.scheme)://none/")
+            expect(base)
+            webView.loadHTMLString(html, baseURL: base)
         case .html(let url, _):
-            webView.load(URLRequest(url: PreviewPage.url(forFile: url)))
+            let address = PreviewPage.url(forFile: url)
+            expect(address)
+            webView.load(URLRequest(url: address))
         case .template:
             guard let root = r.root else { return showCompileFailure() }
-            webView.load(URLRequest(url: PreviewPage.templateAddress(root: root)))
+            let address = PreviewPage.templateAddress(root: root)
+            expect(address)
+            webView.load(URLRequest(url: address))
         }
     }
 
@@ -262,7 +277,7 @@ final class PreviewFiles: NSObject, WKURLSchemeHandler {
             // a frame inside an HTML file: only the folder's own pages
             return url?.scheme == PreviewPage.scheme || url?.absoluteString == "about:blank" ? .allow : .cancel
         }
-        if allowNext, action.navigationType == .other { allowNext = false; return .allow }
+        if action.navigationType == .other, let i = expected.firstIndex(of: Self.normalized(url)) { expected.remove(at: i); return .allow }
         if action.navigationType == .linkActivated, let url {
             if let current = webView.url, url.fragment != nil, strip(url) == strip(current) { return .allow }
             // a link to the rendered page itself (`?due=overdue`) keeps its address, so the query reaches the template

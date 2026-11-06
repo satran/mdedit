@@ -188,6 +188,36 @@ final class TemplatePreviewTests: XCTestCase {
         XCTAssertTrue(text(ordinary).contains("Hello"), "an ordinary page is not affected by the template list")
     }
 
+    // MARK: loads close together
+
+    /// A blank placeholder and then the rendered page (what the window does while a template renders) used to leave the page blank:
+    /// the first load's policy answer used up the one permission, and the second load was cancelled.
+    func testTwoLoadsInARowBothShowTheLastPage() {
+        for i in 0..<12 {
+            let c = controller()
+            c.show(PreviewRequest(source: .markdown(""), title: "", noteFolder: s.url, root: s.url, options: options(remote: false)))
+            c.show(template("<p id=v>PAGE \(i)</p>", remote: false))
+            waitFor((pageJS(c, "document.body ? document.body.innerText : ''") as? String)?.contains("PAGE \(i)") == true, "the rendered page after the placeholder, run \(i)", timeout: 6)
+        }
+    }
+
+    func testSeveralRendersOfTheSameAddressInARowEndOnTheLast() {
+        let c = controller()
+        for i in 0..<6 { c.show(template("<p>RENDER \(i)</p>", remote: false)) }
+        waitFor((pageJS(c, "document.body ? document.body.innerText : ''") as? String)?.contains("RENDER 5") == true, "the last of several quick renders", timeout: 8)
+    }
+
+    func testAPagesOwnNavigationIsStillCancelled() {
+        let c = controller()
+        c.show(template("<meta charset=utf-8><p>START</p>", remote: false))
+        waitFor(c.loads >= 1, "page")
+        let before = c.loads
+        _ = pageJS(c, "location.href = 'mdedit-file://local/etc/hosts'")
+        letPageSettle(0.5)
+        XCTAssertEqual((pageJS(c, "document.body.innerText") as? String)?.contains("START"), true, "the page stays where it is")
+        XCTAssertEqual(c.loads, before)
+    }
+
     // MARK: the error page
 
     func testTheErrorPageEscapesEverythingDynamic() {
