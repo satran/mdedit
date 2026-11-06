@@ -525,6 +525,20 @@ final class EditorTextView: NSTextView {
     }
 }
 
+extension EditorTextView {
+    /// One undo step: `output` replaces `range`, and the caret lands after it.
+    func insertOutput(_ output: String, at range: NSRange) {
+        guard isEditable else { return }
+        let n = (string as NSString).length
+        let r = NSRange(location: min(range.location, n), length: min(range.length, n - min(range.location, n)))
+        breakUndoCoalescing()
+        insertText(output, replacementRange: r)
+        breakUndoCoalescing()
+        setSelectedRange(NSRange(location: min(r.location + (output as NSString).length, (string as NSString).length), length: 0))
+        scrollRangeToVisible(selectedRange())
+    }
+}
+
 extension NSString {
     func rangeOfWord(at i: Int) -> NSRange {
         let ws = CharacterSet.alphanumerics

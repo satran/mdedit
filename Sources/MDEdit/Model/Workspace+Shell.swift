@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import CryptoKit
 
 /// Where a command's output goes.
 enum ShellDestination: String, CaseIterable {
@@ -39,17 +38,6 @@ enum ShellSource: Equatable {
     case script(String)
 }
 
-enum ShellPrompts {
-    static func confirm(_ title: String, _ detail: String, _ button: String) -> Bool {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = detail
-        a.addButton(withTitle: button)
-        a.addButton(withTitle: "Cancel")
-        return a.runModal() == .alertFirstButtonReturn
-    }
-}
-
 /// Saved scripts and the history live in `<folder>/.mdedit`, which the binder does not show.
 enum ShellFiles {
     static let maxScript = 256 * 1024
@@ -79,8 +67,6 @@ enum ShellFiles {
         guard let data = try? Data(contentsOf: u), data.count <= maxScript, !data.contains(0) else { return nil }
         return String(data: data, encoding: .utf8)
     }
-
-    static func hash(_ text: String) -> String { SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined() }
 
     static func history(in root: URL) -> [String] {
         let f = historyFile(root)
@@ -174,7 +160,7 @@ extension Workspace {
     private func approved(_ name: String, _ text: String, root: URL) -> Bool {
         let key = "shellApproved:" + root.path
         var known = defaults.dictionary(forKey: key) as? [String: String] ?? [:]
-        let h = ShellFiles.hash(text)
+        let h = ContentHash.sha256(text)
         if known[name] == h { return true }
         let shown = text.count > 3000 ? String(text.prefix(3000)) + "\n…" : text
         let again = known[name] != nil
@@ -215,19 +201,5 @@ extension Workspace {
             select(url)
             done("The output is in a new note, \(url.lastPathComponent).")
         }
-    }
-}
-
-extension EditorTextView {
-    /// One undo step: output replaces `range`, and the caret lands after it.
-    func insertOutput(_ output: String, at range: NSRange) {
-        guard isEditable else { return }
-        let n = (string as NSString).length
-        let r = NSRange(location: min(range.location, n), length: min(range.length, n - min(range.location, n)))
-        breakUndoCoalescing()
-        insertText(output, replacementRange: r)
-        breakUndoCoalescing()
-        setSelectedRange(NSRange(location: min(r.location + (output as NSString).length, (string as NSString).length), length: 0))
-        scrollRangeToVisible(selectedRange())
     }
 }

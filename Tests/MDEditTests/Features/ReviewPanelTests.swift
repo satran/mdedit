@@ -136,6 +136,14 @@ final class ReviewPanelTests: XCTestCase {
         XCTAssertEqual(Workspace(defaults: d, recents: RecentFolders(defaults: d)).panel, .outline, "a saved review tab opens as the outline")
     }
 
+    func testTheToolbarClosesAVisitAndReopensOnTheLastTab() {
+        ws.openPanel(.outline)
+        ws.openPanel(.review)
+        XCTAssertEqual(ws.panel, .review); XCTAssertEqual(ws.lastPanel, .outline)
+        ws.togglePanel(); XCTAssertNil(ws.panel)
+        ws.togglePanel(); XCTAssertEqual(ws.panel, .outline, "the toolbar button opens on the last real tab, not on Review")
+    }
+
     func testClosingReviewGoesBackToWhereThePanelWas() {
         ws.openPanel(.outline)
         ws.openPanel(.review)

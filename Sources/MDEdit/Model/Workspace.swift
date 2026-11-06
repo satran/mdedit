@@ -100,7 +100,7 @@ final class Workspace: ObservableObject {
     @Published var shellJob: ShellJob?
     @Published var shellDestination: ShellDestination { didSet { defaults.set(shellDestination.rawValue, forKey: "shellDestination") } }
     /// Asks the person a yes/no question (title, detail, button). The tests replace it.
-    var shellConfirm: (String, String, String) -> Bool = ShellPrompts.confirm
+    var shellConfirm: (String, String, String) -> Bool = ConfirmPrompt.ask
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
     private var backlinkTask: Task<Void, Never>?
