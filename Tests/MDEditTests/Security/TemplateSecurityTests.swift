@@ -32,6 +32,18 @@ final class TemplateSecurityTests: XCTestCase {
         }
     }
 
+    func testMetaOfPathsOutsideTheRulesIsEmpty() throws {
+        try s.write(".mdedit/m.md", "---\ntitle: hiddenmeta\n---\n")
+        try outside.write("M.md", "---\ntitle: outsidemeta\n---\n")
+        try FileManager.default.createSymbolicLink(at: s.path("mlink.md"), withDestinationURL: outside.path("M.md"))
+        try FileManager.default.createSymbolicLink(at: s.path("vis.md"), withDestinationURL: s.path(".mdedit/m.md"))
+        for p in ["../M.md", ".mdedit/m.md", "mlink.md", "vis.md", "/etc/hosts", "~/x.md", "page.html"] {
+            let page = T.page("{% meta \"\(p)\" as m %}[{{ m.title }}][{{ m_error }}]", in: s)
+            XCTAssertTrue(page.hasPrefix("[]["), "\(p): \(page)")
+            XCTAssertFalse(page.contains("hiddenmeta") || page.contains("outsidemeta"), p)
+        }
+    }
+
     func testListingsDoNotLeakHiddenOrOutsideFiles() {
         for folder in ["", ".mdedit", "outdir", "../", "/", "Thing.app", "~"] {
             let page = T.page("{% files \"\(folder)\" as items %}{% for f in items %}{{ f.path }}={{ f.title }};{% endfor %}", in: s)

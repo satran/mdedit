@@ -103,7 +103,7 @@ final class TemplateLimitTests: XCTestCase {
     }
 
     func testEveryNodeTypeChargesTheBudget() {
-        let nodes = ["x", "{{ 1 }}", "{% for a in n %}{% endfor %}", "{% if 1 %}{% endif %}", #"{% files "" as i %}"#, #"{% section "a.md" "S" as t %}"#]
+        let nodes = ["x", "{{ 1 }}", "{% for a in n %}{% endfor %}", "{% if 1 %}{% endif %}", #"{% files "" as i %}"#, #"{% section "a.md" "S" as t %}"#, #"{% meta "a.md" as m %}"#]
         for n in nodes {
             XCTAssertTrue(T.isLimit(T.error(n, in: s, limits: with { $0.steps = 0 })), "\(n) does not call charge()")
         }

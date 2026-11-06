@@ -35,12 +35,13 @@ indirect enum Node: Equatable {
     case ifElse(Condition, body: [Node], otherwise: [Node], line: Int)
     case files(folder: Operand, sort: FilesSort, reverse: Bool, limit: Operand?, name: String, line: Int)
     case section(path: Operand, heading: Operand, name: String, line: Int)
+    case meta(path: Operand, name: String, line: Int)
 }
 
 /// Turns template text into a tree, accepting exactly the grammar of plan 006 and nothing else.
 /// Anything outside it is a syntax error with a line number; limits on size, nodes and nesting are checked here.
 enum TemplateParser {
-    static let reserved: Set<String> = ["for", "in", "empty", "endfor", "if", "else", "endif", "files", "section", "as", "sort", "reverse", "limit"]
+    static let reserved: Set<String> = ["for", "in", "empty", "endfor", "if", "else", "endif", "files", "section", "meta", "as", "sort", "reverse", "limit"]
 
     static func parse(_ text: String, limits: TemplateLimits = .standard) -> Result<[Node], TemplateError> {
         if text.utf8.count > limits.templateBytes {
@@ -211,6 +212,12 @@ enum TemplateParser {
                 }
                 try checkTarget(name, line: line)
                 return .section(path: try operand(args[0], line: line), heading: try operand(args[1], line: line), name: name, line: line)
+            case "meta":
+                guard args.count == 3, case .word(let kw) = args[1], kw == "as", case .word(let name) = args[2] else {
+                    throw TemplateError.syntax("A note's meta looks like {% meta path as name %}.", line: line)
+                }
+                try checkTarget(name, line: line)
+                return .meta(path: try operand(args[0], line: line), name: name, line: line)
             case "empty", "else", "endfor", "endif":
                 throw TemplateError.syntax("Unexpected {% \(word) %}.", line: line)
             default:

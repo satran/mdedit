@@ -25,7 +25,7 @@ The obvious fix, a template engine, is also the risky one. A template engine rea
 *   A template can read only inside the opened folder, after symlinks are resolved, and never hidden files or non-note files (including a visible name that links to a hidden file), using one shared path check (`SafePath`) that the agent tools use too. The pictures and styles of a rendered page cannot read hidden files either.
 *   A render ends. Every step is counted against a budget, and the evaluator also stops at a 2 second clock, at the output cap, when the person presses Cancel and when the document changes. A template over one of the hard limits shows an error page; a `files` list over its length is cut, and a single read that cannot be done leaves that one result empty (see Limits). Nothing in the language can make a loop longer than a list the app supplied. A single read blocked in the operating system cannot be interrupted: the preview shows the timeout error within the clock and the window refuses a new render until that read returns.
 *   A rendered page makes no network request on its own (images, stylesheets, fonts, frames, `ping`, forms, meta refresh), even when "Remote pictures and styles" is on in Settings. Resource loads are blocked by the header and a rule list (layers 1 and 2). Connection hints (`dns-prefetch`, `preconnect`) are not resource loads, and nobody knows whether the header and the list stop them in this WebKit; the app does not rely on that and refuses to show a page that contains a tag able to open a connection (layer 3, a deny-list). So the goal is met as far as these three layers and their tests go; a click on a web or mail link is the one request the person starts, and it asks first. See "Delivery and containment".
-*   A template file renders only when the person presses Render, and the first Render of each version of a file also asks for confirmation: a hash of the file is stored, and any change to the file asks again.
+*   A template file renders only when the person presses Render, and the very first Render in the app shows a one-time warning that a rendered page can read every note in the folder. After that Render just renders; an edited template does not ask again.
 *   Template rendering lives in the existing preview, with JavaScript off.
 
 ## Non-Goals
@@ -59,8 +59,8 @@ A template is an `.html` or `.htm` file. Today such a file opens in the preview 
 template.html (disk), read once as one string
    |  1. parse   size, tokens, nesting, every tag and filter name checked against the grammar
    v        any failure -> error page with the line, nothing runs and nothing is asked
-   |  2. approved?  hash of the string vs the stored hash (app settings, not the folder)
-   v        no -> trust sheet (shows the whole string) -> store hash on Render
+   |  2. first Render in the app?  a one-time warning (the answer is kept in the app settings)
+   v        yes -> warning sheet, then Render; no -> straight on
    |  3. evaluate  background task, step budget, 2 s clock, cancel flag
    |        tags: files / section -> SafePath -> read-only file reads, counted
    v        any hard limit or timeout -> error page; cancel -> the plain file, as before
@@ -103,7 +103,9 @@ The syntax looks like Django's, and the parser accepts exactly the grammar below
 | Condition | `{% if cond %}…{% else %}…{% endif %}` | `cond` is two operands joined by `==` or `!=`, or one operand alone (true by the Truth rule below). Operands of different types are never equal; text compares by exact characters. |
 | List a folder | `{% files folder [sort "name"\|"modified"] [reverse] [limit N] as items %}` | Sets `items` to a list; the clauses come in this order. See below. |
 | Read a section | `{% section path heading as text %}` | Sets `text`; see below. |
+| Read a note's meta | `{% meta path as m %}` | Sets `m` to the note's meta block as a record; see below. |
 
+*   **`meta`**: the note's meta block, the `key: value` lines between `---` lines at the top of the note, read by `FrontMatter.parse` as the View's properties card is: text (quoted or not), `[a, b]` or `- a` lists, and `true`/`false`. `m.title` is the text; a list is a list of text; `true` is the text "true" and `false` is empty (so `{% if m.draft %}` works); a missing key, or a note without a block, is empty. Only the top `metaBytes` (16 KB) of the note are read, so a long note still gives its meta. Failures set `m` to an empty record and `m_error` to `not available`, `not text`, `unreadable` or `read budget used`. Values print escaped like any text, and can name a folder: `{% meta "cfg.md" as m %}{% files m.folder as items %}`.
 *   **Names and spacing.** A name is `[A-Za-z_][A-Za-z0-9_]*`; a dotted name looks up a key in a record and is an empty value when the key is missing. The words `for`, `in`, `empty`, `endfor`, `if`, `else`, `endif`, `files`, `section`, `as`, `sort`, `reverse` and `limit` cannot be names, and a name given to `as` cannot end in `_error`. Inside `{% %}` and `{{ }}` any spaces or tabs may separate parts, but not a line break. A `{{`, `{%` or `{#` with no closing `}}`, `%}` or `#}` is a syntax error at its line.
 *   **Scope.** All names live in one table for the render. `for x in items` sets `x` on each pass and restores the earlier value of `x` (or removes it) after `endfor`. A read tag sets its `as` name and its `<name>_error` name, replacing any earlier value; inside a loop that happens on each pass.
 *   **Truth.** In `if`, empty, `0`, empty text and an empty list are false; everything else (a record and any markup included) is true.
@@ -146,13 +148,14 @@ All limits are constants in one place (`TemplateLimits`) and each has a test tha
 | Whole number | 9 digits | error page |
 | Items in a `files` list | 100 | list cut |
 | Bytes per `section` read | 64 KB | that read is empty, `too large` |
+| Bytes read from the top of a note for `meta` | 16 KB | none (a prefix is enough) |
 | Bytes read from disk in one render | 8 MB | later reads are empty, `read budget used` |
 | First bytes read for a `title` | 4 KB | none (a prefix is enough) |
 | Directory entries read in one render | 10,000 | error page |
 | Steps in one render | 200,000 | error page |
 | Output size | 2 MB | error page |
 | Wall-clock time | 2 s | error page |
-| Trust record | 200 files per folder, 50 folders | least recently used dropped |
+
 
 The parser checks the first five before anything runs. Everything else is counted in the evaluator. Passing a hard limit (the "error page" rows) ends the render and no partial page is shown. The exceptions keep an ordinary folder from failing the whole page: a `files` list is cut, and a read that cannot be done leaves that one result empty and sets its `_error` variable, so one large, unreadable or hostile note does not stop the page rendering. Details:
 
@@ -160,13 +163,11 @@ The parser checks the first five before anything runs. Everything else is counte
 *   An index of 100 notes costs at most 400 KB for titles, and 100 sections of 64 KB cost 6.25 MB, together inside the 8 MB budget. Each such section costs 256 read steps and 256 `markdown` steps, so 100 of them cost about 51,000 of the 200,000 steps.
 *   The output cap is checked on every append, after escaping, so memory for the page stays under the cap plus one append. Memory elsewhere is bounded by the 8 MB read budget, the 100-item lists and the size of `markdown` output.
 
-### Trust record
+### The first-Render warning
 
-A file that is a template shows the banner. On **Render** the file is read once as one string and parsed; if parsing fails, the error page shows and nothing is asked. If the string's hash is not stored, a trust sheet shows the whole string in a scrolling view (a template is at most 64 KB, so what the person reads is what the hash covers), the sentence "This page can read every note in this folder and show it on screen. It cannot change them. It makes no network request on its own. A link to the web or to a mail address asks you first, and the address may contain text from your notes.", and Render / Cancel. The same string is what the sheet shows, what is hashed and what is evaluated, so the three cannot differ.
+A file that is a template shows the banner. On **Render** the file is read once as one string and parsed; if parsing fails, the error page shows and nothing is asked. The very first time anyone presses Render in the app, a small sheet says: "A rendered page can read every note in this folder and show it on screen. It cannot change anything, and it makes no network request on its own. You are asked this once." with Render / Cancel. Cancel renders nothing and the sheet comes back next time. After Render, the answer is kept in the app's settings (`templateWarned`), not in any folder, and no later Render asks, whatever the file or folder.
 
-On Render the app stores `relative path -> SHA-256 of the string` (`ContentHash.sha256`) in the app settings under `templateApproved:<root>`, where `<root>` is the opened folder's path after symlinks are resolved. A changed file has a different hash and asks again. A folder that is moved or renamed has a different key and asks again; so does a copy of it elsewhere. The record is kept small, as an ordered list so recency is known: at most 200 files per folder and 50 folders (`templateApprovedRoots`, most recently used first). Every approved Render refreshes its entry; past a limit the least recently used entry is dropped, which only means one more sheet.
-
-The record lives in the app's settings and not in the folder on purpose. A record inside the folder (for example in `.mdedit/`) would travel with a received folder, and a hostile folder could ship a record that approves its own template.
+This replaces the first design, which asked once per version of each file (a SHA-256 of the text, kept per folder). The author chose the single warning: the Render click is the consent, and the warning is for the first-time user. The cost is that an edited or received template renders on a click without a new warning; the containment layers below are what limit it.
 
 ### Delivery and containment
 
@@ -187,7 +188,7 @@ An `.html` or `.htm` file whose text contains `{%` or `{{` gets a banner above t
 
 ### Reloading
 
-The rendered page depends on the template and on the files it read, and it is not rendered again by itself. A render starts only when the person presses Render, so a folder change, an autosave or a reopened file never starts one. If the template file changes on disk while a rendered page shows, the plain file reloads and the state returns to the banner with Render. The trust sheet is shown once per version of the file (the hash); a later Render of an approved file runs without the sheet. Opening a file always starts at the banner, not at a rendered page. **Show source** returns to the banner state.
+The rendered page depends on the template and on the files it read, and it is not rendered again by itself. A render starts only when the person presses Render, so a folder change, an autosave or a reopened file never starts one. If the template file changes on disk while a rendered page shows, the plain file reloads and the state returns to the banner with Render. The warning is shown only on the very first Render in the app; no later Render asks. Opening a file always starts at the banner, not at a rendered page. **Show source** returns to the banner state.
 
 ### Unchanged
 
@@ -261,9 +262,9 @@ Templates from the author only, with no support for a template that arrives in a
 
 Render when the file has tags, or only on an explicit action each time.
 
-*   **Pros**: automatic needs no click; explicit-each-time needs no stored hashes.
-*   **Cons**: automatic lets a downloaded file read the folder when it is merely viewed; explicit-each-time shows the sheet on every open.
-*   **Reason for Rejection**: the chosen mix, a Render click and a remembered sheet per version of the file, avoids both. See Decision 5.
+*   **Pros**: automatic needs no click; explicit-each-time never needs a stored answer.
+*   **Cons**: automatic lets a downloaded file read the folder when it is merely viewed; explicit-each-time shows a sheet on every Render.
+*   **Reason for Rejection**: the chosen mix, a Render click and a one-time warning on the first Render in the app, avoids both. See Decision 5.
 
 ### Alternative I: the web view's own JavaScript with a read-only file handler
 
@@ -330,7 +331,7 @@ Work in four steps. Each step is its own commit and ends with `make check` green
 #### 8. `Sources/MDEdit/Templates/TemplateSources.swift` (Create)
 
 *   **Type / Scope**: The only code in `Templates/` that touches the disk during a render (with `SafePath`). Read-only.
-*   **Proposed Changes**: `protocol TemplateSource` with `list(_ folder: String, sort: FilesSort, reverse: Bool, limit: Int?, budget: Budget) throws -> (items: [Value], error: String)` and `section(_ path: String, _ heading: String, budget: Budget) throws -> (text: String, error: String)`, throwing only the hard errors (cancel, the entry limit). `TemplateSources` is the disk implementation; a test supplies a stub (for example one that sleeps). `list` uses `BinderNode.entries(of:)` for one level and counts `rawCount` against the 10,000-entry limit; keeps notes and folders only; passes each entry through `SafePath.resolve` with kind `.note` or `.folder` and leaves out one that fails (so a symlink to a note outside the folder shows no `title`, `size` or `modified`); sorts and limits as in "The read tags". `title` reads the first 4 KB and reuses `AgentTools.cut(_:bytes:)` to end on a whole character, then takes the first heading from `Outline.headings(in:)`; failure falls back to the file name. `modified` is `yyyy-MM-dd` in the current time zone and sorting uses the full date. `section` resolves the path, checks the size before reading, charges the budget, and returns the text with `Outline.headings` (closing `#` marks removed before comparing). A read that cannot be done returns empty with the reason from the table in "The read tags" (`not available`, `too large`, `not text`, `unreadable`, `read budget used`). Listings and reads are cached per render; a hit charges steps but no bytes. Costs: one step per entry listed, one per 256 bytes read. No write, delete, move, process or network API appears; the audit enforces the listed names (item 11).
+*   **Proposed Changes**: `protocol TemplateSource` with `meta(_ path: String, budget: Budget) throws -> (meta: Value, error: String)`, and `list(_ folder: String, sort: FilesSort, reverse: Bool, limit: Int?, budget: Budget) throws -> (items: [Value], error: String)` and `section(_ path: String, _ heading: String, budget: Budget) throws -> (text: String, error: String)`, throwing only the hard errors (cancel, the entry limit). `TemplateSources` is the disk implementation; a test supplies a stub (for example one that sleeps). `list` uses `BinderNode.entries(of:)` for one level and counts `rawCount` against the 10,000-entry limit; keeps notes and folders only; passes each entry through `SafePath.resolve` with kind `.note` or `.folder` and leaves out one that fails (so a symlink to a note outside the folder shows no `title`, `size` or `modified`); sorts and limits as in "The read tags". `title` reads the first 4 KB and reuses `AgentTools.cut(_:bytes:)` to end on a whole character, then takes the first heading from `Outline.headings(in:)`; failure falls back to the file name. `modified` is `yyyy-MM-dd` in the current time zone and sorting uses the full date. `section` resolves the path, checks the size before reading, charges the budget, and returns the text with `Outline.headings` (closing `#` marks removed before comparing). A read that cannot be done returns empty with the reason from the table in "The read tags" (`not available`, `too large`, `not text`, `unreadable`, `read budget used`). Listings and reads are cached per render; a hit charges steps but no bytes. Costs: one step per entry listed, one per 256 bytes read. No write, delete, move, process or network API appears; the audit enforces the listed names (item 11).
 
 #### 9. `Sources/MDEdit/Templates/TemplateEvaluator.swift` (Create)
 
@@ -361,8 +362,8 @@ Work in four steps. Each step is its own commit and ends with `make check` green
 #### 13. `Sources/MDEdit/Templates/TemplateTrust.swift` (Create)
 
 *   **Type / Scope**: Approval records.
-*   **Proposed Changes**: `static func isApproved(_ path: String, text: String, root: URL, defaults: UserDefaults) -> Bool` and `static func approve(_ path: String, text: String, root: URL, defaults: UserDefaults)`. Stores an ordered list of `[path, sha256]` pairs, most recent first, under `templateApproved:<root>` where `<root>` is `root.resolvingSymlinksInPath().path`, and the list of folders under `templateApprovedRoots`; `ContentHash.sha256` makes the hash. `approve` refreshes its entry and drops the least recently used past 200 files per folder or 50 folders; `isApproved` only reads. Never reads or writes anything in the folder. A different root, path or text is not approved.
-*   **Tests** (`Tests/MDEditTests/Features/TemplateTrustTests.swift`, Create): approval is remembered; an edit is not approved; another root or path with the same text is not approved; a moved folder asks again; the 201st file and the 51st folder push out the least recently used; nothing is written into the folder (a SHA-256 listing before and after is equal).
+*   **Proposed Changes**: `TemplateTrust.hasBeenWarned(defaults:) -> Bool` and `markWarned(defaults:)`, one Bool under `templateWarned` in the app's settings. (The first design kept a hash per file and folder; see "The first-Render warning".)
+*   **Tests** (`Tests/MDEditTests/Features/TemplateTrustTests.swift`, Create): the warning is shown until it has been answered; the answer is kept in settings and nothing is written into a folder.
 
 #### 14. `Sources/MDEdit/Preview/PreviewWebView.swift` (Modify) and `Tests/MDEditTests/Features/PreviewTests.swift` (Modify)
 
@@ -398,8 +399,8 @@ Work in four steps. Each step is its own commit and ends with `make check` green
     | From | Event | To |
     |---|---|---|
     | any | a document is opened, or the open file reloads from disk | `.needsRender` for an HTML file with `{%` or `{{`, else `.notTemplate`; a running task is cancelled |
-    | `.needsRender`, `.cancelled`, `.failed` | Render pressed, `renderBusy` false, the file parses | `.rendering` (after the trust sheet, if needed) |
-    | `.needsRender` | the trust sheet is declined | `.needsRender` |
+    | `.needsRender`, `.cancelled`, `.failed` | Render pressed, `renderBusy` false, the file parses | `.rendering` (after the one-time warning, on the first Render in the app) |
+    | `.needsRender` | the one-time warning is declined | `.needsRender` |
     | `.rendering` | the task returns a page | `.rendered(html)` |
     | `.rendering` | the task returns an error | `.failed(error)` |
     | `.rendering` | Cancel pressed | `.cancelled` |
@@ -410,7 +411,7 @@ Work in four steps. Each step is its own commit and ends with `make check` green
 #### 19. `Sources/MDEdit/Model/Workspace+Templates.swift` (Create)
 
 *   **Type / Scope**: Template actions on the window model.
-*   **Proposed Changes**: `isTemplateCandidate` (the open file is `.html` or `.htm` and its text contains `{%` or `{{`). `render()`: refuse when `renderBusy`; read the file once as UTF-8 (a failure is `.failed`); parse; if the hash is not approved, ask through `templateConfirm` with the whole string as the scrolling text and the sentence from "Trust record"; on yes, `TemplateTrust.approve` (and on an already approved file also `approve`, to refresh recency); then set `.rendering`, start the evaluator on a background task, and start the clock timer. `cancelRender()` sets the flag and the state `.cancelled`. `openTemplateLink(_ url: URL)` runs `LinkPolicy.decide` with the opened folder as base and, for `.openWeb`, asks through `templateConfirm` ("Open this address?", the complete address as the scrolling text with the part from the first `?` on its own line, `cancelIsDefault: true`) and calls `openAddress` only on Open; other results are handled as `DetailView.openLink` handles them now (it delegates here). There is no automatic re-render.
+*   **Proposed Changes**: `isTemplateCandidate` (the open file is `.html` or `.htm` and its text contains `{%` or `{{`). `render()`: refuse when `renderBusy`; read the file once as UTF-8 (a failure is `.failed`); parse (with the meta block set aside); if the app has not warned yet, ask through `templateConfirm` with the sentence from "The first-Render warning" and no scrolling text, and on yes `TemplateTrust.markWarned`; then set `.rendering`, start the evaluator on a background task, and start the clock timer. `cancelRender()` sets the flag and the state `.cancelled`. `openTemplateLink(_ url: URL)` runs `LinkPolicy.decide` with the opened folder as base and, for `.openWeb`, asks through `templateConfirm` ("Open this address?", the complete address as the scrolling text with the part from the first `?` on its own line, `cancelIsDefault: true`) and calls `openAddress` only on Open; other results are handled as `DetailView.openLink` handles them now (it delegates here). There is no automatic re-render.
 
 #### 20. `Sources/MDEdit/UI/TemplateBanner.swift` (Create)
 
@@ -441,7 +442,7 @@ Work in four steps. Each step is its own commit and ends with `make check` green
 
 *   **Type / Scope**: Tests with a real `Workspace`, in step 4 because they need items 18 to 21. `audit.sh` lists the `openAddress` default closure as the vetted new call to `NSWorkspace.shared.open(` by extending the `grep -v` filter on the `REVIEW:` line.
 *   **Proposed Changes**:
-    *   *Trust*: the first Render parses first (a syntax error asks nothing), then asks with the whole template as the sheet text; approval is remembered; an edit asks again; another folder or path with the same text asks again; a declined sheet renders nothing; nothing is written into the folder.
+    *   *Warning*: a syntax error asks nothing; the first Render in the app asks once, with the sentence and no template text; Render, an edit, another page or another folder do not ask again; declining renders nothing, writes nothing and asks again next time.
     *   *Lifecycle*: while a render runs a second Render does not start; Cancel gives `.cancelled` and the preview shows the plain file; changing the document drops the running render and its late result; with a stub source that sleeps and a tiny clock, the state is `.failed(.timeout)` on time, `renderBusy` stays true and Render stays disabled until the stub returns, then Render works again; saving or editing other files never starts a render; Show source returns to `.needsRender`.
     *   *Links*, with the template in a subfolder: a link to `f.path` selects the right note; `http`, `https` and `mailto` (including `mailto:x?body=` with note text) each ask first with the full address, Cancel is the default, Cancel opens nothing, Open calls `openAddress` once with that URL; no other scheme reaches `openAddress`; a link inside `markdown` output behaves the same; a `file:` link and a link outside the folder are ignored as `LinkPolicy` says.
     *   *Guard*: a render that fails the output guard shows the error page.
@@ -452,7 +453,7 @@ Work in four steps. Each step is its own commit and ends with `make check` green
 *   **Unit Tests**: `scripts/test.sh` with the classes of the step while working: step 1 `SafePathTests AgentToolsTests ProposalTests ProposalSafetyTests AgentProtocolTests`; step 2 adds `BinderTests TemplateSecurityTests TemplateLimitTests TemplateFuzzTests TemplateTests TemplatePerformanceTests`; step 3 adds `ConfirmPromptTests TemplateTrustTests TemplateOutputGuardTests TemplatePreviewTests PreviewTests`; step 4 adds `TemplateBannerTests TemplateRenderTests HelpTests ProjectPolicyTests`. `make test` for the whole suite.
 *   **Static Analysis & Linting**: `make audit` passes with the new Templates rules, its self-test and the same five entitlements.
 *   **Test Coverage Requirement**: every limit has a test that exceeds it; every file under `Sources/MDEdit/Templates/` has line coverage from the template test classes (`make coverage`, read by hand because it prints only the top of the report).
-*   **E2E/Integration**: after step 4, `make check`, then by hand in the built app: open a folder with a template that lists notes and reads a section; press Render and read the sheet; edit the template and see the banner and sheet again; add `<img src="https://example.com/x.png">` to the template with remote pictures turned on and confirm nothing loads (the local-server test is the real check); click a web link and a mail link and read the sheets; confirm a SHA-256 listing of the folder before and after is unchanged.
+*   **E2E/Integration**: after step 4, `make check`, then by hand in the built app: open a folder with a template that lists notes and reads a section; press Render and read the one-time warning; edit the template and see the banner come back (Render then needs no warning); add `<img src="https://example.com/x.png">` to the template with remote pictures turned on and confirm nothing loads (the local-server test is the real check); click a web link and a mail link and read the sheets; confirm a SHA-256 listing of the folder before and after is unchanged.
 *   **Follow-up owned by the author, not a gate**: with a hostname under their control, put `<link rel="dns-prefetch" href="//name.example">` in a page loaded with layers 1 and 2 only and watch for a lookup (resolver log or `nettop`), then write the result in the "As built" section of this plan.
 
 --------------------------------------------------------------------------------
@@ -477,7 +478,7 @@ These are not choices; every part of the design is judged against them.
 | Approval lets a received template read every note, and the person approves without reading (consent fatigue) | Note content shown on screen and in the next web or mail sheet | The sheet shows the whole template and says it can read every note; reads stay on screen; no network request on its own | Accepted (Alternative F) |
 | A read blocks in the operating system | One blocked task, a timeout error | Timer-driven timeout sets the cancel flag; one in-flight evaluation per window; Render disabled until it returns; the late result is discarded | The task stays until the read returns |
 | A slow template under the limits | A 2 s wait | Step budget, clock, Cancel button | Up to 2 s per Render |
-| The trust record is bypassed or forged | A template renders without the sheet | The record is in app settings, not in the folder; keyed by resolved folder and the hash of the exact text | A person with the app's settings can edit them |
+| A received or edited template renders without a new warning | A template renders on a click | The Render click is the consent; the first-ever Render warns once; the containment layers limit what a template can do | Accepted: the author chose one warning (Decision 5) |
 | Extracting `SafePath` changes the agent tools' behaviour | Plan 005 tests fail or paths become allowed | The move keeps codes and messages; the one change is the hidden-target refusal, stated as a hardening; the plan 005 tests must pass unchanged | A visible name linking to a hidden file is now refused for agents too |
 | A hidden file in the folder is loaded by the page's own pictures or styles | Hidden content shown | `allows` refuses hidden parts for template pages, tested | None known |
 | A missed `charge()` lets a loop run to the end of its bounded list | A long run, not a hang; it cannot be cancelled until it returns | A test runs every node type under a tiny budget; fuzz tests | The app stays responsive; the task runs until it returns; Render stays disabled |
@@ -491,7 +492,7 @@ These are not choices; every part of the design is judged against them.
 | 2 | Who implements the engine | Our own parser and evaluator in this repository, no new dependency (reversed on 2026-11-06 from the Stencil package, after the spike) | We own every parsing edge case, and the language is only as complete as we write it (an estimate of 600 to 900 lines plus tests) |
 | 3 | Run-time limit | A step budget, a 2 s clock and a cancel flag charged by the evaluator itself; the render runs on a background task in the app; a timer reports a blocked read | A missed `charge()` gives a long, bounded run that cannot be cancelled; a read blocked in the operating system cannot be interrupted |
 | 4 | Who supplies templates | Any template file | A received template is treated as hostile |
-| 5 | When a template renders | A Render click each time; the first Render of each version of a file asks, remembered by a hash kept in the app's settings | One confirmation per version of a file |
+| 5 | When a template renders | A Render click each time; the very first Render in the app shows a one-time warning (kept in the app's settings) | A received or edited template renders on a click without a new warning |
 | 6 | How far a template can read | The whole opened folder | A received template can read every note; the header, rule list and output guard keep what it reads on screen, apart from a link the person chooses to open |
 | 7 | A click on a web or mail link on a rendered page | Ask first, showing the full address, with Cancel as the default | A person can still press Open on an address that carries note text |
 | 8 | Size of v1 | `files` (with `sort`, `reverse`, `limit`), `section`, `for/empty`, `if/else` with `==`/`!=`, filters `markdown`, `urlencode`, `default`. Left out until a template needs them: line ranges, front-matter fields, recursive listing, `elif`, `and`/`or`/`not`, the `lower`, `upper` and `join` filters; no re-render on folder change | A template needing those waits; the deny-by-default grammar means adding later breaks nothing |
@@ -515,6 +516,12 @@ Where the code differs from the plan above, or the plan left a choice:
 *   **Tests:** the header (layer 1) alone already blocks every resource vector, so layer 2 has its own test in a bare web view without a header; breaking the rule list on purpose fails that test. An iframe has no positive control in the real preview because the controller already cancels web subframes. `waitFor`, `pageJS` and `letPageSettle` are the shared helpers (the names `wait` and `settle` were taken by other test classes). `LocalHTTPServer` counts every accepted connection.
 *   **Not done:** the follow-up check of whether WebKit sends a DNS lookup for `dns-prefetch` or `preconnect` with only layers 1 and 2 on. Layer 3 refuses such a tag whatever the answer is.
 *   **Behaviour change outside templates:** `SafePath` refuses a visible name that links to a hidden file inside the folder, so the agent tools refuse it too.
+
+## Changed after first use
+
+*   **One warning, not one per file.** The first Render in the app shows a short sheet (the sentence only, no template text); nothing asks after that, also not after an edit or in another folder. This replaced the hash per file and folder, which is gone (`TemplateTrust` is now one flag).
+*   **A smaller link sheet.** The address is in a 380 by 54 point scrolling box and the line above it is one short sentence, so the dialog is small. Cancel is still the default and the whole address is still shown, with the query on its own line.
+*   **Meta is a note's, not the template's.** `{% meta path as m %}` reads the properties block of a note (cap `metaBytes`, 16 KB, read from the top). A first version put a meta block in the template file itself; that was a misunderstanding and is removed.
 
 ## Appendix: what the spike found (2026-11-05)
 

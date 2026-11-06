@@ -150,15 +150,17 @@ For a page, **Write**, **Find** in the file, **Print** and **Export** are unavai
 
 An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is never rendered by itself: not when you open it, not when a note changes. After you edit the template, press Render again.
 
-The first time you render a version of a template, MDEdit shows you the whole template and asks. It remembers your answer for that exact text, in this folder. Change one character and it asks again. A template can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes. Hidden files are never read.
+The first time you press Render in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Render just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes. Hidden files are never read.
 
-A small example, an index of the notes in `journal` with each note's Summary:
+A small example, an index of the notes in `journal` with each note's Summary. Each note's own meta block (see below) is read with `{% meta %}`:
 
 ```
 <h1>Journal</h1>
 {% files "journal" sort "modified" reverse limit 10 as items %}
 {% for f in items %}
+  {% meta f.path as m %}
   <h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a> {{ f.modified }}</h2>
+  <p>{{ m.author|default:"unknown" }}</p>
   {% section f.path "Summary" as text %}
   {{ text|markdown }}
 {% empty %}
@@ -170,6 +172,7 @@ A small example, an index of the notes in `journal` with each note's Summary:
 - `{% for x in list %}…{% empty %}…{% endfor %}` and `{% if a == b %}…{% else %}…{% endif %}` (`==` or `!=`, or one value alone).
 - `{% files "folder" [sort "name"|"modified"] [reverse] [limit N] as items %}` lists the notes and folders one level down. Each item has `name`, `path`, `kind`, `title`, `modified` and `size`. At most 100 items.
 - `{% section "path" "Heading" as text %}` reads the text under a heading of a note. If it cannot, `text` is empty and `text_error` says why (`not available`, `too large`, `not text`, `unreadable`, `read budget used`). A note over 64 KB is not read.
+- `{% meta "path" as m %}` reads the meta block of a note: the `key: value` lines between `---` lines at the top of the note (the same block the View shows as a properties card). Then `{{ m.title }}`, `{% for t in m.tags %}…{% endfor %}` and `{% if m.draft %}` work. A list is a list; `true` is the text true and `false` is empty. A key the note does not have is empty. If the note cannot be read, `m` is empty and `m_error` says why (`not available`, `not text`, `unreadable`, `read budget used`). Only the top of the note is read, so a long note still gives its meta.
 - Paths mean "relative to the open folder", wherever the template file is. A picture or link inside text from a note does too, not relative to that note's own folder.
 - Templates read the notes as saved on disk, not unsaved edits. The language has no other tags: anything else is a syntax error with a line number.
 - A page that contains a tag able to open a connection (anything but a relative stylesheet among `<link>`, and `<base>`, `<iframe>`, `<object>`, `<embed>`, `<meta http-equiv>`, `ping` or `formaction`) is not shown.

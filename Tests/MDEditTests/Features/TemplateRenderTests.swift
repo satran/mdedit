@@ -42,49 +42,49 @@ final class TemplateRenderTests: XCTestCase {
         guard case .failed(.syntax) = ws.templateState else { return XCTFail("\(ws.templateState)") }
     }
 
-    func testTheFirstRenderAsksWithTheWholeTemplateAndIsRemembered() throws {
+    func testTheFirstRenderWarnsOnceWithTheSentenceOnly() throws {
         let asked = answering()
         ws.render(); waitForRender()
         XCTAssertEqual(asked.calls.count, 1)
-        XCTAssertEqual(asked.calls[0].text, template, "the sheet shows the same string that is hashed and run")
+        XCTAssertNil(asked.calls[0].text, "no template text on the sheet: just the warning")
+        XCTAssertEqual(asked.calls[0].title, "Render this page?")
         XCTAssertEqual(asked.calls[0].button, "Render"); XCTAssertFalse(asked.calls[0].cancelDefault)
         XCTAssertEqual(asked.calls[0].detail, Workspace.trustSentence)
         guard case .rendered(let html) = ws.templateState else { return XCTFail("\(ws.templateState)") }
         XCTAssertTrue(html.contains("<p>Alpha</p>") && html.contains("<p>Beta</p>"), html)
         ws.showTemplateSource(); XCTAssertEqual(ws.templateState, .needsRender)
         ws.render(); waitForRender()
-        XCTAssertEqual(asked.calls.count, 1, "an approved version runs without the sheet")
+        XCTAssertEqual(asked.calls.count, 1, "after the first time Render just renders")
         if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
     }
 
-    func testAnEditAsksAgainAndADeclinedSheetRendersNothingAndWritesNothing() throws {
+    func testAnEditAnotherPageAndAnotherFolderDoNotAskAgain() throws {
         let asked = answering()
         ws.render(); waitForRender()
-        let edited = template + "<!-- edited -->"
-        try s.write("Sub/t.html", edited)
+        try s.write("Sub/t.html", template + "<!-- edited -->")
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(30)], ofItemAtPath: s.path("Sub/t.html").path)
         ws.reload()
         XCTAssertEqual(ws.templateState, .needsRender, "a changed file returns to the banner")
-        asked.answer = false
+        ws.render(); waitForRender()
+        try s.write("Sub/second.html", template)
+        ws.reload(); ws.select(s.path("Sub/second.html"))
+        ws.render(); waitForRender()
+        XCTAssertEqual(asked.calls.count, 1)
+        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
+    }
+
+    func testDecliningTheWarningRendersNothingWritesNothingAndAsksAgainNextTime() throws {
+        let asked = answering(false)
         let before = T.fingerprint(s)
         ws.render()
-        XCTAssertEqual(asked.calls.count, 2); XCTAssertEqual(asked.calls[1].text, edited)
         XCTAssertEqual(ws.templateState, .needsRender, "declined: nothing is rendered")
         XCTAssertEqual(T.fingerprint(s), before, "nothing is written into the folder")
         XCTAssertFalse(ws.renderBusy)
-    }
-
-    func testAnotherFolderWithTheSameTemplateAsksAgain() throws {
-        let asked = answering()
+        XCTAssertFalse(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
+        asked.answer = true
         ws.render(); waitForRender()
-        let other = try Scratch(["Sub/t.html": template, "journal/x.md": "# X"]); defer { other.remove() }
-        let ws2 = makeWorkspace(open: other.url); ws2.defaults.setValuesForKeys([:])
-        var n = 0
-        ws2.templateConfirm = { _, _, _, _, _ in n += 1; return true }
-        // the settings of ws and ws2 are separate, so test the key itself: the same text at the same path in another folder
-        XCTAssertFalse(TemplateTrust.isApproved("Sub/t.html", text: template, root: other.url, defaults: ws.defaults))
-        XCTAssertTrue(TemplateTrust.isApproved("Sub/t.html", text: template, root: s.url, defaults: ws.defaults))
-        XCTAssertEqual(asked.calls.count, 1)
+        XCTAssertEqual(asked.calls.count, 2)
+        XCTAssertTrue(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
     }
 
     func testSavingOrEditingOtherFilesNeverStartsARender() throws {
@@ -185,6 +185,7 @@ final class TemplateRenderTests: XCTestCase {
             XCTAssertEqual(shown.replacingOccurrences(of: "\n", with: ""), c, "the whole address")
             if c.contains("?") { XCTAssertTrue(shown.contains("\n?"), "the query is on its own line") }
             if c.hasPrefix("mailto") { XCTAssertTrue(asked.calls[0].detail.contains("mail program")) }
+            XCTAssertLessThan(asked.calls[0].detail.count, 90, "the dialog is kept short")
             XCTAssertTrue(opened.isEmpty, "Cancel opens nothing")
         }
         let yes = answering(true)

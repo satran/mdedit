@@ -159,4 +159,53 @@ final class TemplateTests: XCTestCase {
         let r = await TemplateEvaluator.render(text: #"{% files "journal" as items %}{{ items_error }}{% for f in items %}x{% endfor %}"#, root: s.url, cancel: CancelFlag())
         XCTAssertEqual(try? r.get(), "xxxx")
     }
+
+    // MARK: a note's meta block
+
+    private func withMetaNote() throws {
+        try s.write("m.md", "---\ntitle: My note\nauthor: \"Sat R\"\ndraft: false\npublished: true\ntags: [a, b]\nlinks:\n  - x\n  - y\n---\n# Heading\n\nBody")
+    }
+
+    func testANotesMetaIsAvailableByKey() throws {
+        try withMetaNote()
+        let t = #"{% meta "m.md" as m %}<h1>{{ m.title }}</h1><p>{{ m.author }}</p>{% if m.published %}[pub]{% endif %}{% if m.draft %}[draft]{% endif %}{% for t in m.tags %}<i>{{ t }}</i>{% endfor %}{% for l in m.links %}<b>{{ l }}</b>{% endfor %}[{{ m_error }}]"#
+        XCTAssertEqual(T.page(t, in: s), "<h1>My note</h1><p>Sat R</p>[pub]<i>a</i><i>b</i><b>x</b><b>y</b>[]")
+    }
+
+    func testMetaForEveryNoteInAFolder() throws {
+        try withMetaNote()
+        try s.write("n.md", "---\ntitle: Other\n---\n# H")
+        let p = T.page(#"{% files "" as items %}{% for f in items %}{% if f.kind == "note" %}{% meta f.path as m %}{{ f.name }}={{ m.title|default:"-" }};{% endif %}{% endfor %}"#, in: s)
+        XCTAssertTrue(p.contains("m.md=My note;") && p.contains("n.md=Other;") && p.contains("root.md=-;"), p)
+    }
+
+    func testMetaValuesAreEscaped() throws {
+        try s.write("e.md", "---\ntitle: <b>x</b> & y\n---\n")
+        XCTAssertEqual(T.page(#"{% meta "e.md" as m %}{{ m.title }}"#, in: s), "&lt;b&gt;x&lt;/b&gt; &amp; y")
+    }
+
+    func testNoMetaABlockNotAtTheTopAndAMissingKeyAreEmpty() throws {
+        try s.write("plain.md", "# T\n\n---\ntitle: nope\n---\n")
+        XCTAssertEqual(T.page(#"{% meta "plain.md" as m %}[{{ m.title }}][{{ m_error }}]"#, in: s), "[][]")
+        try withMetaNote()
+        XCTAssertEqual(T.page(#"{% meta "m.md" as m %}[{{ m.nothing }}][{{ m.nothing|default:"none" }}]"#, in: s), "[][none]")
+    }
+
+    func testMetaOfAFileThatCannotBeReadSaysWhy() throws {
+        try s.write("bin.md", Data([0x2D, 0x2D, 0x2D, 0x0A, 0x00, 0xFF]))
+        XCTAssertEqual(T.page(#"{% meta "bin.md" as m %}[{{ m_error }}]"#, in: s), "[not text]")
+        XCTAssertEqual(T.page(#"{% meta "nope.md" as m %}[{{ m_error }}]"#, in: s), "[not available]")
+        XCTAssertEqual(T.page(#"{% meta "../x.md" as m %}[{{ m_error }}]"#, in: s), "[not available]")
+    }
+
+    func testAnOversizedNoteStillGivesItsMeta() throws {
+        try s.write("big.md", "---\ntitle: Big one\n---\n" + String(repeating: "x", count: 200_000))
+        XCTAssertEqual(T.page(#"{% meta "big.md" as m %}{{ m.title }}"#, in: s), "Big one", "only the top of the note is read")
+    }
+
+    func testMetaCanChooseAFolder() throws {
+        try s.write("cfg.md", "---\nfolder: journal\n---\n")
+        let p = T.page(#"{% meta "cfg.md" as m %}{% files m.folder as items %}{% for f in items %}{{ f.name }};{% endfor %}"#, in: s)
+        XCTAssertEqual(p, "sub;a.md;b.md;c.txt;")
+    }
 }

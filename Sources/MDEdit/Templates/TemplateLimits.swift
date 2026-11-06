@@ -12,6 +12,7 @@ struct TemplateLimits: Equatable {
     var sectionBytes = 64 * 1024
     var readBytes = 8 * 1024 * 1024
     var titleBytes = 4 * 1024
+    var metaBytes = 16 * 1024
     var entries = 10_000
     var steps = 200_000
     var outputBytes = 2 * 1024 * 1024

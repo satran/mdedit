@@ -12,7 +12,7 @@ enum TemplateState: Equatable {
 /// Rendering an HTML page that uses template tags (plan 006). A render starts only when the person presses Render; nothing here
 /// writes to the folder, and nothing renders by itself when a file or the folder changes.
 extension Workspace {
-    static let trustSentence = "This page can read every note in this folder and show it on screen. It cannot change them. It makes no network request on its own. A link to the web or to a mail address asks you first, and the address may contain text from your notes."
+    static let trustSentence = "A rendered page can read every note in this folder and show it on screen. It cannot change anything, and it makes no network request on its own. You are asked this once."
 
     /// The open file is an HTML page whose text holds `{%` or `{{`.
     static func isTemplateCandidate(url: URL?, text: String) -> Bool {
@@ -34,16 +34,16 @@ extension Workspace {
     func render() {
         guard !renderBusy, let rootURL, let url = document.url, showingHTML else { return }
         switch templateState { case .needsRender, .cancelled, .failed: break; default: return }
-        // the file is read once; this one string is parsed, shown on the sheet, hashed and evaluated
+        // the file is read once; this one string is parsed and evaluated
         guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else {
             templateState = .failed(.syntax("This file cannot be read as text.", line: nil)); return
         }
         if case .failure(let e) = TemplateParser.parse(text, limits: templateLimits) { templateState = .failed(e); return }
-        let path = SafePath.relative(url, in: rootURL) ?? url.lastPathComponent
-        if !TemplateTrust.isApproved(path, text: text, root: rootURL, defaults: defaults) {
-            guard templateConfirm("Render this page?", Self.trustSentence, "Render", text, false) else { templateState = .needsRender; return }
+        // the very first Render in the app warns once; after that Render just renders
+        if !TemplateTrust.hasBeenWarned(defaults: defaults) {
+            guard templateConfirm("Render this page?", Self.trustSentence, "Render", nil, false) else { templateState = .needsRender; return }
+            TemplateTrust.markWarned(defaults: defaults)
         }
-        TemplateTrust.approve(path, text: text, root: rootURL, defaults: defaults)
         start(text: text, root: rootURL)
     }
 
@@ -99,8 +99,8 @@ extension Workspace {
             let text = u.absoluteString
             let shown = text.firstIndex(of: "?").map { String(text[..<$0]) + "\n" + String(text[$0...]) } ?? text
             let detail = u.scheme?.lowercased() == "mailto"
-                ? "This opens your mail program with this draft. The address and the text after ? may contain text from your notes."
-                : "This address may contain text from your notes."
+                ? "Opens your mail program with this draft. It may contain text from your notes."
+                : "It may contain text from your notes."
             if templateConfirm("Open this address?", detail, "Open", shown, true) { openAddress(u) }
         case .selectNote(let u): select(u)
         case .openFile(let u): NSWorkspace.shared.open(u)

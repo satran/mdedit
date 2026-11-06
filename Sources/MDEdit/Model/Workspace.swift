@@ -108,7 +108,7 @@ final class Workspace: ObservableObject {
     @Published var renderBusy = false
     /// Asks a question with an action button and Cancel (title, detail, button, scrolling text, Cancel is the default). Tests answer it.
     var templateConfirm: (_ title: String, _ detail: String, _ button: String, _ scrollingText: String?, _ cancelIsDefault: Bool) -> Bool =
-        { ConfirmPrompt.ask($0, $1, $2, scrollingText: $3, cancelIsDefault: $4) }
+        { ConfirmPrompt.ask($0, $1, $2, scrollingText: $3, textSize: NSSize(width: 380, height: 54), cancelIsDefault: $4) }
     /// Hands an address to the system. Tests look at what would be opened.
     var openAddress: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Tests can supply a source (for example one that sleeps) and smaller limits.

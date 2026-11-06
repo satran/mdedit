@@ -57,4 +57,9 @@ final class SlowSource: TemplateSource {
         Thread.sleep(forTimeInterval: delay)
         return ("slow", "")
     }
+    func meta(_ path: String, budget: Budget) throws -> (meta: Value, error: String) {
+        try budget.checkNow()
+        Thread.sleep(forTimeInterval: delay)
+        return (.record([:]), "")
+    }
 }

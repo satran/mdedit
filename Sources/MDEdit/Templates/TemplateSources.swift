@@ -6,6 +6,8 @@ protocol TemplateSource {
     func list(_ folder: String, sort: FilesSort, reverse: Bool, limit: Int?, budget: Budget) throws -> (items: [Value], error: String)
     /// The text under a heading in a note. `error` is empty when it worked; a missing heading gives empty text and no error.
     func section(_ path: String, _ heading: String, budget: Budget) throws -> (text: String, error: String)
+    /// The meta block of a note (the `key: value` lines between `---` lines at its top) as a record; empty when there is none.
+    func meta(_ path: String, budget: Budget) throws -> (meta: Value, error: String)
 }
 
 /// The disk source: the only code in `Templates/` that reads files, and it only reads. Every path goes through `SafePath`.
@@ -15,6 +17,7 @@ final class TemplateSources: TemplateSource {
     private enum Read { case text(String), failed(String) }
     private var listings: [String: [Entry]] = [:]
     private var reads: [String: Read] = [:]
+    private var heads: [String: Read] = [:]
 
     init(root: URL) { self.root = root }
 
@@ -142,6 +145,51 @@ final class TemplateSources: TemplateSource {
         if data.count > budget.limits.sectionBytes { return .failed("too large") }
         guard let text = String(data: data, encoding: .utf8) else { return .failed("not text") }
         return .text(text)
+    }
+
+    // MARK: meta
+
+    func meta(_ path: String, budget: Budget) throws -> (meta: Value, error: String) {
+        try budget.checkNow()
+        let url: URL
+        switch SafePath.resolve(path, in: root, kind: .note) {
+        case .success(let u): url = u
+        case .failure: try budget.charge(); return (.record([:]), "not available")
+        }
+        let read: Read
+        if let cached = heads[url.path] { read = cached } else { read = try loadHead(url, budget: budget); heads[url.path] = read }
+        try budget.charge()
+        switch read {
+        case .failed(let why): return (.record([:]), why)
+        case .text(let text): return (Self.metaRecord(text), "")
+        }
+    }
+
+    /// Only the top of the note is read: the meta block is at the top, and a long note does not make its meta unreadable.
+    private func loadHead(_ url: URL, budget: Budget) throws -> Read {
+        let n = budget.limits.metaBytes
+        if budget.bytesRead + n > budget.limits.readBytes { return .failed("read budget used") }
+        guard let h = try? FileHandle(forReadingFrom: url) else { return .failed("unreadable") }
+        defer { try? h.close() }
+        guard let data = try? h.read(upToCount: n) else { return .failed("unreadable") }
+        budget.bytesRead += data.count
+        try budget.charge(1 + data.count / 256)
+        if data.contains(0) { return .failed("not text") }
+        return .text(TextCut.decode(data))
+    }
+
+    /// A `true` is the text "true" and a `false` is empty, so `{% if m.draft %}` works.
+    static func metaRecord(_ text: String) -> Value {
+        guard let fm = FrontMatter.parse(text) else { return .record([:]) }
+        var record: [String: Value] = [:]
+        for p in fm.properties {
+            switch p.value {
+            case .text(let t): record[p.key] = .text(t)
+            case .bool(let b): record[p.key] = b ? .text("true") : .empty
+            case .list(let l): record[p.key] = .list(l.map { .text($0) })
+            }
+        }
+        return .record(record)
     }
 
     /// From the line after the first heading whose title matches, up to the next heading of the same or a higher level.

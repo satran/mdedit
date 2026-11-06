@@ -86,6 +86,7 @@ private final class Interpreter {
             case .ifElse(let cond, let body, let otherwise, let line): try run(try truth(cond, line: line) ? body : otherwise)
             case .files(let folder, let sort, let reverse, let limit, let name, let line): try files(folder, sort, reverse, limit, name, line: line)
             case .section(let path, let heading, let name, let line): try section(path, heading, name, line: line)
+            case .meta(let path, let name, let line): try meta(path, name, line: line)
             }
         }
     }
@@ -200,6 +201,13 @@ private final class Interpreter {
         }
         let r = try source.list(f, sort: sort, reverse: reverse, limit: n, budget: budget)
         vars[name] = .list(r.items)
+        vars[name + "_error"] = r.error.isEmpty ? .empty : .text(r.error)
+    }
+
+    func meta(_ path: Operand, _ name: String, line: Int) throws {
+        let p = try text(path, what: "a path", line: line)
+        let r = try source.meta(p, budget: budget)
+        vars[name] = r.meta
         vars[name + "_error"] = r.error.isEmpty ? .empty : .text(r.error)
     }
 

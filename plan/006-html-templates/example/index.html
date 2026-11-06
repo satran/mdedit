@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Notes index</title>
+<style>
+  body { font: 16px -apple-system, sans-serif; max-width: 40em; margin: 2em auto; padding: 0 1em; line-height: 1.5; }
+  h1 { margin-bottom: 0; }
+  .meta { color: #888; font-size: 13px; }
+  article { border-top: 1px solid #ddd; padding-top: .5em; margin-top: 1em; }
+</style>
+</head>
+<body>
+<h1>Latest notes</h1>
+<p class="meta">The ten most recently changed notes in this folder.</p>
+
+{% files "" sort "modified" reverse limit 10 as items %}
+{% for f in items %}
+  {% if f.kind == "note" %}
+  <article>
+    <h2><a href="{{ f.path|urlencode }}">{{ f.title }}</a></h2>
+    {% meta f.path as m %}
+    <p class="meta">{{ f.path }} · {{ f.modified }} · {{ m.author|default:"unknown author" }}{% if m.draft %} · DRAFT{% endif %}</p>
+    {% if m.tags %}<p class="meta">{% for t in m.tags %}#{{ t }} {% endfor %}</p>{% endif %}
+    {% section f.path "Summary" as summary %}
+    {% if summary %}
+      {{ summary|markdown }}
+    {% else %}
+      <p class="meta">No "Summary" heading in this note.</p>
+    {% endif %}
+  </article>
+  {% endif %}
+{% empty %}
+  <p>No notes here yet.</p>
+{% endfor %}
+</body>
+</html>
