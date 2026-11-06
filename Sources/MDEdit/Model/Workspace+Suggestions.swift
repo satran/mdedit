@@ -14,7 +14,7 @@ extension Workspace {
     @MainActor func accept(_ p: Proposal) async -> AcceptOutcome {
         // 1. get the note into an editable editor (the app may need a moment to build it)
         openNote(for: p)
-        if mode == .view, !showingHTML { mode = .write }
+        if mode == .view { mode = .write }
         guard let tv = await editorReady(for: p.url) else { return .blocked("Couldn't open the note.") }
         // 2. the passage must still be there exactly once
         let found = ProposalStore.matches(of: p.old, in: tv.string)
@@ -54,7 +54,7 @@ extension Workspace {
         guard let p = ProposalStore.shared.proposal(id), p.isOpen, p.workspace === self else { return }
         selectedProposal = id
         openNote(for: p)
-        if mode == .view, !showingHTML { mode = .write }
+        if mode == .view { mode = .write }
         guard let tv = await editorReady(for: p.url) else { return }
         ProposalStore.shared.recheck(self)
         refreshSuggestionMark()

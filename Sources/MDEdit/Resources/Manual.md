@@ -140,17 +140,23 @@ A picture or stylesheet on the web tells its server that you opened the note, so
 
 **View ▸ Edit Preview Stylesheet…** creates `.mdedit/preview.css` in the open folder and shows it in Finder. Whatever you write there is added after the built-in styling, so it can change fonts, colours, spacing and the width of the page. The starter file lists the colour variables. It applies to the View of notes in that folder, not to HTML files.
 
-## HTML files
+## HTML, JSON and YAML files
 
-HTML files (`.html`, `.htm`) in the folder appear in the binder with a globe icon and open as a page, as a browser would show them, with no editor. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser.
+HTML files (`.html`, `.htm`), JSON files (`.json`) and YAML files (`.yaml`, `.yml`) in the folder appear in the binder and open in the editor, shown as code: a monospace font, colours for tags, keys and strings, and none of the Markdown behaviour (no lists, no wiki links, no spell checking). You can edit and save them like a note, search them with **Find**, and undo.
 
-For a page, **Write**, **Find** in the file, **Print** and **Export** are unavailable and the eye button is dimmed. Pages are not part of wiki links, the outline or Find in Folder. Reopen the page to see changes to its stylesheets or pictures; changes to the page itself show on their own.
+Press the eye button (**Preview**, ⇧⌘E) to see the result:
+
+- **HTML** is shown as a page, as a browser would show it. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser. If the file has template tags, the preview renders it (see Templates below).
+- **JSON** is shown as pretty-printed JSON with the keys in order. A file that is not valid JSON says so and shows its text.
+- **YAML** is shown as a table of keys and values. Nested keys are joined with dots (`db.host`), and a list of maps has a row per field (`items[1].name`). It reads the common parts of YAML (mappings, lists, plain and quoted values, block text); anything else shows the text instead.
+
+A file you have previewed opens in the preview next time, as long as its text has not changed since; after an edit it opens in the editor again. These files are not notes: they are not part of wiki links, the outline, backlinks or Find in Folder, and Print and Export are for notes. Agents can read them and suggest edits to them in the Review tab, as for a note.
 
 ### Templates
 
-An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is not rendered when a note changes. A template you have already rendered is rendered again as soon as you open it, as long as its text has not changed since; after you edit the template, the bar comes back and you press Render again.
+An HTML file that contains `{%` or `{{` is a template. It opens in the editor as code. Press **Preview** (the eye button) and the page is filled in from the notes in the open folder; press it again to go back to the source. The first time you preview a template in MDEdit it warns you once (below). A template is not rendered when a note changes. A template you have already previewed opens in the preview, rendered, as soon as you open it, as long as its text has not changed since; after you edit it, it opens in the editor again. While a page renders there is a bar with **Cancel**.
 
-The first time you press Render in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Render just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes, unless you listed that host with **Trusted Addresses for Templates…** in the command palette (one host per line, `example.com` or `*.example.com`, https only, for this folder). Hidden files are never read.
+The first time you preview a template in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Preview just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes, unless you listed that host with **Trusted Addresses for Templates…** in the command palette (one host per line, `example.com` or `*.example.com`, https only, for this folder). Hidden files are never read.
 
 A small example, an index of the notes in `journal` with each note's Summary:
 

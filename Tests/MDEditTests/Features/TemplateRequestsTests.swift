@@ -21,7 +21,7 @@ final class TemplateRequestsTests: XCTestCase {
 
     private func renderNow() {
         ws.templateConfirm = { _, _, _, _, _ in true }
-        ws.render()
+        ws.mode = .view
         waitFor(ws.templateState != .rendering, "the render ends")
     }
 

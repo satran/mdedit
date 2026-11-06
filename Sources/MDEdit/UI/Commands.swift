@@ -28,7 +28,7 @@ struct Cmd: Identifiable {
 func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, newWindow: @escaping (UUID) -> Void) -> [Cmd] {
     let hasRoot = ws?.root != nil, hasDoc = ws?.document.url != nil
     // a web page is only shown: no editing, no export, nothing that works on Markdown
-    let isPage = ws?.showingHTML == true, hasNote = hasDoc && !isPage
+    let isPage = ws?.isCodeFile == true, hasNote = hasDoc && !isPage
     func docName(_ w: Workspace) -> String { w.document.url?.deletingPathExtension().lastPathComponent ?? "" }
 
     var c: [Cmd] = [
@@ -54,18 +54,18 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
 
         Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "forward", title: "Forward to Next Note", place: .view, key: "]", enabled: ws?.ahead.isEmpty == false) { ws?.goForward() },
-        Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasNote) { ws?.showFind(.file) },
-        Cmd(id: "replace", title: "Find and Replace…", place: .find, key: "f", modifiers: [.command, .option], enabled: hasNote) { ws?.showFind(.file, field: .replace) },
+        Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasDoc) { ws?.showFind(.file) },
+        Cmd(id: "replace", title: "Find and Replace…", place: .find, key: "f", modifiers: [.command, .option], enabled: hasDoc) { ws?.showFind(.file, field: .replace) },
         Cmd(id: "find-folder", title: "Find in Folder…", place: .find, key: "f", modifiers: [.command, .shift], enabled: hasRoot) { ws?.showFind(.folder) },
-        Cmd(id: "find-next", title: "Find Next", place: .find, key: "g", enabled: hasNote, dividerBefore: true) { ws?.findNext(1) },
-        Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasNote) { ws?.findNext(-1) },
+        Cmd(id: "find-next", title: "Find Next", place: .find, key: "g", enabled: hasDoc, dividerBefore: true) { ws?.findNext(1) },
+        Cmd(id: "find-previous", title: "Find Previous", place: .find, key: "g", modifiers: [.command, .shift], enabled: hasDoc) { ws?.findNext(-1) },
         Cmd(id: "binder", title: ws?.binderVisible == false ? "Show Binder" : "Hide Binder", place: .view, key: "/", enabled: ws != nil) { ws?.toggleBinder() },
         Cmd(id: "search", title: "Search Binder", place: .view, key: "b", modifiers: [.command, .shift], enabled: ws != nil) { ws?.focusSearch() },
         Cmd(id: "outline", title: ws?.panel == .outline ? "Hide Outline" : "Show Outline", place: .view, key: "o", modifiers: [.command, .option], enabled: ws != nil) { ws?.toggleOutline() },
         Cmd(id: "status", title: prefs.showStatusBar ? "Hide Status Bar" : "Show Status Bar", place: .view, key: "b", modifiers: [.command, .option]) { prefs.showStatusBar.toggle() },
-        Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil && !isPage, dividerBefore: true) { ws?.mode = .write },
-        Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil && !isPage) { ws?.mode = .view },
-        Cmd(id: "preview", title: ws?.mode == .view ? "Back to Writing" : "Preview", place: .view, key: "e", modifiers: [.command, .shift], enabled: ws != nil && !isPage) { ws?.mode = ws?.mode == .view ? .write : .view },
+        Cmd(id: "write", title: "Write", place: .view, key: "1", enabled: ws != nil, dividerBefore: true) { ws?.mode = .write },
+        Cmd(id: "view", title: "View", place: .view, key: "2", enabled: ws != nil) { ws?.mode = .view },
+        Cmd(id: "preview", title: ws?.mode == .view ? "Back to Writing" : "Preview", place: .view, key: "e", modifiers: [.command, .shift], enabled: ws != nil) { ws?.mode = ws?.mode == .view ? .write : .view },
         Cmd(id: "focus", title: ws?.focus == true ? "Leave Distraction Free" : "Distraction Free", place: .view, key: "f", modifiers: [.command, .control], enabled: ws != nil && !isPage, dividerBefore: true) { ws?.toggleFocus() },
         Cmd(id: "preview-css", title: "Edit Preview Stylesheet…", place: .view, enabled: hasRoot) { _ = ws?.editPreviewStylesheet() },
         Cmd(id: "typewriter", title: ws?.typewriter == true ? "Turn Off Typewriter Mode" : "Typewriter Mode", place: .view, key: "t", modifiers: [.command, .control], enabled: ws != nil) { ws?.typewriter.toggle() },

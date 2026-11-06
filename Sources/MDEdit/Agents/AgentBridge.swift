@@ -47,8 +47,8 @@ enum AgentToolSpec {
 
     static let all: [[String: Any]] = [
         tool("get_context", "What the person is looking at in the front MDEdit window: the open note, mode, unsaved flag, selection and the headings above the cursor.", [:], required: []),
-        tool("read_note", "Read a note in the open folder. Returns the unsaved text when the note is open in the editor.", ["path": "Path relative to the folder"], required: ["path"]),
-        tool("propose_edit", "Suggest a change to a note. Nothing changes until the person accepts it in the app. `old` must match the note's text exactly once.",
+        tool("read_note", "Read a note or text file (Markdown, text, HTML, JSON, YAML) in the open folder. Returns the unsaved text when it is open in the editor.", ["path": "Path relative to the folder"], required: ["path"]),
+        tool("propose_edit", "Suggest a change to a note or text file (Markdown, text, HTML, JSON, YAML). Nothing changes until the person accepts it in the app. `old` must match the file's text exactly once.",
              ["path": "Path relative to the folder", "old": "Exact text to replace (must occur once)", "new": "Replacement text (may be empty)",
               "title": "Short title (up to 120 characters)", "reason": "Why (up to 500 characters)"], required: ["path", "old", "new", "title", "reason"]),
         tool("render_template", "Render an HTML template in the open folder with the same engine and limits as the Render button, and return the page or the error with its line number. Reads only; nothing is written and nothing opens. Use it to test a template before handing it over.",

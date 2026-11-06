@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The bar above an HTML page that uses template tags: Render, a render in progress, and the outcome.
+/// The bar above a template page while something is going on: a render in progress (with Cancel), or a read that is still blocked.
+/// A page that is not being rendered has no bar: the editor shows the source and the preview button renders it.
 struct TemplateBanner: View {
     @ObservedObject var ws: Workspace
 
@@ -13,20 +14,13 @@ struct TemplateBanner: View {
 
     static let blocked = "Waiting for a blocked file read."
 
-    /// What the bar says and offers for a state; nil when the page has no template tags.
+    /// What the bar says and offers; nil when there is nothing to say.
     static func content(_ state: TemplateState, busy: Bool) -> Content? {
         switch state {
-        case .notTemplate: return nil
-        case .needsRender:
-            return Content(text: busy ? blocked : "This page uses template tags.", buttons: [.init(title: "Render", enabled: !busy)])
-        case .rendering:
-            return Content(text: "Rendering…", spinner: true, buttons: [.init(title: "Cancel")])
-        case .cancelled:
-            return Content(text: busy ? "Render cancelled. " + blocked : "Render cancelled.", buttons: [.init(title: "Render", enabled: !busy)])
-        case .rendered:
-            return Content(text: "Rendered from template.", buttons: [.init(title: "Show source")])
-        case .failed(let e):
-            return Content(text: e.message + (e.line.map { " (line \($0))" } ?? "") + (busy ? " " + blocked : ""), buttons: [.init(title: "Show source")])
+        case .notTemplate, .rendered: return busy ? Content(text: blocked, buttons: []) : nil
+        case .needsRender: return busy ? Content(text: blocked, buttons: []) : nil
+        case .rendering: return Content(text: "Rendering…", spinner: true, buttons: [.init(title: "Cancel")])
+        case .failed: return busy ? Content(text: blocked, buttons: []) : nil
         }
     }
 
@@ -38,11 +32,5 @@ struct TemplateBanner: View {
         }
     }
 
-    func run(_ title: String) {
-        switch title {
-        case "Render": ws.render()
-        case "Cancel": ws.cancelRender()
-        default: ws.showTemplateSource()
-        }
-    }
+    func run(_ title: String) { if title == "Cancel" { ws.cancelRender() } }
 }

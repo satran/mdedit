@@ -76,10 +76,10 @@ final class RightPanelTests: XCTestCase {
         XCTAssertEqual(Workspace(defaults: old, recents: RecentFolders(defaults: old)).panel, .outline)
     }
 
-    func testAPageSearchesTheFolderAndTheMinimumWidthLeavesRoomForTheToolbar() {
+    func testAPageCanBeSearchedAndTheMinimumWidthLeavesRoomForTheToolbar() {
         let ws = workspace()
         ws.select(s.path("page.html")); ws.showFind(.file)
-        XCTAssertEqual(ws.find.scope, .folder)
+        XCTAssertEqual(ws.find.scope, .file, "a page is edited like a note")
         XCTAssertGreaterThanOrEqual(ws.minContentWidth, 520 + ws.rightPanelWidth)
     }
 }

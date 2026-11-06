@@ -1,13 +1,13 @@
 # HTML templates in MDEdit: a guide for agents
 
-MDEdit can fill an HTML file in from the notes in the folder it has open. You write an ordinary `.html` file with a few template tags; the person presses **Render** and sees a page built from their notes (an index, a task list, a summary of every note, today's agenda). This file tells you how to write one that works the first time, and how to test it yourself.
+MDEdit can fill an HTML file in from the notes in the folder it has open. You write an ordinary `.html` file with a few template tags; the person previews it (the eye button) and sees a page built from their notes (an index, a task list, a summary of every note, today's agenda). This file tells you how to write one that works the first time, and how to test it yourself.
 
-You write the template as a file on disk, in the person's opened folder. (The Review tab only accepts `.md`, `.markdown` and `.txt`, so it cannot carry an HTML file.) You can **test it yourself with the `render_template` tool** (see "Testing a template"); the person still presses Render in the app.
+You write the template as a file on disk, in the person's opened folder, or suggest changes to an existing one with `propose_edit` (HTML, JSON and YAML files are text files to the agent tools, like notes; the person accepts in the Review tab). You can **test it yourself with the `render_template` tool** (see "Testing a template"); the person still previews it in the app.
 
 ## How it works
 
-- A file is a template when its extension is `.html` or `.htm` **and** its text contains `{%` or `{{`. MDEdit then shows a bar, "This page uses template tags.", with a **Render** button. Until Render is pressed the file is shown as plain HTML. Once the person has pressed Render on a file, opening that file renders it again by itself, as long as its text is exactly what it was then (the app keeps a SHA-256 of it, per folder and path, in its settings). After any edit the bar comes back and the person presses Render again. Nothing renders when a note changes, and **Show source** stays on the source until the file is opened again.
-- The first time anyone presses Render in the app, a sheet warns once that a rendered page can read every note in the folder. After that it just renders.
+- A file is a template when its extension is `.html` or `.htm` **and** its text contains `{%` or `{{`. MDEdit opens it in the editor, as code. The person presses **Preview** (the eye button) to render it, and presses it again to go back to the source. Once a file has been previewed, opening it again shows the preview by itself, as long as its text is exactly what it was then (the app keeps a SHA-256 of it, per folder and path, in its settings). After any edit it opens in the editor again. Nothing renders when a note changes.
+- The first time anyone previews a template in the app, a sheet warns once that a rendered page can read every note in the folder. After that it just renders.
 - Rendering only **reads**. A template cannot write, rename or delete anything, run a program, run JavaScript or make a network request.
 - Everything is read from the opened folder, as saved on disk (unsaved edits in the editor are not seen).
 - A link on the rendered page that points at the page itself with a query (`<a href="?due=overdue">`) renders it again with those values in `query` (see "Query"). That is the way to make a page interactive without JavaScript.
@@ -120,7 +120,7 @@ Each task is a record: `done` (`"true"` or empty), `text` (the line without its 
 {% for e in day.events %}{{ e.time }} {{ e.title }}{% endfor %}
 ```
 
-JSON is read in full: objects are records, arrays are lists, strings are text, whole numbers are numbers, `true` is the text "true", `false` and `null` are empty, other numbers are their text. YAML is only the same small subset as a note's properties block (flat `key: value`, `[a, b]`, `- a`, `true`/`false`): use JSON for anything nested. Up to 256 KB, 50,000 values and 12 levels.
+JSON is read in full: objects are records, arrays are lists, strings are text, whole numbers are numbers, `true` is the text "true", `false` and `null` are empty, other numbers are their text. YAML is read by the same reader as the YAML preview: mappings, lists and plain or quoted values, nested; no anchors, tags or flow maps. `true` is the text "true"; `false`, `null`, `~` and an empty value are empty; whole numbers are numbers. Up to 256 KB, 50,000 values and 12 levels.
 
 **Errors from the read tags.** `files`, `section`, `meta`, `tasks` and `data` never stop the page for one bad file. They set an empty result and a variable named after yours plus `_error` (`items_error`, `text_error`, `m_error`, `ts_error`, `day_error`): empty when it worked, otherwise one of `not available` (the path is refused or missing), `too large`, `not text`, `unreadable`, `read budget used`. Test it with `{% if text_error %}`.
 
@@ -179,7 +179,7 @@ A template is treated as hostile, so these are enforced, not suggestions:
 
 ## Testing a template
 
-The **`render_template`** tool (Agents on in Settings, a folder open in the front window) renders a template with the same engine, limits and output checks as the Render button, and returns the page or the error. Arguments: `path` (the `.html` file, relative to the folder), `query` (optional, `due=overdue&priority=A`) and `today` (optional, `2026-11-06`, to render as if it were that day). The result is `{"ok": true, "html": "...", "bytes": n, "truncated": false}` (the page is cut at 300 KB for you), or `{"ok": false, "error": {"title", "message", "line"}}` with the line counted from the top of the file. It reads the file as saved on disk, writes nothing and opens nothing. There is no command-line renderer: the app starts no program and has no URL scheme.
+The **`render_template`** tool (Agents on in Settings, a folder open in the front window) renders a template with the same engine, limits and output checks as Preview, and returns the page or the error. Arguments: `path` (the `.html` file, relative to the folder), `query` (optional, `due=overdue&priority=A`) and `today` (optional, `2026-11-06`, to render as if it were that day). The result is `{"ok": true, "html": "...", "bytes": n, "truncated": false}` (the page is cut at 300 KB for you), or `{"ok": false, "error": {"title", "message", "line"}}` with the line counted from the top of the file. It reads the file as saved on disk, writes nothing and opens nothing. There is no command-line renderer: the app starts no program and has no URL scheme.
 
 Re-read the tags against this guide before you ask: every read tag has `as name`, every block is closed, attributes are quoted, filters are from the table. "Page not shown" means the output held a refused tag. "Waiting for a blocked file read" is a stuck disk read; wait or cancel.
 

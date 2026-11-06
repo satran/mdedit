@@ -150,28 +150,29 @@ final class PreviewTests: XCTestCase {
         XCTAssertEqual(LinkPolicy.decide(s.path("page.html"), noteFolder: s.url, root: s.url), .selectNote(s.path("page.html")))
     }
 
-    func testOpeningAPageForcesThePreviewAndTheNoteAfterGetsItsModeBack() {
+    func testAPageOpensInTheEditorAndTheNoteAfterGetsItsModeBack() {
         let ws = makeWorkspace(open: s.url)
-        ws.select(s.path("Notes/One.md")); ws.mode = .write
+        ws.select(s.path("Notes/One.md")); ws.mode = .view
         ws.select(s.path("page.html"))
-        XCTAssertTrue(ws.showingHTML); XCTAssertEqual(ws.mode, .view)
-        ws.mode = .write
-        XCTAssertEqual(ws.mode, .view, "a page has no editor")
-        ws.toggleFocus(); XCTAssertFalse(ws.focus, "distraction free needs an editor")
-        ws.select(s.path("Notes/One.md"))
-        XCTAssertEqual(ws.mode, .write, "back to what the reader was doing")
-        XCTAssertFalse(ws.showingHTML)
-        ws.mode = .view; ws.select(s.path("page.html")); ws.select(s.path("Notes/One.md"))
+        XCTAssertTrue(ws.showingHTML); XCTAssertEqual(ws.mode, .write, "a page that was never previewed opens as code")
+        ws.mode = .view
         XCTAssertEqual(ws.mode, .view)
+        ws.toggleFocus(); XCTAssertFalse(ws.focus, "distraction free is for notes")
+        ws.select(s.path("Notes/One.md"))
+        XCTAssertEqual(ws.mode, .view, "back to what the reader was doing")
+        XCTAssertFalse(ws.showingHTML)
+        ws.mode = .write; ws.select(s.path("page.html")); ws.select(s.path("Notes/One.md"))
+        XCTAssertEqual(ws.mode, .write)
     }
 
-    func testPageDisablesWhatNeedsAnEditorButKeepsThePreviewButton() {
+    func testAPageKeepsTheEditorCommandsAndLosesTheMarkdownOnes() {
         let ws = makeWorkspace(open: s.url)
         func enabled(_ id: String) -> Bool { makeCommands(ws: ws, prefs: Preferences(), recents: RecentFolders(), newWindow: { _ in }).first { $0.id == id }!.enabled }
         ws.select(s.path("Notes/One.md"))
         for id in ["write", "view", "preview", "find", "replace", "export-html", "print", "focus"] { XCTAssertTrue(enabled(id), id) }
         ws.select(s.path("page.html"))
-        for id in ["write", "view", "preview", "find", "replace", "find-next", "export-html", "copy-md", "print", "focus"] { XCTAssertFalse(enabled(id), id) }
+        for id in ["write", "view", "preview", "find", "replace", "find-next"] { XCTAssertTrue(enabled(id), id) }
+        for id in ["export-html", "copy-md", "print", "focus"] { XCTAssertFalse(enabled(id), "\(id) works on Markdown notes") }
         XCTAssertTrue(enabled("find-folder") && enabled("back") == !ws.visited.isEmpty)
     }
 
@@ -184,11 +185,11 @@ final class PreviewTests: XCTestCase {
         XCTAssertEqual(try s.read(".mdedit/preview.css"), "h1{}")
     }
 
-    func testFindFromAPageOpensTheFolderSearch() {
+    func testFindFromAPageSearchesThePage() {
         let ws = makeWorkspace(open: s.url)
         ws.select(s.path("page.html"))
         ws.showFind(.file)
-        XCTAssertEqual(ws.find.scope, .folder)
+        XCTAssertEqual(ws.find.scope, .file)
     }
 
     // MARK: files a page may read

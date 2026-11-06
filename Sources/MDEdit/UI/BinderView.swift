@@ -156,7 +156,7 @@ struct BinderRowView: View {
                 } else { Color.clear }
             }
             .frame(width: 12, height: 12).foregroundStyle(Color(Palette.muted))
-            Image(systemName: node.isFolder ? "folder" : node.isDocument ? "doc.text" : node.isHTML ? "globe" : "doc").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
+            Image(systemName: node.isFolder ? "folder" : node.isDocument ? "doc.text" : node.isHTML ? "globe" : BinderNode.jsonExtensions.contains(node.url.pathExtension.lowercased()) ? "curlybraces" : node.isCode ? "list.bullet.rectangle" : "doc").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
             if ws.renaming == node.url {
                 TextField("Name", text: $draft)
                     .textFieldStyle(.plain).font(.system(size: 13))
@@ -184,7 +184,7 @@ struct BinderRowView: View {
         .simultaneousGesture(TapGesture().onEnded {
             guard ws.renaming != node.url else { return }
             ws.select(node.url)
-            if node.isDocument { ws.editor.keepFocusElsewhere = false; DispatchQueue.main.async { ws.focusEditor() } }
+            if node.opensInApp { ws.editor.keepFocusElsewhere = false; DispatchQueue.main.async { ws.focusEditor() } }
         })
         .draggable(node.url)
         .dropDestination(for: URL.self) { urls, _ in
@@ -197,7 +197,7 @@ struct BinderRowView: View {
             Button("New Folder Here") { ws.newFolder(in: node.isFolder ? node.url : node.url.deletingLastPathComponent()) }
             Divider()
             Button("Rename") { ws.renaming = node.url }
-            if !node.isFolder && !node.isDocument {
+            if !node.isFolder && !node.opensInApp {
                 // programs are shown, never started from here
                 Button(LinkPolicy.isProgram(node.url) ? "Reveal Program in Finder" : "Open in Default App") {
                     if LinkPolicy.isProgram(node.url) { NSWorkspace.shared.activateFileViewerSelecting([node.url]) } else { NSWorkspace.shared.open(node.url) }

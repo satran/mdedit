@@ -55,7 +55,7 @@ final class ProposalSafetyTests: XCTestCase {
 
     func testPathsAndKindsAreChecked() {
         for p in ["../x.md", "/etc/hosts", ".hidden.md", "link.md", "Nope.md", "A.png"] { XCTAssertTrue(propose(["path": p]).isError, p) }
-        XCTAssertEqual(propose(["path": "page.html", "old": "x"]).json["code"] as? String, "not_editable")
+        XCTAssertEqual(propose(["path": "A.png", "old": "x"]).json["code"] as? String, "not_a_note", "only text files can be edited")
         XCTAssertEqual(try s.read("A.md"), "one\ntwo\ntwo\r\nthree\n", "a suggestion never touches a file")
     }
 

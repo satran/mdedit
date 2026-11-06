@@ -13,6 +13,8 @@ struct MarkdownTextEditor: NSViewRepresentable {
     var linksVersion = 0
     var typewriter = false
     var focusDim = false
+    /// HTML, JSON or YAML: the editor shows the file as code. nil is a Markdown note.
+    var code: CodeKind?
     var bridge: EditorBridge?
     /// Return true when Esc was used up (leaving focus mode).
     var onEscape: (() -> Bool)?
@@ -44,6 +46,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.dropText = dropText
         tv.bridge = bridge
         bridge?.textView = tv
+        Self.configure(tv, code: code)
 
         let scroll = NSScrollView()
         scroll.drawsBackground = false
@@ -58,6 +61,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 
         tv.style = style
+        tv.code = code
         tv.font = tv.baseFont
         tv.string = text
         tv.updateInsets()
@@ -75,6 +79,7 @@ struct MarkdownTextEditor: NSViewRepresentable {
         tv.dropText = dropText
         tv.bridge = bridge
         bridge?.textView = tv
+        if tv.code != code { Self.configure(tv, code: code); tv.code = code }
         if context.coordinator.linksVersion != linksVersion { context.coordinator.linksVersion = linksVersion; tv.restyle() }
         tv.style = style                                    // restyles itself when it changed
         let switched = context.coordinator.documentID != documentID
@@ -90,6 +95,16 @@ struct MarkdownTextEditor: NSViewRepresentable {
             tv.scrollToBeginningOfDocument(nil)
             if documentID != nil, bridge?.keepFocusElsewhere != true { DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) } }
         }
+    }
+
+    /// Code is not prose: no spelling, no autocorrection, no smart replacements.
+    static func configure(_ tv: NSTextView, code: CodeKind?) {
+        let prose = code == nil
+        tv.isContinuousSpellCheckingEnabled = prose
+        tv.isAutomaticSpellingCorrectionEnabled = prose
+        tv.isAutomaticTextReplacementEnabled = prose
+        tv.smartInsertDeleteEnabled = prose
+        tv.isGrammarCheckingEnabled = false
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -113,7 +128,46 @@ struct MarkdownTextEditor: NSViewRepresentable {
             if tv.typewriter { DispatchQueue.main.async { tv.centerCaret() } }
         }
 
+        /// Return keeps the indentation; Tab indents by two spaces; Shift-Tab takes two away.
+        func codeCommand(_ tv: NSTextView, _ sel: Selector) -> Bool {
+            let ns = tv.string as NSString
+            switch sel {
+            case #selector(NSResponder.cancelOperation(_:)):
+                if parent.onEscape?() == true { return true }
+                tv.window?.makeFirstResponder(nil); return true
+            case #selector(NSResponder.insertNewline(_:)):
+                let sel = tv.selectedRange()
+                let line = ns.lineRange(for: NSRange(location: sel.location, length: 0))
+                let lead = String(ns.substring(with: line).prefix { $0 == " " || $0 == "\t" })
+                let carried = String(lead.prefix(max(0, min((lead as NSString).length, sel.location - line.location))))
+                tv.insertText("\n" + carried, replacementRange: sel)
+                return true
+            case #selector(NSResponder.insertTab(_:)):
+                let sel = tv.selectedRange()
+                let lines = ns.lineRange(for: sel)
+                if sel.length == 0 || !ns.substring(with: sel).contains("\n") { tv.insertText("  ", replacementRange: sel); return true }
+                let text = ns.substring(with: lines)
+                let out = text.components(separatedBy: "\n").map { $0.isEmpty ? $0 : "  " + $0 }.joined(separator: "\n")
+                tv.insertText(out, replacementRange: lines)
+                tv.setSelectedRange(NSRange(location: lines.location, length: (out as NSString).length))
+                return true
+            case #selector(NSResponder.insertBacktab(_:)):
+                let lines = ns.lineRange(for: tv.selectedRange())
+                let text = ns.substring(with: lines)
+                let out = text.components(separatedBy: "\n").map { l -> String in
+                    var n = 0; for c in l.prefix(2) where c == " " { n += 1 }
+                    return String(l.dropFirst(n))
+                }.joined(separator: "\n")
+                guard out != text else { return true }
+                tv.insertText(out, replacementRange: lines)
+                tv.setSelectedRange(NSRange(location: lines.location, length: (out as NSString).length))
+                return true
+            default: return false
+            }
+        }
+
         func textView(_ tv: NSTextView, doCommandBy sel: Selector) -> Bool {
+            if parent.code != nil { return codeCommand(tv, sel) }
             if let editor = tv as? EditorTextView, editor.wikiList.handle(sel) { return true }
             switch sel {
             case #selector(NSResponder.cancelOperation(_:)):

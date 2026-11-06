@@ -35,7 +35,7 @@ struct DetailView: View {
     private var header: some View {
         let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
         // a web page is only shown: nothing here works on Markdown, so the buttons stay, dimmed
-        let canExport = document.url != nil && !ws.showingHTML
+        let canExport = document.url != nil && !ws.isCodeFile
         return HStack(spacing: 12) {
             IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
                 .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
@@ -46,7 +46,7 @@ struct DetailView: View {
             HStack(spacing: 4) {
                 IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
                     .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
-                    .opacity(ws.showingHTML ? 0.35 : 1).disabled(ws.showingHTML)
+                    .opacity(document.url == nil ? 0.35 : 1).disabled(document.url == nil)
                     .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
                 shareMenu(name: name).opacity(canExport ? 1 : 0.35).disabled(!canExport)
                 IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
@@ -124,8 +124,8 @@ struct DetailView: View {
                                style: EditorStyle(fontName: prefs.editorFont, size: CGFloat(prefs.editorSize), lineWidth: prefs.lineWidth, headingSizes: prefs.headingSizes),
                                onOpenWiki: { ws.openWiki($0) },
                                wikiResolves: { ws.wikiResolves($0) }, wikiNames: { ws.index.names },
-                               linksVersion: ws.treeVersion, typewriter: ws.typewriter, bridge: ws.editor,
-                               dropText: { ws.linkText(forDropped: $0) })
+                               linksVersion: ws.treeVersion, typewriter: ws.typewriter && !ws.isCodeFile, code: ws.codeKind, bridge: ws.editor,
+                               dropText: ws.isCodeFile ? nil : { ws.linkText(forDropped: $0) })
         } else {
             PreviewWebView(request: previewRequest, open: openLink)
         }
@@ -133,20 +133,31 @@ struct DetailView: View {
 
     private var previewRequest: PreviewRequest {
         let url = document.url
-        // a rendered template, or the page saying why there is none; every other state shows the file as it is
-        switch ws.templateState {
-        case .rendered(let html):
-            return PreviewRequest(source: .template(rendered: html), title: "", noteFolder: ws.rootURL, root: ws.rootURL,
-                                  options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
-        case .failed(let e):
-            let page = PreviewPage.errorPage(title: e.title, message: e.message, line: e.line)
-            return PreviewRequest(source: .template(rendered: page), title: "", noteFolder: ws.rootURL, root: ws.rootURL,
-                                  options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
-        default: break
+        let title = url?.deletingPathExtension().lastPathComponent ?? ""
+        let options = PreviewPage.Options(style: prefs.viewerStyle, loadRemote: prefs.loadRemoteImages, customCSS: nil)
+        func shown(_ markdown: String) -> PreviewRequest {
+            PreviewRequest(source: .markdown(markdown), title: title, noteFolder: ws.rootURL, root: ws.rootURL, options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
         }
-        let source: PreviewRequest.Source = ws.showingHTML && url != nil ? .html(url!, text: document.text) : .markdown(document.text)
-        return PreviewRequest(source: source, title: url?.deletingPathExtension().lastPathComponent ?? "", noteFolder: url?.deletingLastPathComponent(),
-                              root: ws.rootURL, options: .init(style: prefs.viewerStyle, loadRemote: prefs.loadRemoteImages, customCSS: ws.showingHTML ? nil : customCSS))
+        func template(_ html: String) -> PreviewRequest {
+            PreviewRequest(source: .template(rendered: html), title: "", noteFolder: ws.rootURL, root: ws.rootURL, options: .init(style: prefs.viewerStyle, loadRemote: false, customCSS: nil))
+        }
+        switch ws.codeKind {
+        case .json?: return shown(CodePreview.markdown(json: document.text))
+        case .yaml?: return shown(CodePreview.markdown(yaml: document.text))
+        case .html?:
+            if ws.isTemplateCandidate {
+                // a rendered template, or the page saying why there is none; while it renders the page is blank
+                switch ws.templateState {
+                case .rendered(let html): return template(html)
+                case .failed(let e): return template(PreviewPage.errorPage(title: e.title, message: e.message, line: e.line))
+                default: return shown("")
+                }
+            }
+            return PreviewRequest(source: .html(url!, text: document.text), title: title, noteFolder: url?.deletingLastPathComponent(), root: ws.rootURL, options: options)
+        case nil:
+            return PreviewRequest(source: .markdown(document.text), title: title, noteFolder: url?.deletingLastPathComponent(), root: ws.rootURL,
+                                  options: .init(style: prefs.viewerStyle, loadRemote: prefs.loadRemoteImages, customCSS: customCSS))
+        }
     }
 
     /// A click in the preview: the same rules for notes and pages.
@@ -165,11 +176,13 @@ struct DetailView: View {
     // MARK: footer
 
     private var footer: some View {
-        let page = ws.showingHTML
-        let words = DocumentStore.wordCount(page ? HTMLText.visible(document.text) : document.text)
+        let code = ws.isCodeFile
+        let words = DocumentStore.wordCount(ws.showingHTML && ws.mode == .view ? HTMLText.visible(document.text) : document.text)
+        let lines = document.text.isEmpty ? 0 : document.text.split(separator: "\n", omittingEmptySubsequences: false).count
         return HStack(spacing: 2) {
             if document.url != nil {
-                Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read")
+                if code && ws.mode == .write { Text("\(lines) \(lines == 1 ? "line" : "lines")") }
+                else { Text("\(words) \(words == 1 ? "word" : "words") · \(DocumentStore.readMinutes(words: words)) min read") }
             }
             let waiting = prefs.agentsEnabled ? proposals.items.filter { $0.status == .pending && $0.workspace === ws }.count : 0
             if waiting > 0 {
@@ -178,7 +191,7 @@ struct DetailView: View {
                     .buttonStyle(.plain).accessibilityLabel("\(waiting) suggestions waiting. Open the Review tab")
             }
             Spacer()
-            if document.url != nil, !page, ws.mode == .write {
+            if document.url != nil, !code, ws.mode == .write {
                 IconButton(symbol: "circle.circle", label: "Distraction free") { ws.toggleFocus() }
                 IconButton(symbol: "text.alignleft", label: ws.typewriter ? "Turn off typewriter mode" : "Typewriter mode") { ws.typewriter.toggle(); DispatchQueue.main.async { ws.focusEditor() } }
                     .foregroundStyle(Color(ws.typewriter ? Palette.link : Palette.muted))

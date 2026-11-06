@@ -11,7 +11,9 @@ final class BinderNode: Identifiable {
     /// A web page: shown in the preview and never edited, so it is not a note (no wiki links, no search, no replace) and keeps its extension.
     var isHTML: Bool { !isFolder && Self.htmlExtensions.contains(url.pathExtension.lowercased()) }
     /// Opens in the writing pane rather than in Quick Look.
-    var opensInApp: Bool { isDocument || isHTML }
+    /// A file shown as code: HTML, JSON and YAML open in the editor, and the preview shows the page, a table or pretty JSON.
+    var isCode: Bool { !isFolder && Self.codeExtensions.contains(url.pathExtension.lowercased()) }
+    var opensInApp: Bool { isDocument || isCode }
     var name: String { isFolder || !isDocument ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent }
 
     init(url: URL, isFolder: Bool, children: [BinderNode] = []) {
@@ -22,6 +24,9 @@ final class BinderNode: Identifiable {
     static let markdownExtensions: Set<String> = ["md", "markdown"]
     static let documentExtensions: Set<String> = markdownExtensions.union(["txt"])
     static let htmlExtensions: Set<String> = ["html", "htm"]
+    static let jsonExtensions: Set<String> = ["json"]
+    static let yamlExtensions: Set<String> = ["yaml", "yml"]
+    static let codeExtensions: Set<String> = htmlExtensions.union(jsonExtensions).union(yamlExtensions)
 
     /// One level of a folder: subfolders (not yet read) first, then files, each in natural order. Hidden entries, packages and
     /// links to folders are skipped; links to files are kept. `rawCount` is how many entries the folder held before any were skipped.

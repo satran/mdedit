@@ -72,9 +72,6 @@ enum AcceptOutcome: Equatable { case applied, stale, blocked(String) }
         typealias E = AgentTools.PathError
         purge()
         guard let root = ws.rootURL else { return .failure(E(code: "no_window", message: "The window has no folder open.")) }
-        if BinderNode.htmlExtensions.contains((path as NSString).pathExtension.lowercased()) {
-            return .failure(E(code: "not_editable", message: "HTML pages are shown read-only and cannot be edited."))
-        }
         let url: URL
         switch AgentTools.resolve(path, in: root) {
         case .failure(let e): return .failure(e)

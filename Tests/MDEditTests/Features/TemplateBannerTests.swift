@@ -2,27 +2,19 @@ import XCTest
 import SwiftUI
 @testable import MDEdit
 
-/// The bar above a template page, drawn in a real hosting view. (`SnapshotTests.render` cannot set the template state.)
+/// The bar above a template while something is going on, drawn in a real hosting view.
 @MainActor
 final class TemplateBannerTests: XCTestCase {
-    private let states: [(TemplateState, Bool, [String])] = [
-        (.needsRender, false, ["Render"]), (.needsRender, true, ["Render"]), (.rendering, true, ["Cancel"]), (.cancelled, false, ["Render"]),
-        (.rendered("<p>x</p>"), false, ["Show source"]), (.failed(.timeout), false, ["Show source"]), (.failed(.syntax("bad", line: 3)), true, ["Show source"]),
-    ]
-
-    func testWhatTheBarSaysAndOffersForEachState() throws {
-        XCTAssertNil(TemplateBanner.content(.notTemplate, busy: false))
-        for (state, busy, buttons) in states {
-            let c = try XCTUnwrap(TemplateBanner.content(state, busy: busy), "\(state)")
-            XCTAssertEqual(c.buttons.map(\.title), buttons, "\(state)")
-            XCTAssertFalse(c.text.isEmpty)
+    func testTheBarSaysSomethingOnlyWhileARenderRunsOrAReadIsBlocked() throws {
+        for state: TemplateState in [.notTemplate, .needsRender, .rendered("<p>x</p>"), .failed(.timeout), .failed(.syntax("bad", line: 3))] {
+            XCTAssertNil(TemplateBanner.content(state, busy: false), "\(state)")
         }
-        let waiting = try XCTUnwrap(TemplateBanner.content(.needsRender, busy: true))
-        XCTAssertEqual(waiting.buttons.first?.enabled, false, "Render is disabled while a blocked read is outstanding")
-        XCTAssertTrue(waiting.text.contains("blocked file read"))
-        XCTAssertEqual(try XCTUnwrap(TemplateBanner.content(.needsRender, busy: false)).buttons.first?.enabled, true)
-        XCTAssertTrue(try XCTUnwrap(TemplateBanner.content(.rendering, busy: true)).spinner)
-        XCTAssertTrue(try XCTUnwrap(TemplateBanner.content(.failed(.syntax("bad", line: 3)), busy: false)).text.contains("line 3"))
+        let rendering = try XCTUnwrap(TemplateBanner.content(.rendering, busy: true))
+        XCTAssertTrue(rendering.spinner); XCTAssertEqual(rendering.buttons.map(\.title), ["Cancel"])
+        for state: TemplateState in [.needsRender, .failed(.timeout), .rendered("x"), .notTemplate] {
+            let waiting = try XCTUnwrap(TemplateBanner.content(state, busy: true), "\(state)")
+            XCTAssertTrue(waiting.text.contains("blocked file read")); XCTAssertTrue(waiting.buttons.isEmpty)
+        }
     }
 
     private func draw(_ state: TemplateState, busy: Bool, dark: Bool) throws -> (NSBitmapImageRep, NSColor) {
@@ -43,15 +35,13 @@ final class TemplateBannerTests: XCTestCase {
         return (rep, expected)
     }
 
-    func testTheBarIsDrawnInLightAndDarkForEveryState() throws {
+    func testTheBarIsDrawnInLightAndDark() throws {
         for dark in [false, true] {
-            for (state, busy, _) in states {
+            for (state, busy) in [(TemplateState.rendering, true), (.needsRender, true)] {
                 let (rep, expected) = try draw(state, busy: busy, dark: dark)
                 XCTAssertGreaterThan(rep.pixelsHigh, 0)
-                // a pixel in the left margin, where there is no text: the bar's own colour
                 let px = try XCTUnwrap(rep.colorAt(x: 4, y: rep.pixelsHigh / 2)?.usingColorSpace(.sRGB))
                 if dark {
-                    // the hosting view blends the dark bar a little lighter than the palette value: check it is the dark bar, not the light one
                     for c in [px.redComponent, px.greenComponent, px.blueComponent] { XCTAssertLessThan(c, 0.3, "\(state) dark") }
                 } else {
                     XCTAssertEqual(px.redComponent, expected.redComponent, accuracy: 0.03, "\(state)")
@@ -62,15 +52,18 @@ final class TemplateBannerTests: XCTestCase {
         }
     }
 
-    func testTheButtonsRunTheWorkspaceActions() throws {
+    func testCancelGoesBackToTheEditor() throws {
         let s = try Scratch(["p.html": "{{ x }}"]); defer { s.remove() }
         let ws = makeWorkspace(open: s.url)
         ws.select(s.path("p.html"))
+        XCTAssertEqual(ws.mode, .write, "a template opens in the editor")
+        ws.templateSource = SlowSource(delay: 0.4)
+        ws.templateConfirm = { _, _, _, _, _ in true }
+        ws.mode = .view
+        XCTAssertEqual(ws.templateState, .rendering)
+        TemplateBanner(ws: ws).run("Cancel")
+        XCTAssertEqual(ws.mode, .write)
         XCTAssertEqual(ws.templateState, .needsRender)
-        var asked = 0
-        ws.templateConfirm = { _, _, _, _, _ in asked += 1; return false }
-        TemplateBanner(ws: ws).run("Render")
-        XCTAssertEqual(asked, 1)
-        XCTAssertEqual(ws.templateState, .needsRender)
+        waitFor(!ws.renderBusy, "the task returns")
     }
 }

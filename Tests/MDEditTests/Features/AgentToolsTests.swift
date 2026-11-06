@@ -177,7 +177,7 @@ final class AgentToolsTests: XCTestCase {
 
     func testPathsOutsideTheFolderOrOfTheWrongKindAreRefused() {
         _ = workspace()
-        let refused = ["../x.md", "Dir/../../x.md", "/etc/hosts", "~/x.md", ".hidden.md", ".mdedit/n.md", "pic.png", "page.html", "Dir", "Nope.md", "",
+        let refused = ["../x.md", "Dir/../../x.md", "/etc/hosts", "~/x.md", ".hidden.md", ".mdedit/n.md", "pic.png", "Dir", "Nope.md", "",
                        "link.md", "linkdir/secret.md"]
         for p in refused {
             let r = run("read_note", ["path": p])

@@ -2,19 +2,18 @@ import SwiftUI
 
 enum TemplateState: Equatable {
     case notTemplate
+    /// A page with template tags that is not rendered at the moment (the editor shows its source).
     case needsRender
     case rendering
     case rendered(String)
-    case cancelled
     case failed(TemplateError)
 }
 
-/// Rendering an HTML page that uses template tags (plan 006). A render starts only when the person presses Render; nothing here
-/// writes to the folder, and nothing renders by itself when a file or the folder changes.
+/// Rendering an HTML page that uses template tags (plan 006). The editor shows the source; the preview renders it. Nothing here writes
+/// to the folder, and nothing renders by itself when a note or the folder changes.
 extension Workspace {
     static let trustSentence = "A rendered page can read every note in this folder and show it on screen. It cannot change anything, and it makes no network request on its own. You are asked this once."
 
-    /// The open file is an HTML page whose text holds `{%` or `{{`.
     static func isTemplateCandidate(url: URL?, text: String) -> Bool {
         guard let url, BinderNode.htmlExtensions.contains(url.pathExtension.lowercased()) else { return false }
         return text.contains("{%") || text.contains("{{")
@@ -22,45 +21,65 @@ extension Workspace {
 
     var isTemplateCandidate: Bool { Self.isTemplateCandidate(url: document.url, text: document.text) }
 
-    /// A document was opened or reloaded: stop a running render, forget its result, and show the banner again if the page has tags.
+    // MARK: the preview of a code file
+
+    /// The path used for the record of previewed files.
+    private func previewPath(_ url: URL) -> String { rootURL.flatMap { SafePath.relative(url, in: $0) } ?? url.lastPathComponent }
+
+    /// True when this exact text was previewed before (and, for a template, the one-time warning has been answered): it opens in the preview.
+    var previewedBefore: Bool {
+        guard let url = document.url, let rootURL else { return false }
+        if isTemplateCandidate && !TemplateTrust.hasBeenWarned(defaults: defaults) { return false }
+        return TemplateTrust.wasRendered(previewPath(url), text: document.text, root: rootURL, defaults: defaults)
+    }
+
+    /// The mode became the preview. A template is rendered (the first time in the app, after the warning; declining goes back to the
+    /// editor); any other file is shown as it is. Either way the text is saved first, so the preview shows what the editor shows.
+    func enterPreview() {
+        guard let url = document.url, let rootURL else { return }
+        document.saveNow()
+        if isTemplateCandidate {
+            if !render() { mode = .write }
+        } else {
+            TemplateTrust.markRendered(previewPath(url), text: document.text, root: rootURL, defaults: defaults)
+        }
+    }
+
+    /// The mode went back to the editor (or the document changed): stop a render, forget its result and the query.
+    func leavePreview() { resetTemplateState(url: document.url, text: document.text) }
+
+    /// A document was opened, reloaded or edited, or the preview was left: stop a running render, forget its result, and note
+    /// whether the page has tags. A page that was being previewed when its text changed goes back to the editor.
     func resetTemplateState(url: URL?, text: String) {
         templateGeneration += 1
         templateQuery = [:]
         if renderBusy { templateCancel.cancel() }
-        let candidate = Self.isTemplateCandidate(url: url, text: text)
-        let next: TemplateState = candidate ? .needsRender : .notTemplate
+        let wasPreviewing: Bool
+        switch templateState { case .rendering, .rendered, .failed: wasPreviewing = true; default: wasPreviewing = false }
+        let next: TemplateState = Self.isTemplateCandidate(url: url, text: text) ? .needsRender : .notTemplate
         if templateState != next { templateState = next }
-        // a page that was rendered before and has not changed since renders again by itself (the person has already said yes to this text)
-        if candidate, let url, let rootURL, TemplateTrust.hasBeenWarned(defaults: defaults),
-           TemplateTrust.wasRendered(SafePath.relative(url, in: rootURL) ?? url.lastPathComponent, text: text, root: rootURL, defaults: defaults) {
-            let generation = templateGeneration
-            // not now: this runs while the document is still being replaced
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.templateGeneration == generation, self.templateState == .needsRender else { return }
-                self.render(auto: true)
-            }
-        }
+        if wasPreviewing, mode == .view { mode = .write }
     }
 
-    /// The Render button: parse, ask once per version of the file, then evaluate on a background task.
-    func render(auto: Bool = false) {
-        guard !renderBusy, let rootURL, let url = document.url, showingHTML else { return }
-        switch templateState { case .needsRender, .cancelled, .failed: break; default: return }
-        // the file is read once; this one string is parsed and evaluated
-        guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else {
-            templateState = .failed(.syntax("This file cannot be read as text.", line: nil)); return
-        }
-        if case .failure(let e) = TemplateParser.parse(text, limits: templateLimits) { templateState = .failed(e); return }
-        let path = SafePath.relative(url, in: rootURL) ?? url.lastPathComponent
-        // opening a page renders it only if this exact text was rendered before; an edited page waits for the button
-        if auto { guard TemplateTrust.hasBeenWarned(defaults: defaults), TemplateTrust.wasRendered(path, text: text, root: rootURL, defaults: defaults) else { return } }
+    /// Renders the open template: parse, warn once in the app, then evaluate on a background task. False when nothing was started because
+    /// a blocked read is still outstanding or the warning was declined; true when a render started or the page failed to parse.
+    @discardableResult
+    func render() -> Bool {
+        guard !renderBusy, let rootURL, let url = document.url, showingHTML else { return false }
+        switch templateState { case .needsRender, .failed: break; default: return false }
+        // this one string is parsed, shown to nobody and evaluated; it is the editor's text, saved just before
+        document.saveNow()
+        let text = document.text
+        if case .failure(let e) = TemplateParser.parse(text, limits: templateLimits) { templateState = .failed(e); return true }
+        let path = previewPath(url)
         // the very first Render in the app warns once; after that Render just renders
         if !TemplateTrust.hasBeenWarned(defaults: defaults) {
-            guard templateConfirm("Render this page?", Self.trustSentence, "Render", nil, false) else { templateState = .needsRender; return }
+            guard templateConfirm("Render this page?", Self.trustSentence, "Render", nil, false) else { templateState = .needsRender; return false }
             TemplateTrust.markWarned(defaults: defaults)
         }
         TemplateTrust.markRendered(path, text: text, root: rootURL, defaults: defaults)
         start(text: text, root: rootURL)
+        return true
     }
 
     private func start(text: String, root: URL) {
@@ -90,21 +109,20 @@ extension Workspace {
         guard templateGeneration == generation, templateState == .rendering else { return }
         switch result {
         case .success(let html): templateState = .rendered(html)
-        case .failure(.cancelled): templateState = .cancelled
+        case .failure(.cancelled): templateState = .needsRender
         case .failure(let e): templateState = .failed(e)
         }
     }
 
+    /// Cancel: stop the render and go back to the editor.
     func cancelRender() {
         guard templateState == .rendering else { return }
         templateCancel.cancel()
-        templateState = .cancelled
+        mode = .write
     }
 
-    /// Back to the plain page and the Render button.
-    func showTemplateSource() {
-        switch templateState { case .rendered, .failed: templateQuery = [:]; templateState = .needsRender; default: break }
-    }
+    /// Back to the source.
+    func showTemplateSource() { mode = .write }
 
     /// A click in a rendered template page. Links to notes and files behave as on any page, relative to the opened folder;
     /// a web or mail address asks first, with the whole address, and Cancel is the default.

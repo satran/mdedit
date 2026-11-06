@@ -6,7 +6,8 @@ struct OutlineView: View {
     @ObservedObject var document: DocumentStore
 
     var body: some View {
-        let headings = Outline.headings(in: document.text)
+        // headings belong to notes; the text of an HTML, JSON or YAML file has none
+        let headings = ws.isCodeFile ? [] : Outline.headings(in: document.text)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 section("Headings") {

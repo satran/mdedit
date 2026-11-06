@@ -176,7 +176,7 @@ import AppKit
 
     /// A path from an agent, made safe by `SafePath`: relative, inside the folder after symlinks are followed, no hidden parts, a note file.
     static func resolve(_ path: String, in root: URL) -> Result<URL, PathError> {
-        switch SafePath.resolve(path, in: root, kind: .note) {
+        switch SafePath.resolve(path, in: root, kind: .editable) {
         case .success(let u): return .success(u)
         case .failure(let f): return .failure(PathError(code: f.code, message: f.message))
         }

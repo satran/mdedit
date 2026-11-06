@@ -1,7 +1,7 @@
 import XCTest
 @testable import MDEdit
 
-/// Rendering through a real `Workspace`: the trust sheet, the lifecycle of a render, and clicks on a rendered page.
+/// A template through a real `Workspace`: it opens in the editor, the preview renders it, and a rendered page opens in the preview again.
 @MainActor
 final class TemplateRenderTests: XCTestCase {
     var s: Scratch!
@@ -9,7 +9,8 @@ final class TemplateRenderTests: XCTestCase {
     let template = #"<h1>J</h1>{% files "journal" as items %}{% for f in items %}<p>{{ f.title }}</p>{% endfor %}"#
 
     override func setUpWithError() throws {
-        s = try Scratch(["journal/a.md": "# Alpha\n\n## Summary\n\n[site](https://example.com/?q=secret)\n", "journal/b.md": "# Beta", "Sub/t.html": template, "other.md": "# Other"])
+        s = try Scratch(["journal/a.md": "# Alpha\n\n## Summary\n\n[site](https://example.com/?q=secret)\n", "journal/b.md": "# Beta", "Sub/t.html": template, "other.md": "# Other",
+                         "plain.html": "<p>hello</p>", "data.json": #"{"b":1,"a":[1,2]}"#, "conf.yaml": "name: x\nlist:\n  - a\n"])
         ws = makeWorkspace(open: s.url)
         ws.select(s.path("Sub/t.html"))
         addTeardownBlock { self.s.remove() }
@@ -25,179 +26,206 @@ final class TemplateRenderTests: XCTestCase {
 
     private func waitForRender() { waitFor(ws.templateState != .rendering, "the render ends") }
 
-    // MARK: trust
-
-    func testAPageWithTagsGetsTheBanner() {
-        XCTAssertEqual(ws.templateState, .needsRender)
-        ws.select(s.path("other.md")); XCTAssertEqual(ws.templateState, .notTemplate)
-        ws.select(s.path("Sub/t.html")); XCTAssertEqual(ws.templateState, .needsRender)
-    }
-
-    func testASyntaxErrorAsksNothing() throws {
-        try s.write("Sub/bad.html", "{% nonsense %}")
-        ws.reload(); ws.select(s.path("Sub/bad.html"))
-        let asked = answering()
-        ws.render()
-        XCTAssertEqual(asked.calls.count, 0, "the template is parsed before anyone is asked")
-        guard case .failed(.syntax) = ws.templateState else { return XCTFail("\(ws.templateState)") }
-    }
-
-    func testTheFirstRenderWarnsOnceWithTheSentenceOnly() throws {
-        let asked = answering()
-        ws.render(); waitForRender()
-        XCTAssertEqual(asked.calls.count, 1)
-        XCTAssertNil(asked.calls[0].text, "no template text on the sheet: just the warning")
-        XCTAssertEqual(asked.calls[0].title, "Render this page?")
-        XCTAssertEqual(asked.calls[0].button, "Render"); XCTAssertFalse(asked.calls[0].cancelDefault)
-        XCTAssertEqual(asked.calls[0].detail, Workspace.trustSentence)
-        guard case .rendered(let html) = ws.templateState else { return XCTFail("\(ws.templateState)") }
-        XCTAssertTrue(html.contains("<p>Alpha</p>") && html.contains("<p>Beta</p>"), html)
-        ws.showTemplateSource(); XCTAssertEqual(ws.templateState, .needsRender)
-        ws.render(); waitForRender()
-        XCTAssertEqual(asked.calls.count, 1, "after the first time Render just renders")
-        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
-    }
-
-    func testAnEditAnotherPageAndAnotherFolderDoNotAskAgain() throws {
-        let asked = answering()
-        ws.render(); waitForRender()
-        try s.write("Sub/t.html", template + "<!-- edited -->")
-        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(30)], ofItemAtPath: s.path("Sub/t.html").path)
-        ws.reload()
-        XCTAssertEqual(ws.templateState, .needsRender, "a changed file returns to the banner")
-        ws.render(); waitForRender()
-        try s.write("Sub/second.html", template)
-        ws.reload(); ws.select(s.path("Sub/second.html"))
-        ws.render(); waitForRender()
-        XCTAssertEqual(asked.calls.count, 1)
-        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
-    }
-
-    func testDecliningTheWarningRendersNothingWritesNothingAndAsksAgainNextTime() throws {
-        let asked = answering(false)
-        let before = T.fingerprint(s)
-        ws.render()
-        XCTAssertEqual(ws.templateState, .needsRender, "declined: nothing is rendered")
-        XCTAssertEqual(T.fingerprint(s), before, "nothing is written into the folder")
-        XCTAssertFalse(ws.renderBusy)
-        XCTAssertFalse(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
-        asked.answer = true
-        ws.render(); waitForRender()
-        XCTAssertEqual(asked.calls.count, 2)
-        XCTAssertTrue(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
-    }
-
-    // MARK: rendering again by itself
+    /// Presses the preview button.
+    private func preview() { ws.mode = .view }
 
     private func reopen(_ name: String) {
         ws.select(s.path("other.md"))
         ws.select(s.path(name))
     }
 
-    func testARenderedPageThatHasNotChangedRendersByItselfWhenOpenedAgain() {
+    // MARK: the editor and the preview
+
+    func testATemplateOpensInTheEditorAndThePreviewRendersIt() {
+        XCTAssertEqual(ws.mode, .write, "the source is shown as code")
+        XCTAssertEqual(ws.templateState, .needsRender)
         let asked = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
+        XCTAssertEqual(ws.mode, .view)
+        guard case .rendered(let html) = ws.templateState else { return XCTFail("\(ws.templateState)") }
+        XCTAssertTrue(html.contains("<p>Alpha</p>") && html.contains("<p>Beta</p>"), html)
+        XCTAssertEqual(asked.calls.count, 1)
+        XCTAssertNil(asked.calls[0].text, "no template text on the sheet: just the warning")
+        XCTAssertEqual(asked.calls[0].title, "Render this page?"); XCTAssertEqual(asked.calls[0].button, "Render"); XCTAssertFalse(asked.calls[0].cancelDefault)
+        XCTAssertEqual(asked.calls[0].detail, Workspace.trustSentence)
+    }
+
+    func testTheWarningIsAskedOnceAndBackToWritingForgetsTheRender() {
+        let asked = answering()
+        preview(); waitForRender()
+        ws.mode = .write
+        XCTAssertEqual(ws.templateState, .needsRender)
+        preview(); waitForRender()
+        XCTAssertEqual(asked.calls.count, 1, "after the first time Preview just renders")
+        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
+    }
+
+    func testDecliningTheWarningStaysInTheEditorWritesNothingAndAsksAgainNextTime() {
+        let asked = answering(false)
+        let before = T.fingerprint(s)
+        preview()
+        XCTAssertEqual(ws.mode, .write); XCTAssertEqual(ws.templateState, .needsRender)
+        XCTAssertEqual(T.fingerprint(s), before, "nothing is written into the folder")
+        XCTAssertFalse(ws.renderBusy)
+        XCTAssertFalse(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
+        asked.answer = true
+        preview(); waitForRender()
+        XCTAssertEqual(asked.calls.count, 2)
+        XCTAssertTrue(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
+    }
+
+    func testASyntaxErrorAsksNothingAndShowsTheError() throws {
+        try s.write("Sub/bad.html", "{% nonsense %}")
+        ws.reload(); ws.select(s.path("Sub/bad.html"))
+        let asked = answering()
+        preview()
+        XCTAssertEqual(asked.calls.count, 0, "the template is parsed before anyone is asked")
+        guard case .failed(.syntax) = ws.templateState else { return XCTFail("\(ws.templateState)") }
+        XCTAssertEqual(ws.mode, .view, "the preview shows the error page")
+    }
+
+    func testThePreviewRendersWhatTheEditorShowsNotTheOldFile() throws {
+        _ = answering()
+        ws.document.text = template + "<p>EDITED</p>"
+        preview(); waitForRender()
+        guard case .rendered(let html) = ws.templateState else { return XCTFail("\(ws.templateState)") }
+        XCTAssertTrue(html.contains("EDITED"), "the buffer is saved first and rendered")
+        XCTAssertTrue(try s.read("Sub/t.html").contains("EDITED"), "and the file now holds it")
+    }
+
+    // MARK: opening again
+
+    func testARenderedPageThatHasNotChangedOpensInThePreviewAndRendersByItself() {
+        let asked = answering()
+        preview(); waitForRender()
         reopen("Sub/t.html")
-        waitFor(ws.templateState != .needsRender && ws.templateState != .rendering, "the page renders by itself")
+        XCTAssertEqual(ws.mode, .view, "it was previewed before and has not changed")
+        waitFor(ws.templateState != .rendering, "the render")
         if case .rendered(let html) = ws.templateState { XCTAssertTrue(html.contains("<p>Alpha</p>")) } else { XCTFail("\(ws.templateState)") }
         XCTAssertEqual(asked.calls.count, 1, "no sheet: the person already said yes")
     }
 
-    func testAPageThatWasNeverRenderedWaitsForTheButton() {
+    func testAnEditedPageOpensInTheEditor() throws {
         _ = answering()
-        ws.render(); waitForRender()
-        ws.select(s.path("other.md"))
-        try? s.write("Sub/new.html", template)
-        ws.reload(); ws.select(s.path("Sub/new.html"))
-        letPageSettle(0.3)
-        XCTAssertEqual(ws.templateState, .needsRender, "another page, even with the same text, has not been rendered")
-    }
-
-    func testAnEditedPageAsksForTheButtonAgain() throws {
-        _ = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         ws.select(s.path("other.md"))
         try s.write("Sub/t.html", template + "<!-- edited -->")
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(30)], ofItemAtPath: s.path("Sub/t.html").path)
         ws.reload()
         ws.select(s.path("Sub/t.html"))
-        letPageSettle(0.3)
-        XCTAssertEqual(ws.templateState, .needsRender, "the text changed since it was rendered")
-        ws.render(); waitForRender()
+        XCTAssertEqual(ws.mode, .write, "the text changed since it was previewed")
+        preview(); waitForRender()
         reopen("Sub/t.html")
-        waitFor(ws.templateState != .needsRender && ws.templateState != .rendering, "the edited text, once rendered, renders by itself")
-        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
+        XCTAssertEqual(ws.mode, .view, "the edited text, once previewed, opens in the preview")
+        waitForRender()
     }
 
-    func testEditingTheOpenPageBringsBackTheButton() throws {
+    func testEditingThePreviewedPageOutsideBringsBackTheEditor() throws {
         _ = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         try s.write("Sub/t.html", template + " ")
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(60)], ofItemAtPath: s.path("Sub/t.html").path)
         ws.reload()
-        letPageSettle(0.3)
+        XCTAssertEqual(ws.mode, .write)
         XCTAssertEqual(ws.templateState, .needsRender)
     }
 
-    func testShowSourceStaysOnTheSourceUntilThePageIsOpenedAgain() {
+    func testAPageThatWasNeverPreviewedOpensInTheEditorEvenWithTheSameText() throws {
         _ = answering()
-        ws.render(); waitForRender()
-        ws.showTemplateSource()
-        letPageSettle(0.3)
-        XCTAssertEqual(ws.templateState, .needsRender, "the person asked for the source: it does not render again at once")
-    }
-
-    func testADeclinedWarningLeavesNoRecord() {
-        _ = answering(false)
-        ws.render()
-        reopen("Sub/t.html")
-        letPageSettle(0.3)
-        XCTAssertEqual(ws.templateState, .needsRender)
+        preview(); waitForRender()
+        ws.select(s.path("other.md"))
+        try s.write("Sub/new.html", template)
+        ws.reload(); ws.select(s.path("Sub/new.html"))
+        XCTAssertEqual(ws.mode, .write)
     }
 
     func testTheRecordIsPerFolder() throws {
         _ = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         let other = try Scratch(["Sub/t.html": template, "journal/x.md": "# X"]); defer { other.remove() }
         let ws2 = makeWorkspace(open: other.url)
         ws2.defaults.set(true, forKey: TemplateTrust.key)
         ws2.select(other.path("Sub/t.html"))
-        XCTAssertFalse(TemplateTrust.wasRendered("Sub/t.html", text: template, root: other.url, defaults: ws.defaults), "the same text in another folder")
+        XCTAssertEqual(ws2.mode, .write)
+        XCTAssertFalse(TemplateTrust.wasRendered("Sub/t.html", text: template, root: other.url, defaults: ws.defaults))
         XCTAssertTrue(TemplateTrust.wasRendered("Sub/t.html", text: template, root: s.url, defaults: ws.defaults))
-        XCTAssertEqual(ws2.templateState, .needsRender)
     }
 
     func testSavingOrEditingOtherFilesNeverStartsARender() throws {
         _ = answering()
         try s.write("other.md", "# Changed"); ws.reload()
         try s.write("journal/c.md", "# C"); ws.reload()
-        XCTAssertEqual(ws.templateState, .needsRender)
-        XCTAssertFalse(ws.renderBusy)
+        XCTAssertEqual(ws.mode, .write); XCTAssertEqual(ws.templateState, .needsRender); XCTAssertFalse(ws.renderBusy)
+    }
+
+    func testTheNextNoteGetsItsModeBack() {
+        ws.select(s.path("other.md"))
+        XCTAssertEqual(ws.mode, .write)
+        ws.mode = .view
+        ws.select(s.path("Sub/t.html"))
+        XCTAssertEqual(ws.mode, .write, "a template opens in the editor")
+        ws.select(s.path("other.md"))
+        XCTAssertEqual(ws.mode, .view, "the note is back in the mode it was in")
+    }
+
+    // MARK: other code files
+
+    func testAPlainHTMLFileOpensInTheEditorAndIsRememberedWhenPreviewed() {
+        ws.select(s.path("plain.html"))
+        XCTAssertEqual(ws.mode, .write); XCTAssertEqual(ws.templateState, .notTemplate)
+        XCTAssertEqual(ws.codeKind, .html)
+        preview()
+        XCTAssertEqual(ws.mode, .view); XCTAssertEqual(ws.templateState, .notTemplate, "no render and no warning for a page without tags")
+        reopen("plain.html")
+        XCTAssertEqual(ws.mode, .view)
+        ws.document.text = "<p>changed</p>"
+        ws.document.saveNow()
+        reopen("plain.html")
+        XCTAssertEqual(ws.mode, .write)
+    }
+
+    func testJSONAndYAMLOpenInTheEditorAndAreRememberedWhenPreviewed() {
+        for (name, kind) in [("data.json", CodeKind.json), ("conf.yaml", .yaml)] {
+            ws.select(s.path(name))
+            XCTAssertEqual(ws.codeKind, kind); XCTAssertEqual(ws.mode, .write, name)
+            preview()
+            reopen(name)
+            XCTAssertEqual(ws.mode, .view, "\(name) was previewed and has not changed")
+        }
+    }
+
+    func testCodeFilesCanBeEditedAndSaved() throws {
+        ws.select(s.path("data.json"))
+        ws.document.text = #"{"changed": true}"#
+        ws.document.saveNow()
+        XCTAssertEqual(try s.read("data.json"), #"{"changed": true}"#)
+        XCTAssertTrue(ws.isCodeFile)
+        XCTAssertEqual(ws.backlinks.count, 0)
     }
 
     // MARK: lifecycle
 
-    func testASecondRenderDoesNotStartWhileOneRunsAndCancelShowsThePlainFile() {
+    func testASecondPreviewDoesNotStartWhileOneRunsAndCancelGoesBackToTheEditor() {
         let asked = answering()
         ws.templateSource = SlowSource(delay: 0.6)
-        ws.render()
+        preview()
         XCTAssertEqual(ws.templateState, .rendering); XCTAssertTrue(ws.renderBusy)
         let generation = ws.templateGeneration
-        ws.render()
-        XCTAssertEqual(ws.templateGeneration, generation, "a second Render does not start")
+        XCTAssertFalse(ws.render(), "a second render does not start")
+        XCTAssertEqual(ws.templateGeneration, generation)
         XCTAssertEqual(asked.calls.count, 1)
         ws.cancelRender()
-        XCTAssertEqual(ws.templateState, .cancelled)
+        XCTAssertEqual(ws.mode, .write); XCTAssertEqual(ws.templateState, .needsRender)
         waitFor(!ws.renderBusy, "the task returns")
-        XCTAssertEqual(ws.templateState, .cancelled, "a late result does not replace the cancel")
-        ws.render(); XCTAssertEqual(ws.templateState, .rendering, "Render works again once the task has returned")
+        XCTAssertEqual(ws.templateState, .needsRender, "a late result does not replace the editor")
+        preview(); XCTAssertEqual(ws.templateState, .rendering, "Preview works again once the task has returned")
         waitFor(ws.templateState != .rendering, "second render")
     }
 
     func testChangingTheDocumentDropsTheRunningRenderAndItsLateResult() {
         _ = answering()
         ws.templateSource = SlowSource(delay: 0.5)
-        ws.render()
+        preview()
         XCTAssertEqual(ws.templateState, .rendering)
         ws.select(s.path("other.md"))
         XCTAssertEqual(ws.templateState, .notTemplate)
@@ -205,23 +233,22 @@ final class TemplateRenderTests: XCTestCase {
         XCTAssertEqual(ws.templateState, .notTemplate, "the late result is dropped")
     }
 
-    func testABlockedReadGivesATimeoutOnTimeAndKeepsRenderDisabledUntilItReturns() {
+    func testABlockedReadGivesATimeoutOnTimeAndKeepsPreviewRefusedUntilItReturns() {
         _ = answering()
         ws.templateLimits.clock = 0.2
         ws.templateSource = SlowSource(delay: 1.0)
         let started = Date()
-        ws.render()
+        preview()
         waitFor(ws.templateState == .failed(.timeout), "the timeout is shown")
         XCTAssertLessThan(Date().timeIntervalSince(started), 0.8, "on time, not when the read returns")
         XCTAssertTrue(ws.renderBusy)
-        ws.showTemplateSource()
+        ws.mode = .write
         XCTAssertEqual(ws.templateState, .needsRender)
-        let generation = ws.templateGeneration
-        ws.render()
-        XCTAssertEqual(ws.templateGeneration, generation); XCTAssertEqual(ws.templateState, .needsRender, "Render is refused while the read is outstanding")
+        ws.mode = .view
+        XCTAssertEqual(ws.mode, .write, "refused while the read is outstanding")
         waitFor(!ws.renderBusy, "the blocked read returns")
         ws.templateSource = nil; ws.templateLimits = .standard
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
     }
 
@@ -229,7 +256,7 @@ final class TemplateRenderTests: XCTestCase {
         try s.write("Sub/hint.html", #"{% files "journal" as items %}{% for f in items %}<link rel="preconnect" href="//{{ f.title }}.example">{% endfor %}"#)
         ws.reload(); ws.select(s.path("Sub/hint.html"))
         _ = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         guard case .failed(.unsafe(let tag, _)) = ws.templateState else { return XCTFail("\(ws.templateState)") }
         XCTAssertEqual(tag, "<link>")
     }
@@ -238,7 +265,7 @@ final class TemplateRenderTests: XCTestCase {
 
     private func rendered() {
         _ = answering()
-        ws.render(); waitForRender()
+        preview(); waitForRender()
         if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
     }
 

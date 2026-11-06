@@ -12,6 +12,8 @@ enum SafePath {
         case page
         /// A data file (`.json`, `.yaml`, `.yml`), a regular file.
         case data
+        /// Any file the app edits: a note, an HTML page, a JSON or YAML file. For the agent tools, which treat them alike.
+        case editable
     }
 
     static let pageExtensions: Set<String> = ["html", "htm"]
@@ -41,6 +43,10 @@ enum SafePath {
             guard let last = parts.last, dataExtensions.contains((last as NSString).pathExtension.lowercased()) else {
                 return fail("not_a_note", "Only .json, .yaml and .yml files are available.")
             }
+        case .editable:
+            guard let last = parts.last, BinderNode.documentExtensions.union(BinderNode.codeExtensions).contains((last as NSString).pathExtension.lowercased()) else {
+                return fail("not_a_note", "Only Markdown, text, HTML, JSON and YAML files are available.")
+            }
         case .folder: break
         }
         let rootR = root.resolvingSymlinksInPath()
@@ -54,7 +60,7 @@ enum SafePath {
         switch kind {
         case .note:
             guard values?.isRegularFile == true, values?.isPackage != true else { return fail("not_a_note", "No such note.") }
-        case .page, .data:
+        case .page, .data, .editable:
             guard values?.isRegularFile == true, values?.isPackage != true else { return fail("not_a_note", "No such file.") }
         case .folder:
             guard values?.isDirectory == true, values?.isPackage != true else { return fail("not_a_note", "No such folder.") }

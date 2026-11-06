@@ -240,7 +240,7 @@ extension Workspace {
             if !s.contains("\n") { find.query = s }
         }
         openPanel(.find)
-        find.scope = showingHTML ? .folder : scope          // a page is not edited here
+        find.scope = scope
         find.focus = field
         find.refresh()
     }
@@ -252,7 +252,6 @@ extension Workspace {
         if visit(tab), !visit(panel) { panelBefore = panel }
         slidePanel(.right) { panel = tab }
         if tab == .find {
-            if showingHTML { find.scope = .folder }          // a page is not edited here
             find.focus = find.focus ?? .find
         }
         find.refresh()

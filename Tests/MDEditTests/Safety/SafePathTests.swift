@@ -106,7 +106,9 @@ final class SafePathTests: XCTestCase {
         case .failure(let e): XCTFail(e.message)
         }
         if case .failure(let e) = AgentTools.resolve("../x.md", in: s.url) { XCTAssertEqual(e.code, "outside_folder") } else { XCTFail() }
-        if case .failure(let e) = AgentTools.resolve("page.html", in: s.url) { XCTAssertEqual(e.code, "not_a_note") } else { XCTFail() }
+        if case .failure(let e) = AgentTools.resolve("pic.png", in: s.url) { XCTAssertEqual(e.code, "not_a_note") } else { XCTFail() }
+        // HTML, JSON and YAML are text files to the agent tools, like notes
+        for p in ["page.html", "Sub/B.txt"] { if case .failure(let e) = AgentTools.resolve(p, in: s.url) { XCTFail(e.message) } }
         XCTAssertNil(AgentTools.relative(s.url, in: s.url), "the root has no relative path for the agent tools")
         XCTAssertEqual(AgentTools.relative(s.path("Sub/B.txt"), in: s.url), "Sub/B.txt")
         XCTAssertNil(AgentTools.relative(nil, in: s.url))

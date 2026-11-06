@@ -19,22 +19,24 @@ final class Workspace: ObservableObject {
     /// Going back to Write gives the caret back to the note, so typing can start at once.
     @Published var mode: Mode = .write {
         didSet {
-            // a web page has no editor
-            if mode == .write, showingHTML { mode = .view; return }
             if mode == .write, oldValue == .view { focusEditor() }
+            if mode != oldValue, codeKind != nil { mode == .view ? enterPreview() : leavePreview() }
         }
     }
-    /// The open file is an HTML page: shown in the preview only.
-    var showingHTML: Bool { document.url.map { BinderNode.htmlExtensions.contains($0.pathExtension.lowercased()) } ?? false }
-    private var modeBeforeHTML: Mode?
-    /// A page forces the preview; the note after it gets back the mode the reader was in.
+    /// How the open file is shown: HTML, JSON and YAML are code in the editor and a page, a table or pretty JSON in the preview.
+    var codeKind: CodeKind? { CodeKind(url: document.url) }
+    var isCodeFile: Bool { codeKind != nil }
+    var showingHTML: Bool { codeKind == .html }
+    private var modeBeforeCode: Mode?
+    /// A code file opens in the preview if it was previewed before and has not changed since, and in the editor otherwise;
+    /// the note after it gets back the mode the reader was in.
     private func syncModeToFile() {
-        if showingHTML {
-            if modeBeforeHTML == nil { modeBeforeHTML = mode }
-            mode = .view
-            if findVisible, find.scope == .file { find.scope = .folder; find.refresh() }
+        if isCodeFile {
+            if modeBeforeCode == nil { modeBeforeCode = mode }
+            let target: Mode = previewedBefore ? .view : .write
+            if mode != target { mode = target } else if target == .view { enterPreview() }
         }
-        else if let m = modeBeforeHTML { modeBeforeHTML = nil; mode = m }
+        else if let m = modeBeforeCode { modeBeforeCode = nil; mode = m }
     }
     @Published var focus = false
     /// The row being renamed in the binder.
@@ -186,7 +188,7 @@ final class Workspace: ObservableObject {
     }
 
     func toggleFocus() {
-        guard focus || (document.url != nil && !showingHTML) else { return }
+        guard focus || (document.url != nil && !isCodeFile) else { return }
         focus.toggle()
         mode = .write
         focusEditor()                       // the editor view is replaced; its caret must come back
@@ -587,7 +589,7 @@ final class Workspace: ObservableObject {
 
     /// Notes that link to the open one. Reads the notes off the main thread.
     func refreshBacklinks() {
-        guard outlineVisible, let current = document.url, let root else {
+        guard outlineVisible, !isCodeFile, let current = document.url, let root else {
             backlinkTask?.cancel(); backlinkRunning = false; backlinkGeneration += 1; backlinks = []; return
         }
         // a scan of this same note is under way: let it finish and run once more, instead of restarting it on every change in the folder

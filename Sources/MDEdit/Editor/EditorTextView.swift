@@ -12,6 +12,8 @@ struct EditorStyle: Equatable {
 /// left margin so its text keeps the column's edge; list markers and quotes stay in the column.
 final class EditorTextView: NSTextView {
     var style = EditorStyle(fontName: "IBM Plex Mono", size: 17, lineWidth: 72) { didSet { if style != oldValue { semiboldCache = [:]; cachedBase = nil; relayout() } } }
+    /// Set when the file is HTML, JSON or YAML: shown as code (monospace, coloured, wide, no Markdown behaviour). nil is a Markdown note.
+    var code: CodeKind? { didSet { if code != oldValue { cachedBase = nil; relayout() } } }
     var placeholder = "Start writing…"
     var onOpenWiki: ((String) -> Void)?
     var wikiResolves: (String) -> Bool = { _ in true }
@@ -35,6 +37,7 @@ final class EditorTextView: NSTextView {
     /// (Find clears every temporary background attribute, so a mark kept there would be lost).
     var suggestionMark: NSRange? { didSet { if oldValue != suggestionMark { needsDisplay = true } } }
 
+    static let codeColumns = 110
     static let gutter: CGFloat = 72
     static let verticalInset: CGFloat = 48
 
@@ -43,6 +46,11 @@ final class EditorTextView: NSTextView {
     private var cachedBase: NSFont?
     var baseFont: NSFont {
         if let cachedBase { return cachedBase }
+        if code != nil {
+            let c = NSFont.monospacedSystemFont(ofSize: max(12, style.size - 3), weight: .regular)
+            cachedBase = c
+            return c
+        }
         let f = Fonts.nsFont(family: style.fontName, size: style.size) ?? .monospacedSystemFont(ofSize: style.size, weight: .regular)
         cachedBase = f
         return f
@@ -78,6 +86,16 @@ final class EditorTextView: NSTextView {
     /// The text column is centred in the pane; the gutter for hanging markers sits outside it, on its left.
     func updateInsets() {
         let width = enclosingScrollView?.contentSize.width ?? bounds.width
+        if code != nil {
+            // code has no gutter and a wide column
+            let column = min(CGFloat(Self.codeColumns) * charWidth, max(200, width - 32))
+            let inset = NSSize(width: max(16, ((width - column) / 2).rounded()), height: 24)
+            if textContainerInset != inset { textContainerInset = inset }
+            if textContainer?.widthTracksTextView == true { textContainer?.widthTracksTextView = false }
+            let size = NSSize(width: column, height: CGFloat.greatestFiniteMagnitude)
+            if textContainer?.size != size { textContainer?.size = size }
+            return
+        }
         let column = min(CGFloat(style.lineWidth) * charWidth, max(200, width - 2 * Self.gutter))
         let x = max(8, ((width - column) / 2 - Self.gutter).rounded())
         let vertical = typewriter ? max(Self.verticalInset, ((enclosingScrollView?.contentSize.height ?? 0) / 2).rounded()) : Self.verticalInset
@@ -191,7 +209,7 @@ final class EditorTextView: NSTextView {
     /// In a list item it continues the same item, indented under its text; elsewhere it behaves as Return.
     override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if (event.keyCode == 36 || event.keyCode == 76), flags.contains(.shift), !flags.contains(.command), !hasMarkedText(),
+        if code == nil, (event.keyCode == 36 || event.keyCode == 76), flags.contains(.shift), !flags.contains(.command), !hasMarkedText(),
            let coordinator = delegate as? MarkdownTextEditor.Coordinator, coordinator.softBreak(self) { return }
         super.keyDown(with: event)
     }
@@ -202,6 +220,7 @@ final class EditorTextView: NSTextView {
     func restyle() {
         guard let storage = textStorage, !hasMarkedText() else { return }
         isRestyling = true; defer { isRestyling = false }
+        if let kind = code { restyleCode(storage, kind); return }
         syntax = MarkdownSyntax.analyze(string)
         let full = NSRange(location: 0, length: storage.length)
         let selection = selectedRange()
@@ -309,6 +328,39 @@ final class EditorTextView: NSTextView {
         storage.endEditing()
         if selectedRange() != selection { setSelectedRange(selection) }
         typingAttributes = baseAttributes
+        insertionPointColor = Palette.caret
+        selectedTextAttributes = [.backgroundColor: Palette.selectionText]
+        needsDisplay = true
+    }
+
+    /// HTML, JSON and YAML: one font, a few colours, no Markdown.
+    private func restyleCode(_ storage: NSTextStorage, _ kind: CodeKind) {
+        syntax = MarkdownSyntax.Result(spans: [], lines: [])
+        codeBlocks = []; inlineCode = []
+        let full = NSRange(location: 0, length: storage.length)
+        let selection = selectedRange()
+        let p = NSMutableParagraphStyle()
+        p.lineSpacing = 3
+        p.tabStops = []
+        let base: [NSAttributedString.Key: Any] = [.font: baseFont, .foregroundColor: Palette.text, .paragraphStyle: p, .ligature: 0]
+        storage.beginEditing()
+        storage.setAttributes(base, range: full)
+        for (range, role) in CodeSyntax.spans(storage.string, kind: kind) where NSMaxRange(range) <= storage.length {
+            let color: NSColor
+            switch role {
+            case .comment: color = Palette.marker
+            case .tag: color = Palette.linkText
+            case .string: color = Palette.green
+            case .key: color = Palette.strongText
+            case .number, .keyword: color = Palette.codeInk
+            case .template: color = Palette.link
+            }
+            storage.addAttribute(.foregroundColor, value: color, range: range)
+            if role == .key { storage.addAttribute(.font, value: semibold(baseFont), range: range) }
+        }
+        storage.endEditing()
+        if selectedRange() != selection { setSelectedRange(selection) }
+        typingAttributes = base
         insertionPointColor = Palette.caret
         selectedTextAttributes = [.backgroundColor: Palette.selectionText]
         needsDisplay = true
@@ -481,7 +533,7 @@ final class EditorTextView: NSTextView {
 
     override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let s = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
-        typedBracket = s == "["
+        typedBracket = code == nil && s == "["
         super.insertText(insertString, replacementRange: replacementRange)
     }
 

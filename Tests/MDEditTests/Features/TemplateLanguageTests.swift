@@ -222,6 +222,13 @@ final class TemplateLanguageTests: XCTestCase {
         XCTAssertEqual(page(#"{% data "data/day.yaml" as d %}{{ d.title }}|{% for t in d.tags %}{{ t }}{% endfor %}|{{ d.ok }}"#), "Today|xy|true")
     }
 
+    func testDataYAMLCanBeNested() throws {
+        try s.write("data/n.yaml", "title: Day\nevents:\n  - time: \"09:00\"\n    who: Sat\n  - time: \"10:00\"\n    who: Kim\ncount: 3\nok: true\nno: false\nempty:\nnested:\n  a:\n    b: deep\n")
+        XCTAssertEqual(page(#"{% data "data/n.yaml" as d %}{{ d.title }}|{% for e in d.events %}{{ e.time }}={{ e.who }};{% endfor %}|{{ d.count }}|{{ d.ok }}|[{{ d.no }}]|[{{ d.empty }}]|{{ d.nested.a.b }}"#), "Day|09:00=Sat;10:00=Kim;|3|true|[]|[]|deep")
+        try s.write("data/bad.yaml", "just text, not yaml")
+        XCTAssertEqual(page(#"{% data "data/bad.yaml" as d %}[{{ d_error }}]"#), "[not text]")
+    }
+
     func testDataErrorsAndRules() throws {
         try s.write("data/bad.json", "{not json"); try s.write(".mdedit/h.json", #"{"a":1}"#); try s.write("data/x.txt", "hi")
         let out = try Scratch(["o.json": #"{"a":1}"#]); defer { out.remove() }

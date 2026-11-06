@@ -68,7 +68,7 @@ struct FindPanel: View {
                 }
                 .buttonStyle(.plain).pointerCursor().tip(scope == .file ? "Find and replace in the open note" : "Find and replace in every note of the folder")
                 .accessibilityAddTraits(find.scope == scope ? .isSelected : [])
-                .disabled(scope == .file && find.ws?.showingHTML == true)
+                
             }
         }
         .padding(2).background(RoundedRectangle(cornerRadius: 8).fill(Color(Palette.segmentTrack)))
