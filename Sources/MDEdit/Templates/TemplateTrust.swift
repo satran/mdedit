@@ -11,6 +11,35 @@ enum TemplateTrust {
     static func hasBeenWarned(defaults: UserDefaults) -> Bool { defaults.bool(forKey: key) }
     static func markWarned(defaults: UserDefaults) { defaults.set(true, forKey: key) }
 
+    // MARK: pages that were rendered
+
+    /// A page the person has pressed Render on is rendered again, without a click, when it is opened and its text is exactly what it was
+    /// then. The record is a SHA-256 of the text per folder and path, in the app's settings (never in a folder, which could vouch for
+    /// itself): at most 200 files per folder and 50 folders, the least recently rendered dropped first. Any edit makes the page ask again.
+    static let maxFiles = 200
+    static let maxRoots = 50
+    static let rootsKey = "templateRenderedRoots"
+
+    private static func renderedKey(_ root: URL) -> String { "templateRendered:" + root.resolvingSymlinksInPath().path }
+
+    private static func rendered(_ root: URL, _ defaults: UserDefaults) -> [[String]] { (defaults.array(forKey: renderedKey(root)) as? [[String]]) ?? [] }
+
+    static func wasRendered(_ path: String, text: String, root: URL, defaults: UserDefaults) -> Bool {
+        let hash = ContentHash.sha256(text)
+        return rendered(root, defaults).contains { $0.count == 2 && $0[0] == path && $0[1] == hash }
+    }
+
+    static func markRendered(_ path: String, text: String, root: URL, defaults: UserDefaults) {
+        var list = rendered(root, defaults).filter { $0.first != path }
+        list.insert([path, ContentHash.sha256(text)], at: 0)
+        let k = renderedKey(root)
+        defaults.set(Array(list.prefix(maxFiles)), forKey: k)
+        var roots = (defaults.stringArray(forKey: rootsKey) ?? []).filter { $0 != k }
+        roots.insert(k, at: 0)
+        for dropped in roots.dropFirst(maxRoots) { defaults.removeObject(forKey: dropped) }
+        defaults.set(Array(roots.prefix(maxRoots)), forKey: rootsKey)
+    }
+
     static let maxHosts = 50
 
     private static func hostsKey(_ root: URL) -> String { "templateTrustedHosts:" + root.resolvingSymlinksInPath().path }

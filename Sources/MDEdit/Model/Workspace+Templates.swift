@@ -27,12 +27,23 @@ extension Workspace {
         templateGeneration += 1
         templateQuery = [:]
         if renderBusy { templateCancel.cancel() }
-        let next: TemplateState = Self.isTemplateCandidate(url: url, text: text) ? .needsRender : .notTemplate
+        let candidate = Self.isTemplateCandidate(url: url, text: text)
+        let next: TemplateState = candidate ? .needsRender : .notTemplate
         if templateState != next { templateState = next }
+        // a page that was rendered before and has not changed since renders again by itself (the person has already said yes to this text)
+        if candidate, let url, let rootURL, TemplateTrust.hasBeenWarned(defaults: defaults),
+           TemplateTrust.wasRendered(SafePath.relative(url, in: rootURL) ?? url.lastPathComponent, text: text, root: rootURL, defaults: defaults) {
+            let generation = templateGeneration
+            // not now: this runs while the document is still being replaced
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.templateGeneration == generation, self.templateState == .needsRender else { return }
+                self.render(auto: true)
+            }
+        }
     }
 
     /// The Render button: parse, ask once per version of the file, then evaluate on a background task.
-    func render() {
+    func render(auto: Bool = false) {
         guard !renderBusy, let rootURL, let url = document.url, showingHTML else { return }
         switch templateState { case .needsRender, .cancelled, .failed: break; default: return }
         // the file is read once; this one string is parsed and evaluated
@@ -40,11 +51,15 @@ extension Workspace {
             templateState = .failed(.syntax("This file cannot be read as text.", line: nil)); return
         }
         if case .failure(let e) = TemplateParser.parse(text, limits: templateLimits) { templateState = .failed(e); return }
+        let path = SafePath.relative(url, in: rootURL) ?? url.lastPathComponent
+        // opening a page renders it only if this exact text was rendered before; an edited page waits for the button
+        if auto { guard TemplateTrust.hasBeenWarned(defaults: defaults), TemplateTrust.wasRendered(path, text: text, root: rootURL, defaults: defaults) else { return } }
         // the very first Render in the app warns once; after that Render just renders
         if !TemplateTrust.hasBeenWarned(defaults: defaults) {
             guard templateConfirm("Render this page?", Self.trustSentence, "Render", nil, false) else { templateState = .needsRender; return }
             TemplateTrust.markWarned(defaults: defaults)
         }
+        TemplateTrust.markRendered(path, text: text, root: rootURL, defaults: defaults)
         start(text: text, root: rootURL)
     }
 

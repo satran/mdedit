@@ -523,6 +523,10 @@ Where the code differs from the plan above, or the plan left a choice:
 *   **A smaller link sheet.** The address is in a 380 by 54 point scrolling box and the line above it is one short sentence, so the dialog is small. Cancel is still the default and the whole address is still shown, with the query on its own line.
 *   **Meta is a note's, not the template's.** `{% meta path as m %}` reads the properties block of a note (cap `metaBytes`, 16 KB, read from the top). A first version put a meta block in the template file itself; that was a misunderstanding and is removed.
 
+## Render again by itself (2026-11-06)
+
+A page the person has rendered renders again, without a click, when it is opened and its text is unchanged. `TemplateTrust.markRendered` keeps a SHA-256 of the text per folder and path in the app's settings (200 files per folder, 50 folders, least recently rendered dropped); `Workspace.resetTemplateState` starts `render(auto: true)` on the next turn of the run loop when the record matches and the one-time warning has been answered. Any edit, another path or another folder asks for the button. The auto render shows no sheet, and a page the person declined to render is never recorded. Show source stays on the source until the file is opened again.
+
 ## Extended after the agents' requests (2026-11-06)
 
 `docs/mdedit-template-requests.md` asked for more. Everything that fits the safety rules was built; the guide in `docs/html-templates.md` is the reference for the tags. What changed in the design:

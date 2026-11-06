@@ -148,7 +148,7 @@ For a page, **Write**, **Find** in the file, **Print** and **Export** are unavai
 
 ### Templates
 
-An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is never rendered by itself: not when you open it, not when a note changes. After you edit the template, press Render again.
+An HTML file that contains `{%` or `{{` is a template. It opens as plain HTML with a bar that says **This page uses template tags** and a **Render** button. Press Render and the page is filled in from the notes in the open folder. Press **Show source** to go back. A template is not rendered when a note changes. A template you have already rendered is rendered again as soon as you open it, as long as its text has not changed since; after you edit the template, the bar comes back and you press Render again.
 
 The first time you press Render in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Render just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes, unless you listed that host with **Trusted Addresses for Templates…** in the command palette (one host per line, `example.com` or `*.example.com`, https only, for this folder). Hidden files are never read.
 

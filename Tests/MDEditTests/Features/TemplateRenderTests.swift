@@ -87,6 +87,86 @@ final class TemplateRenderTests: XCTestCase {
         XCTAssertTrue(TemplateTrust.hasBeenWarned(defaults: ws.defaults))
     }
 
+    // MARK: rendering again by itself
+
+    private func reopen(_ name: String) {
+        ws.select(s.path("other.md"))
+        ws.select(s.path(name))
+    }
+
+    func testARenderedPageThatHasNotChangedRendersByItselfWhenOpenedAgain() {
+        let asked = answering()
+        ws.render(); waitForRender()
+        reopen("Sub/t.html")
+        waitFor(ws.templateState != .needsRender && ws.templateState != .rendering, "the page renders by itself")
+        if case .rendered(let html) = ws.templateState { XCTAssertTrue(html.contains("<p>Alpha</p>")) } else { XCTFail("\(ws.templateState)") }
+        XCTAssertEqual(asked.calls.count, 1, "no sheet: the person already said yes")
+    }
+
+    func testAPageThatWasNeverRenderedWaitsForTheButton() {
+        _ = answering()
+        ws.render(); waitForRender()
+        ws.select(s.path("other.md"))
+        try? s.write("Sub/new.html", template)
+        ws.reload(); ws.select(s.path("Sub/new.html"))
+        letPageSettle(0.3)
+        XCTAssertEqual(ws.templateState, .needsRender, "another page, even with the same text, has not been rendered")
+    }
+
+    func testAnEditedPageAsksForTheButtonAgain() throws {
+        _ = answering()
+        ws.render(); waitForRender()
+        ws.select(s.path("other.md"))
+        try s.write("Sub/t.html", template + "<!-- edited -->")
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(30)], ofItemAtPath: s.path("Sub/t.html").path)
+        ws.reload()
+        ws.select(s.path("Sub/t.html"))
+        letPageSettle(0.3)
+        XCTAssertEqual(ws.templateState, .needsRender, "the text changed since it was rendered")
+        ws.render(); waitForRender()
+        reopen("Sub/t.html")
+        waitFor(ws.templateState != .needsRender && ws.templateState != .rendering, "the edited text, once rendered, renders by itself")
+        if case .rendered = ws.templateState {} else { XCTFail("\(ws.templateState)") }
+    }
+
+    func testEditingTheOpenPageBringsBackTheButton() throws {
+        _ = answering()
+        ws.render(); waitForRender()
+        try s.write("Sub/t.html", template + " ")
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(60)], ofItemAtPath: s.path("Sub/t.html").path)
+        ws.reload()
+        letPageSettle(0.3)
+        XCTAssertEqual(ws.templateState, .needsRender)
+    }
+
+    func testShowSourceStaysOnTheSourceUntilThePageIsOpenedAgain() {
+        _ = answering()
+        ws.render(); waitForRender()
+        ws.showTemplateSource()
+        letPageSettle(0.3)
+        XCTAssertEqual(ws.templateState, .needsRender, "the person asked for the source: it does not render again at once")
+    }
+
+    func testADeclinedWarningLeavesNoRecord() {
+        _ = answering(false)
+        ws.render()
+        reopen("Sub/t.html")
+        letPageSettle(0.3)
+        XCTAssertEqual(ws.templateState, .needsRender)
+    }
+
+    func testTheRecordIsPerFolder() throws {
+        _ = answering()
+        ws.render(); waitForRender()
+        let other = try Scratch(["Sub/t.html": template, "journal/x.md": "# X"]); defer { other.remove() }
+        let ws2 = makeWorkspace(open: other.url)
+        ws2.defaults.set(true, forKey: TemplateTrust.key)
+        ws2.select(other.path("Sub/t.html"))
+        XCTAssertFalse(TemplateTrust.wasRendered("Sub/t.html", text: template, root: other.url, defaults: ws.defaults), "the same text in another folder")
+        XCTAssertTrue(TemplateTrust.wasRendered("Sub/t.html", text: template, root: s.url, defaults: ws.defaults))
+        XCTAssertEqual(ws2.templateState, .needsRender)
+    }
+
     func testSavingOrEditingOtherFilesNeverStartsARender() throws {
         _ = answering()
         try s.write("other.md", "# Changed"); ws.reload()
