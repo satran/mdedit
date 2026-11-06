@@ -226,7 +226,7 @@ final class FindModel: ObservableObject {
 }
 
 extension Workspace {
-    enum RightPanel: String { case outline, find, run, review }
+    enum RightPanel: String { case outline, find, review }
 
     /// What the right side takes from the window, divider included; 0 when closed.
     var rightPanelWidth: CGFloat { panel == nil ? 0 : panelWidth + 1 }
@@ -247,11 +247,10 @@ extension Workspace {
 
     /// Shows a tab, opening the panel if it is closed. Switching tabs keeps the width, so the window does not move.
     func openPanel(_ tab: RightPanel) {
-        // find, run and review are visits: remember the outline (or nothing) they came from, and keep it when going between them
-        let visit: (RightPanel?) -> Bool = { $0 == .find || $0 == .run || $0 == .review }
+        // find and review are visits: remember the outline (or nothing) they came from, and keep it when going between them
+        let visit: (RightPanel?) -> Bool = { $0 == .find || $0 == .review }
         if visit(tab), !visit(panel) { panelBefore = panel }
         slidePanel(.right) { panel = tab }
-        if tab == .run { refreshShellLists() }
         if tab == .find {
             if showingHTML { find.scope = .folder }          // a page is not edited here
             find.focus = find.focus ?? .find
@@ -274,12 +273,6 @@ extension Workspace {
     /// Esc in Find: back to where the panel was before, the outline or closed.
     func closeFind() {
         guard panel == .find else { return }
-        leaveVisit()
-    }
-
-    /// Esc in Run, or a command that finished and put its output in the note: back to where the panel was before.
-    func closeRun() {
-        guard panel == .run else { return }
         leaveVisit()
     }
 

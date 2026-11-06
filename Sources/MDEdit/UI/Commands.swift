@@ -51,8 +51,6 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
             if let ws { Exporter.shared.print(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
 
-        Cmd(id: "shell", title: "Run Shell Command…", place: .fileMore, key: "r", enabled: hasNote && ws?.mode == .write, dividerBefore: true) { ws?.openShellBar(prefs: prefs) },
-
         Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "forward", title: "Forward to Next Note", place: .view, key: "]", enabled: ws?.ahead.isEmpty == false) { ws?.goForward() },
         Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasNote) { ws?.showFind(.file) },

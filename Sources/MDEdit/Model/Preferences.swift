@@ -29,19 +29,6 @@ final class Preferences: ObservableObject {
     /// The viewer's body size in points (18 by default, as in the type specs).
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerTextSize") } }
 
-    /// Shell commands from the editor (⌘R). Off until turned on here.
-    @Published var shellEnabled: Bool { didSet { d.set(shellEnabled, forKey: "shellEnabled") } }
-    /// The program that runs a command: `shell -c "command"`.
-    @Published var shellPath: String { didSet { d.set(shellPath, forKey: "shellPath") } }
-    /// The PATH commands get. Nothing else of the app's own environment is passed on.
-    @Published var shellSearchPath: String { didSet { d.set(shellSearchPath, forKey: "shellSearchPath") } }
-    /// Extra variables for commands, one `KEY=value` per line.
-    @Published var shellEnvironment: String { didSet { d.set(shellEnvironment, forKey: "shellEnvironment") } }
-    /// Seconds before a command is stopped.
-    @Published var shellTimeout: Int { didSet { d.set(shellTimeout, forKey: "shellTimeout") } }
-    /// Commands kept in `.mdedit/history` in the folder; 0 keeps none.
-    @Published var shellHistory: Int { didSet { d.set(shellHistory, forKey: "shellHistory") } }
-
     /// Agent access: a local server that lets an agent read the editor's context and propose edits. Off until turned on here.
     @Published var agentsEnabled: Bool { didSet { d.set(agentsEnabled, forKey: "agentsEnabled") } }
     /// The loopback port the server listens on.
@@ -79,12 +66,6 @@ final class Preferences: ObservableObject {
         viewerWidthCustom = d.bool(forKey: "viewerWidthCustom")
         viewerFont = Self.cleanFamily(d.string(forKey: "viewerFont")) ?? ViewerStyle.defaultFamily
         viewerSize = min(32, max(12, d.object(forKey: "viewerTextSize") as? Double ?? Double(ViewerStyle.specBody)))
-        shellEnabled = d.bool(forKey: "shellEnabled")
-        shellPath = String((d.string(forKey: "shellPath") ?? ShellEnvironment.defaultShell).prefix(1024))
-        shellSearchPath = String((d.string(forKey: "shellSearchPath") ?? ShellEnvironment.defaultPath).prefix(4096))
-        shellEnvironment = String((d.string(forKey: "shellEnvironment") ?? "").prefix(16 * 1024))
-        shellTimeout = min(600, max(1, d.object(forKey: "shellTimeout") as? Int ?? 30))
-        shellHistory = min(500, max(0, d.object(forKey: "shellHistory") as? Int ?? 50))
         agentsEnabled = d.bool(forKey: "agentsEnabled")
         agentPort = min(Self.agentPortRange.upperBound, max(Self.agentPortRange.lowerBound, d.object(forKey: "agentPort") as? Int ?? Self.defaultAgentPort))
         // a stored token that is not what we make (short, odd characters) is replaced, never trusted
@@ -92,6 +73,16 @@ final class Preferences: ObservableObject {
         let valid = saved.count == 64 && saved.allSatisfy { $0.isHexDigit && !$0.isUppercase }
         agentToken = valid ? saved : Self.makeAgentToken()
         if !valid { d.set(agentToken, forKey: "agentToken") }
+        Self.forgetShellSettings(in: d)
+    }
+
+    /// Shell commands were removed (plan 007). Their saved settings are deleted once, from the app's own settings only;
+    /// nothing in any folder is touched.
+    static func forgetShellSettings(in d: UserDefaults) {
+        guard !d.bool(forKey: "removedShellSettings") else { return }
+        for key in ["shellEnabled", "shellPath", "shellSearchPath", "shellEnvironment", "shellTimeout", "shellHistory", "shellDestination"] { d.removeObject(forKey: key) }
+        for key in d.dictionaryRepresentation().keys where key.hasPrefix("shellApproved:") { d.removeObject(forKey: key) }
+        d.set(true, forKey: "removedShellSettings")
     }
 
     func applyTheme() {

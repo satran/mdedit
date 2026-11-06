@@ -17,7 +17,6 @@ struct RightPanelView: View {
                 switch tab {
                 case .find: FindPanel(find: ws.find, document: document)
                 case .outline: OutlineView(document: document)
-                case .run: ShellBarView()
                 case .review: ReviewPanelView()
                 }
                 tabBar(tab)
@@ -29,7 +28,7 @@ struct RightPanelView: View {
 
     private func header(_ tab: Workspace.RightPanel) -> some View {
         HStack(spacing: 12) {
-            Text(tab == .find ? "Find & Replace" : tab == .run ? "Run" : tab == .review ? "Review" : "Outline")
+            Text(tab == .find ? "Find & Replace" : tab == .review ? "Review" : "Outline")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(Palette.strongText)).lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -44,8 +43,6 @@ struct RightPanelView: View {
             HStack(spacing: 2) {
                 item(.outline, "list.bullet.indent", "Outline", tip: "Outline (⌥⌘O)", on: tab == .outline)
                 item(.find, "magnifyingglass", "Find and replace", tip: "Find and replace (⌘F)", on: tab == .find)
-                // shown once the feature is on in Settings (⌘R says so when it is not)
-                if prefs.shellEnabled || tab == .run { item(.run, "terminal", "Run a shell command", tip: "Run a shell command (⌘R)", on: tab == .run) }
                 // shown while agent access is on in Settings
                 if prefs.agentsEnabled || tab == .review { item(.review, "checklist", "Review suggestions", tip: "Review suggestions from agents", on: tab == .review) }
             }

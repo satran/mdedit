@@ -42,9 +42,9 @@ final class Workspace: ObservableObject {
     /// The right-hand panel: the outline or find & replace, one at a time; nil is closed.
     @Published var panel: RightPanel? {
         didSet {
-            // Run and Review are visits: the toolbar button and the next launch never open on them
-            if let p = panel, p != .run, p != .review { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
-            defaults.set(panel != nil && panel != .run && panel != .review, forKey: "rightPanelOpen")
+            // Review is a visit: the toolbar button and the next launch never open on it
+            if let p = panel, p != .review { lastPanel = p; defaults.set(p.rawValue, forKey: "rightPanelTab") }
+            defaults.set(panel != nil && panel != .review, forKey: "rightPanelOpen")
             if (oldValue == .outline) != (panel == .outline) { refreshBacklinks() }
         }
     }
@@ -52,7 +52,7 @@ final class Workspace: ObservableObject {
     var lastPanel: RightPanel = .outline
     /// The suggestion whose passage is painted in the editor (picked by clicking its card in the Review tab).
     @Published var selectedProposal: String? { didSet { if oldValue != selectedProposal { refreshSuggestionMark() } } }
-    /// Where Esc goes back to from the find, run or review tab: the outline, or closed.
+    /// Where Esc goes back to from the find or review tab: the outline, or closed.
     var panelBefore: RightPanel?
     /// Width of the panel's content in points; the person can drag it. The same for both tabs.
     @Published var panelWidth: CGFloat { didSet { defaults.set(Double(panelWidth), forKey: "rightPanelWidth") } }
@@ -85,22 +85,6 @@ final class Workspace: ObservableObject {
     /// Set when the binder is shown; the list takes the keyboard focus.
     @Published var wantsTreeFocus = false
     private var enteredFullScreen = false
-    // Shell commands (⌘R); the work is in Workspace+Shell.swift
-    /// The run tab is showing.
-    var shellBarVisible: Bool {
-        get { panel == .run }
-        set { if newValue { panel = .run } else { closeRun() } }
-    }
-    /// What the Run tab suggests: the saved scripts of the folder, and the commands run there before (oldest first).
-    @Published var shellScripts: [String] = []
-    @Published var shellRecents: [String] = []
-    /// Counts ⌘R presses, so the command field takes the keyboard again when the tab is already open.
-    @Published var shellFocusTick = 0
-    @Published var shellLog: ShellLog?
-    @Published var shellJob: ShellJob?
-    @Published var shellDestination: ShellDestination { didSet { defaults.set(shellDestination.rawValue, forKey: "shellDestination") } }
-    /// Asks the person a yes/no question (title, detail, button). The tests replace it.
-    var shellConfirm: (String, String, String) -> Bool = ConfirmPrompt.ask
     let editor = EditorBridge()
     @Published private(set) var backlinks: [URL] = []
     private var backlinkTask: Task<Void, Never>?
@@ -125,8 +109,6 @@ final class Workspace: ObservableObject {
     var newWindow: ((UUID) -> Void)?
     private static var lastExternal: (url: URL, at: Date)?
 
-    deinit { shellJob?.cancel() }
-
     init(id: UUID? = nil, defaults: UserDefaults = AppEnvironment.defaults, recents: RecentFolders = .shared) {
         self.defaults = defaults
         self.recents = recents
@@ -138,7 +120,6 @@ final class Workspace: ObservableObject {
         panel = open && tab == .outline ? .outline : nil      // find does not come back open: its fields start empty
         panelWidth = min(Self.panelWidthRange.upperBound, max(Self.panelWidthRange.lowerBound, CGFloat(defaults.object(forKey: "rightPanelWidth") as? Double ?? 360)))
         binderVisible = defaults.object(forKey: "binderVisible") as? Bool ?? true
-        shellDestination = defaults.string(forKey: "shellDestination").flatMap(ShellDestination.init(rawValue:)) ?? .insert
         find.ws = self
         editor.onAttach = { [weak self] in self?.refreshSuggestionMark() }
         restore()

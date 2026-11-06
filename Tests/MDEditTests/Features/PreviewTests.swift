@@ -171,7 +171,7 @@ final class PreviewTests: XCTestCase {
         ws.select(s.path("Notes/One.md"))
         for id in ["write", "view", "preview", "find", "replace", "export-html", "print", "focus"] { XCTAssertTrue(enabled(id), id) }
         ws.select(s.path("page.html"))
-        for id in ["write", "view", "preview", "find", "replace", "find-next", "export-html", "copy-md", "print", "shell", "focus"] { XCTAssertFalse(enabled(id), id) }
+        for id in ["write", "view", "preview", "find", "replace", "find-next", "export-html", "copy-md", "print", "focus"] { XCTAssertFalse(enabled(id), id) }
         XCTAssertTrue(enabled("find-folder") && enabled("back") == !ws.visited.isEmpty)
     }
 

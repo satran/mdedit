@@ -16,7 +16,7 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 - **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
 - **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free and typewriter buttons. The toolbar at the top has the share button.
-- **Side panel** (right, optional): show or hide it with the button at the top right. Icons in the bottom row of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O), **Find and replace** (⌘F), and **Run** (⌘R) for shell commands. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
+- **Side panel** (right, optional): show or hide it with the button at the top right. Icons in the bottom row of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O) and **Find and replace** (⌘F). With agent access on there is a third tab, **Review**. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
 - The **status bar** at the bottom can be hidden with ⌥⌘B.
 
 ## Working with notes and folders
@@ -144,49 +144,13 @@ A picture or stylesheet on the web tells its server that you opened the note, so
 
 HTML files (`.html`, `.htm`) in the folder appear in the binder with a globe icon and open as a page, as a browser would show them, with no editor. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser.
 
-For a page, **Write**, **Find** in the file, **Print**, **Export** and **Run Shell Command** are unavailable and the eye button is dimmed. Pages are not part of wiki links, the outline or Find in Folder. Reopen the page to see changes to its stylesheets or pictures; changes to the page itself show on their own.
+For a page, **Write**, **Find** in the file, **Print** and **Export** are unavailable and the eye button is dimmed. Pages are not part of wiki links, the outline or Find in Folder. Reopen the page to see changes to its stylesheets or pictures; changes to the page itself show on their own.
 
 ## Printing and exporting
 
 - **Print… / PDF** (⌘P, or in the share menu) prints the note as it looks in the View. Choose **PDF** in the bottom left of the print panel to save a PDF.
 - **Export as HTML…** (in the share menu in the toolbar) saves a standalone web page. Scripts and unsafe markup are stripped from it.
 - **Copy as Markdown** copies the note's text.
-
-## Running shell commands
-
-This is off until you turn it on in **Settings ▸ Shell ▸ Run shell commands**.
-
-Press ⌘R in the editor. The side panel opens on its **Run** tab (the terminal icon in the bottom row of the panel, shown once shell commands are on). Type a command, choose where the output goes, and press Return. Esc closes the tab again, or cancels a command that is running. The selected text, or the whole note if nothing is selected, is sent to the command as its standard input, as in Vim's `!`. The note is saved first.
-
-### Where the output goes
-
-| Choice | What happens |
-| --- | --- |
-| Insert | The output is added at the caret. |
-| Replace | The output replaces the selection, or the whole note if nothing is selected. |
-| New File | The output goes into a new note called `Output <name>` next to the current one, and it opens. |
-| Panel | The output is only shown in the Run tab, under the box. Use this for commands that just do something, like `git add .`. |
-
-Tab in the box cycles through the four choices. Every insert or replace is **one step of Undo** (⌘Z). If the command fails (a non-zero exit), the note is left alone and the error is shown in the Run tab. The tab stays on Run after every command: when the output went into the note it only says what was done, and with Panel, or after an error, it shows the output. Esc cancels a running command, or closes the tab and goes back to where the panel was.
-
-### What a command can use
-
-Each command starts in the opened folder and knows these variables:
-
-- `MD_WORKING_DIR`: the opened folder.
-- `MD_FILE_PATH`: the open note.
-- `MD_FILE_LINE` and `MD_FILE_COLUMN`: where the caret is, counting from 1.
-- `MD_FILE_SELECTION`: the selected text, when it is under 64 KB (the full selection always arrives on standard input).
-
-Only a short, safe environment is passed on. Add your own `KEY=value` lines in Settings ▸ Shell.
-
-### Saved scripts and history
-
-Files in `.mdedit/scripts` inside your folder are listed first when you open the box, followed by your recent commands. ↑ and ↓ choose from the list. The **first time** a script runs, and again whenever it changes, MDEdit shows its text and asks you to approve it. Recent commands are kept in `.mdedit/history` (the number is set in Settings, and 0 turns history off). That file holds whatever you type, so keep secrets out of commands.
-
-### Safety
-
-Commands run inside the same sandbox as MDEdit: they can read and change the folder you opened and nothing else. A command is stopped after the time limit set in Settings (30 seconds by default), and anything over 5 MB of output is cut off.
 
 ## Agent access
 
@@ -217,7 +181,6 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 - **Editor:** the font and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
 - **Viewer:** the font, the text size, the line width, and whether remote pictures and stylesheets are loaded.
 - **Agents:** the on/off switch, the port, and the token (Copy command, Regenerate). Off by default.
-- **Shell:** the on/off switch, the shell program (`/bin/sh` by default), the search path, the time limit, how much history to keep, and extra environment variables.
 
 ## The command palette
 
@@ -225,7 +188,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 
 ## Your files and privacy
 
-- Notes are saved as ordinary files, in the folder you chose. Nothing else is stored in that folder except `.mdedit` if you use shell commands.
+- Notes are saved as ordinary files, in the folder you chose. Nothing else is stored in that folder except `.mdedit`, which holds `preview.css` if you make one. Older versions kept saved scripts and command history in `.mdedit/scripts` and `.mdedit/history`; they are no longer used and you can delete them.
 - MDEdit works inside the macOS App Sandbox. It can only open the folders you pick, and it keeps access to them with a bookmark so you do not have to choose them again.
 - Nothing is sent anywhere. The only network use is a picture on the web, and only if you allow it in Settings. When agent access is switched on (off by default), the app also accepts connections from programs on your own Mac, and from nowhere else.
 - If a note was changed elsewhere while you had unsaved edits, MDEdit saves your edits to a copy beside it rather than losing them.
@@ -233,10 +196,6 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 ## Troubleshooting
 
 **A note does not appear in the binder.** Only the opened folder is shown. Files that start with a dot are hidden. Use **Reveal Folder in Finder** (in the command palette) to check the files are there.
-
-**⌘R says shell commands are off.** Turn them on in Settings ▸ Shell.
-
-**A shell command cannot find a program or a file.** Commands run in a sandbox with a short PATH. Use full paths, or set the search path in Settings ▸ Shell. Files outside the opened folder cannot be read.
 
 **A shortcut does nothing.** Some shortcuts only work while a note is open, or only in Write view. A greyed menu item is not available right now.
 
