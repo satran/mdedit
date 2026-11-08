@@ -1,6 +1,5 @@
 # Templates for HTML previews
 
-*   **Author:** Satyajit Ranjeev
 *   **Status:** Built (steps 1 to 4; see "As built"). Built on plan 007 (built): `ConfirmPrompt` (a plain two-button alert, extended in item 12 below) and `ContentHash`
 *   **Date:** 2026-11-06
 
@@ -529,7 +528,7 @@ A page the person has rendered renders again, without a click, when it is opened
 
 ## Extended after the agents' requests (2026-11-06)
 
-`docs/mdedit-template-requests.md` asked for more. Everything that fits the safety rules was built; the guide in `docs/html-templates.md` is the reference for the tags. What changed in the design:
+A list of further requests came after the first version. Everything that fits the safety rules was built; the guide in `docs/html-templates.md` is the reference for the tags. What changed in the design:
 
 *   **Logic and values:** `and`, `or`, `not`, `elif`, `in`, `< <= > >=`, filters in conditions, filter arguments that are variables, `length`, `today`, `now`, `days_until`, `days_since`, `date`, `week`. The earlier cuts (Decision 8) were scope, not safety. Loops may nest 3 deep, all blocks 10, 4,000 parts.
 *   **More reads, same rules:** `tasks` (task lines with `@name(value)` attributes), `data` (JSON, and the flat YAML subset), `include` (visible `.html` pages, `with name=value`, 3 deep, 50 per render), `files ... recursive pages match`. `SafePath` has two more kinds (`.page`, `.data`); hidden files, links out and links to hidden targets are refused for them too. Lists are capped at 500 items.

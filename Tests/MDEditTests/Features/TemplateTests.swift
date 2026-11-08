@@ -165,13 +165,13 @@ final class TemplateTests: XCTestCase {
     // MARK: a note's meta block
 
     private func withMetaNote() throws {
-        try s.write("m.md", "---\ntitle: My note\nauthor: \"Sat R\"\ndraft: false\npublished: true\ntags: [a, b]\nlinks:\n  - x\n  - y\n---\n# Heading\n\nBody")
+        try s.write("m.md", "---\ntitle: My note\nauthor: \"Sam R\"\ndraft: false\npublished: true\ntags: [a, b]\nlinks:\n  - x\n  - y\n---\n# Heading\n\nBody")
     }
 
     func testANotesMetaIsAvailableByKey() throws {
         try withMetaNote()
         let t = #"{% meta "m.md" as m %}<h1>{{ m.title }}</h1><p>{{ m.author }}</p>{% if m.published %}[pub]{% endif %}{% if m.draft %}[draft]{% endif %}{% for t in m.tags %}<i>{{ t }}</i>{% endfor %}{% for l in m.links %}<b>{{ l }}</b>{% endfor %}[{{ m_error }}]"#
-        XCTAssertEqual(T.page(t, in: s), "<h1>My note</h1><p>Sat R</p>[pub]<i>a</i><i>b</i><b>x</b><b>y</b>[]")
+        XCTAssertEqual(T.page(t, in: s), "<h1>My note</h1><p>Sam R</p>[pub]<i>a</i><i>b</i><b>x</b><b>y</b>[]")
     }
 
     func testMetaForEveryNoteInAFolder() throws {

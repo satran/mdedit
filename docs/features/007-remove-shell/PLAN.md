@@ -1,6 +1,5 @@
 # 007 · Remove shell command execution
 
-*   **Author:** Satyajit Ranjeev
 *   **Status:** Built (steps 1 to 3). See "As built" at the end.
 *   **Date:** 2026-11-06
 
@@ -18,7 +17,7 @@ This plan removes code and keeps everything else working. It does not add a feat
 | Replacement | None. |
 | Files people already have | `.mdedit/scripts` and `.mdedit/history` inside their folders are left alone. The app never deletes a person's files. The manual says they are no longer used and can be deleted. |
 | Saved settings | The old settings keys in the app's own settings are removed once, on first launch after the change. |
-| The feature's design notes | `plan/features/shell-scripting.md` stays as history, with a line at the top saying it was removed by this plan. |
+| The feature's design notes | Deleted with the feature. Git history keeps them. |
 | What other features borrowed from it | Three small things are kept and renamed: the confirmation prompt, the SHA-256 helper and the undoable text insertion. They move out of the shell files first (step 1), so nothing breaks when the feature goes. |
 | ⌘R | Left unassigned. |
 
@@ -49,7 +48,7 @@ Each step is its own commit and ends with `make check` green.
 
 1.  **Keep what others need.** Create `ConfirmPrompt` and `ContentHash`, move `insertOutput`, point every caller at the new names, and port the tests that cover them. No behaviour changes, and the feature still works.
 2.  **Remove the feature.** Delete the runner, the window logic, the interface, the settings and the tests; take `.run` out of the panel logic; remove the old saved settings once; change the audit; update the manual page list and the two tests that name it.
-3.  **Docs.** README, TESTING.md, the manual's remaining mentions, `plan/features/shell-scripting.md` and `plan/features/features.md`.
+3.  **Docs.** README, TESTING.md, the manual's remaining mentions, and `docs/features/features.md`.
 
 ### Target Files to Create/Modify/Delete
 
@@ -125,11 +124,11 @@ Each step is its own commit and ends with `make check` green.
 
 *   **Proposed Changes**: README: delete the "Shell commands (⌘R)" section; take "Shell" out of the HTML-files row; take `ShellRunner` and `ShellBarView` out of the source tree and rule texts; state "the app starts no program" where rule 4 or the entitlements are discussed; and any mention of the shell tests goes. TESTING.md: remove the shell rows from the folder table and any mention of `ShellRunnerTests`.
 
-##### 16. `plan/features/shell-scripting.md`, `plan/features/features.md` (Modify)
+##### 16. `docs/features/features.md` (Modify)
 
-*   **Proposed Changes**: Add a first line to `shell-scripting.md`: "Removed by plan 007. Kept as history." In `features.md`, change the checked item to "Run shell commands from the editor: removed (plan 007)". Plans 003, 004 and 005 are history and are not edited.
+*   **Proposed Changes**: In `features.md`, change the checked item to "Run shell commands from the editor: removed (plan 007)". Plans 003, 004 and 005 are history and are not edited.
 
-##### 17. `plan/006-html-templates/PLAN.md` (Modify)
+##### 17. `docs/features/006-html-templates/PLAN.md` (Modify)
 
 *   **Proposed Changes**: Replace `ShellPrompts.confirm` with `ConfirmPrompt.ask`, `ShellFiles.hash` with `ContentHash.sha256`, drop "the same way … the `shellApproved:` key work today", and drop "the shell feature" from its Unchanged list and the "existing spawn rule" from its audit item. Done together with step 1 of this plan so the two plans agree. Plan 006's step 3 must come after this plan's step 1.
 
@@ -148,7 +147,7 @@ Each step is its own commit and ends with `make check` green.
 
 ## Risks
 
-*   **Lost feature.** Anyone using ⌘R loses it. Git history keeps the code, and `plan/features/shell-scripting.md` keeps the design. The author called it good-to-have.
+*   **Lost feature.** Anyone using ⌘R loses it. Git history keeps the code, which keeps the design too. It was a good-to-have.
 *   **Shared code.** Removing `Workspace+Shell.swift` also removes `insertOutput`, which Find & Replace uses, and the confirmation prompt and hash that plan 006 plans to use. Step 1 moves them first, and a test covers the insertion.
 *   **Panel logic.** The Review tab was built on the Run tab's "visit" pattern. Step 1 checks that Find and Review tests cover the same behaviour before the Run tests are deleted, and `RightPanelTests` take any that are missing.
 *   **Old data.** Folders keep their `.mdedit/scripts` and `.mdedit/history`. They are harmless files, and the manual says so.

@@ -45,10 +45,10 @@ make coverage                  # per-file line coverage of the last test run
 | Find & replace | ⌘F / ⌥⌘F / ⇧⌘F open the side panel on its Find tab (`UI/FindPanel.swift`, `UI/RightPanelView.swift`): This file (marks in the editor via temporary attributes, one-undo replace) or Folder (grouped results with checkboxes, diff preview, replace on disk with a ⌘Z that restores every file if unchanged since). Engine: `Model/FindReplace.swift` (`FindEngine`, `FolderFind`; UTF-16 ranges, caps and a time limit); state: `Model/Workspace+Find.swift`. Tests: `FindEngineTests`, `FindReplaceTests`. Search Binder moved to ⇧⌘B |
 | Help | Help ▸ MDEdit Help (⌘?) opens the manual: `Resources/Manual.md` cut into pages at its `##` headings (searchable), plus a shortcuts page generated from the command list. Edit the manual there; `HelpTests` checks that the keys it names match the menus. Not an Apple Help Book: those need an indexed bundle that the Help Viewer caches and does not reliably open for unnotarised apps |
 | HTML, JSON and YAML files | Open in the editor as code (monospace, coloured, no Markdown behaviour), editable like a note and visible to the agent tools. Preview: HTML as a page (templates are rendered), JSON pretty-printed, YAML as a table. A previewed file opens in the preview next time if unchanged. Not notes: no wiki links, outline, backlinks, folder search, export or print |
-| HTML templates | An HTML file with `{%` or `{{` opens in the editor; Preview fills it in from the opened folder with our own small Django-style language (`files`, `section`, `for`, `if`, three filters); read-only; a one-time warning on the first Render; `meta`, `tasks`, `data`, `include`, dates, `sort`/`where`/`groupby`, query links and trusted web hosts (see the guide); no network request on its own; a click on a web or mail link asks first. Guide for agents: `docs/html-templates.md`; design: `plan/006-html-templates/PLAN.md` |
+| HTML templates | An HTML file with `{%` or `{{` opens in the editor; Preview fills it in from the opened folder with our own small Django-style language (`files`, `section`, `for`, `if`, three filters); read-only; a one-time warning on the first Render; `meta`, `tasks`, `data`, `include`, dates, `sort`/`where`/`groupby`, query links and trusted web hosts (see the guide); no network request on its own; a click on a web or mail link asks first. Guide for agents: `docs/html-templates.md`; design: `docs/features/006-html-templates/PLAN.md` |
 | Settings | Theme (auto/light/dark), editor font/size/width, heading sizes, viewer font/size/width, remote pictures and stylesheets (off by default), status bar, distraction-free behaviour |
 
-Original design intent is in `plan/PLAN.md` (historical: some details have moved on) and `plan/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Preview/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.
+Original design intent is in `docs/features/001-initial-design/PLAN.md` (historical: some details have moved on) and `docs/design.html`. The current typography spec is the "Type specs" board of the design file; its numbers live in `Preview/ViewerStyle.swift` and the editor styling code and are locked by `TypographyTests`.
 
 ---
 
@@ -94,7 +94,8 @@ Sources/MDEdit/
 Tests/MDEditTests/         See Testing
 Fixtures/Sample/           Small sample notes
 scripts/                   test.sh, audit.sh, release.sh, new-test.sh (+ template)
-plan/                      PLAN.md, design.html, bugs/bugs.md, features/features.md
+docs/                      html-templates.md (guide for agents), design.html (design board), features/ (one folder per feature plan,
+                           numbered, plus features.md), bugs/bugs.md
 ```
 
 Key ideas:
@@ -109,7 +110,7 @@ Key ideas:
 
 ---
 
-## Agent access (plan `plan/005-agent-access/PLAN.md`)
+## Agent access (plan `docs/features/005-agent-access/PLAN.md`)
 
 Off until Settings → Agents is switched on. `Agents/MCPServer.swift` is an MCP server (streamable HTTP, no streaming) on 127.0.0.1: one request per connection, `POST /mcp`, checks in order path/method → Host → Origin → bearer token (constant-time), 1 MB body, 8 connections, 10 s per request. It is the only file that may create an `NWListener` (`make audit` checks), and it knows nothing of the editor: tool calls go to an `AgentBridge` (`AgentTools`) on the main actor. `AgentServerController` starts, stops and restarts it from the preferences (never under the test runner). Tools: `render_template` (renders an HTML template with the Render engine and returns the page or the error with its line), `get_context` and `read_note` (`AgentTools`, window chosen by `AgentWindows`: the key window, else the one that was key most recently), `propose_edit` and `get_proposal` (`Agents/Proposal.swift`, `ProposalStore`: in memory, `old` must match exactly once, re-checked 250 ms after the text changes, 20 open per window). `Workspace.accept` (`Model/Workspace+Suggestions.swift`) is the one place agent text reaches a note, after a click: it goes through `EditorTextView.applySuggestion`, so it is one undo step and `DocumentStore` stays in charge of saving. The Review tab is `UI/ReviewPanelView.swift` (`RightPanel.review`, a visit like Run: never saved or restored); the selected card's passage is painted by `EditorTextView.drawBackground` from `suggestionMark` (not a temporary attribute: Find clears those). Tests: `AgentProtocolTests` (raw sockets, `Support/RawHTTPClient.swift`), `AgentToolsTests`, `ProposalTests`, `ProposalSafetyTests`, `ReviewPanelTests`.
 
@@ -167,7 +168,7 @@ Helpers in `Tests/MDEditTests/Support/TestSupport.swift`: `Scratch` (temp folder
 
 ## Working method (used for the current backlog)
 
-- Bugs and features are listed as `- [ ]` tasks in `plan/bugs/bugs.md` and `plan/features/features.md`. Fix → test → commit → tick `- [x]` → rebuild (`make app`).
+- Bugs and features are listed as `- [ ]` tasks in `docs/bugs/bugs.md` and `docs/features/features.md`. Fix → test → commit → tick `- [x]` → rebuild (`make app`).
 - Parallel work: one agent per task, each in its own git worktree/branch (`isolation: "worktree"`); agents run only their own test classes (`scripts/test.sh ClassName`); the coordinator merges, runs the **full** suite and `make audit`, then rebuilds. Remove merged worktrees/branches afterwards.
 - Commits: one logical change each, message explains the why; follow the attribution trailer your harness specifies.
 - When a result cannot be verified headlessly (look, hover, real key routing, sandbox), say so plainly and ask the user to check it in `build/MDEdit.app`.
@@ -200,3 +201,9 @@ The icon is `icons/AppIcon.appiconset` (with the 1024 px PNG, SVG and `.icns` be
 | `make release SIGN="Developer ID Application: Name (TEAMID)" NOTARY=profile` | signed, notarised, stapled | any Mac, no warning (needs the paid Apple Developer Program; make the profile once with `xcrun notarytool store-credentials profile`) |
 
 The Mac App Store is a separate path: an "Apple Distribution" certificate, an app record in App Store Connect, a signed `.pkg` (`productbuild`) uploaded with Transporter. The app is already sandboxed with only the entitlements the store allows (the network-server entitlement for agent access is the one to explain at review).
+
+---
+
+## License
+
+MIT, see `LICENSE`. Third-party software and fonts are listed in `NOTICE`. To contribute, read `CONTRIBUTING.md`; to report a vulnerability, read `SECURITY.md`.

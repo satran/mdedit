@@ -3,4 +3,14 @@ build/
 MDEdit.xcodeproj/
 xcuserdata/
 Sources/MDEdit/Info.plist
-.claude/worktrees/
+
+# agent tooling and local notes
+.claude/
+
+# signing material and release output
+*.dmg
+*.p12
+*.cer
+*.mobileprovision
+.env
+.env.*

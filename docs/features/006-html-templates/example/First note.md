@@ -1,6 +1,6 @@
 ---
 title: The first note
-author: Sat
+author: Sam
 tags: [demo, first]
 draft: false
 ---

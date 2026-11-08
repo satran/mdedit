@@ -1,0 +1,18 @@
+MDEdit is released under the MIT License (see LICENSE). It includes or uses
+the following third-party software.
+
+swift-markdown (https://github.com/swiftlang/swift-markdown)
+  Apache License 2.0. Used through Swift Package Manager; it includes
+  swift-cmark (cmark-gfm), licensed under the BSD 2-Clause License.
+  Not modified.
+
+Fonts, bundled in Sources/MDEdit/Resources/Fonts/, each under the SIL Open
+Font License 1.1 (the full text is in the OFL-*.txt file beside the fonts):
+
+  IBM Plex Mono      Copyright 2017 IBM Corp. with Reserved Font Name "Plex"
+  Inter              Copyright 2020 The Inter Project Authors
+                     (https://github.com/rsms/inter)
+  Literata           Copyright 2017 The Literata Project Authors
+                     (https://github.com/googlefonts/literata)
+  Source Serif 4     Copyright 2014 The Source Serif 4 Project Authors
+                     (https://github.com/adobe-fonts/source-serif)

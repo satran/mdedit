@@ -1,8 +1,8 @@
 import XCTest
 @testable import MDEdit
 
-/// Logic, dates, lists as views, tasks, data, includes, recursive listings, markdown links and queries (the requests in
-/// docs/mdedit-template-requests.md that fit the security rules).
+/// Logic, dates, lists as views, tasks, data, includes, recursive listings, markdown links and queries (the extra features asked for after the first version
+/// that fit the security rules).
 final class TemplateLanguageTests: XCTestCase {
     var s: Scratch!
     let friday = T.friday
@@ -11,7 +11,7 @@ final class TemplateLanguageTests: XCTestCase {
         s = try Scratch([
             "tasks.md": """
             ---
-            owner: Sat
+            owner: Sam
             ---
             # Tasks
 
@@ -32,7 +32,7 @@ final class TemplateLanguageTests: XCTestCase {
             "Notes/Beta.md": "# Wiki Beta\n",
             "meetings/2026-11-06-sync.md": "# Sync\n", "meetings/2026-11-06-1on1.md": "# 1on1\n", "meetings/2026-11-05-old.md": "# Old\n", "meetings/deep/2026-11-06-deep.md": "# Deep\n",
             "pages/index.html": "<html><head><title>  The   Index </title></head><body>hi</body></html>", "pages/about.htm": "<p>x</p>",
-            "data/day.json": #"{"focus":["a","b"],"count":3,"ratio":1.5,"ok":true,"no":false,"nothing":null,"events":[{"t":"09:00","who":"Sat"}]}"#,
+            "data/day.json": #"{"focus":["a","b"],"count":3,"ratio":1.5,"ok":true,"no":false,"nothing":null,"events":[{"t":"09:00","who":"Sam"}]}"#,
             "data/day.yaml": "title: Today\ntags: [x, y]\nok: true\n",
             "inc/row.html": "<li>{{ t.text }}|{{ extra }}</li>", "inc/outer.html": "[{% include \"inc/row.html\" %}]", "inc/loop.html": "{% include \"inc/loop.html\" %}",
             "inc/bad.html": "{% nonsense %}",
@@ -52,7 +52,7 @@ final class TemplateLanguageTests: XCTestCase {
         XCTAssertEqual(page(#"{% if 5 == 1 %}a{% elif 5 == 2 %}b{% elif 5 == 5 %}c{% else %}d{% endif %}"#), "c")
         XCTAssertEqual(page(#"{% if 5 == 1 %}a{% elif 5 == 2 %}b{% else %}d{% endif %}"#), "d")
         XCTAssertEqual(page(#"{% if "meet" in "a meeting" %}y{% endif %}{% if "x" in "abc" %}n{% endif %}{% if "" in "abc" %}n{% endif %}"#), "y")
-        XCTAssertEqual(page(#"{% meta "tasks.md" as m %}{% if "Sat" in m.owner %}y{% endif %}"#), "y")
+        XCTAssertEqual(page(#"{% meta "tasks.md" as m %}{% if "Sam" in m.owner %}y{% endif %}"#), "y")
     }
 
     func testInOnListsAndRecords() {
@@ -73,7 +73,7 @@ final class TemplateLanguageTests: XCTestCase {
     }
 
     func testFiltersWithArgumentsAsVariables() {
-        XCTAssertEqual(page(#"{% meta "tasks.md" as m %}{{ missing|default:m.owner }}|{{ ""|default:"x" }}"#), "Sat|x")
+        XCTAssertEqual(page(#"{% meta "tasks.md" as m %}{{ missing|default:m.owner }}|{{ ""|default:"x" }}"#), "Sam|x")
     }
 
     // MARK: dates
@@ -214,7 +214,7 @@ final class TemplateLanguageTests: XCTestCase {
 
     func testDataJSON() {
         XCTAssertEqual(page(#"{% data "data/day.json" as d %}{{ d.count }}|{{ d.ratio }}|{{ d.ok }}|[{{ d.no }}]|[{{ d.nothing }}]|{% for e in d.events %}{{ e.t }} {{ e.who }}{% endfor %}|{{ d.focus|length }}[{{ d_error }}]"#),
-                       "3|1.5|true|[]|[]|09:00 Sat|2[]")
+                       "3|1.5|true|[]|[]|09:00 Sam|2[]")
         XCTAssertEqual(page(#"{% data "data/day.json" as d %}{% if d.ok %}ok{% endif %}{% if d.no %}no{% endif %}"#), "ok")
     }
 
@@ -223,8 +223,8 @@ final class TemplateLanguageTests: XCTestCase {
     }
 
     func testDataYAMLCanBeNested() throws {
-        try s.write("data/n.yaml", "title: Day\nevents:\n  - time: \"09:00\"\n    who: Sat\n  - time: \"10:00\"\n    who: Kim\ncount: 3\nok: true\nno: false\nempty:\nnested:\n  a:\n    b: deep\n")
-        XCTAssertEqual(page(#"{% data "data/n.yaml" as d %}{{ d.title }}|{% for e in d.events %}{{ e.time }}={{ e.who }};{% endfor %}|{{ d.count }}|{{ d.ok }}|[{{ d.no }}]|[{{ d.empty }}]|{{ d.nested.a.b }}"#), "Day|09:00=Sat;10:00=Kim;|3|true|[]|[]|deep")
+        try s.write("data/n.yaml", "title: Day\nevents:\n  - time: \"09:00\"\n    who: Sam\n  - time: \"10:00\"\n    who: Kim\ncount: 3\nok: true\nno: false\nempty:\nnested:\n  a:\n    b: deep\n")
+        XCTAssertEqual(page(#"{% data "data/n.yaml" as d %}{{ d.title }}|{% for e in d.events %}{{ e.time }}={{ e.who }};{% endfor %}|{{ d.count }}|{{ d.ok }}|[{{ d.no }}]|[{{ d.empty }}]|{{ d.nested.a.b }}"#), "Day|09:00=Sam;10:00=Kim;|3|true|[]|[]|deep")
         try s.write("data/bad.yaml", "just text, not yaml")
         XCTAssertEqual(page(#"{% data "data/bad.yaml" as d %}[{{ d_error }}]"#), "[not text]")
     }

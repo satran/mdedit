@@ -272,4 +272,4 @@ Drafts and tags from each note's properties block:
 </ul>
 ```
 
-A working sample is in `plan/006-html-templates/example/`. The full design and the reasons for each rule are in `plan/006-html-templates/PLAN.md`.
+A working sample is in `docs/features/006-html-templates/example/`. The full design and the reasons for each rule are in `docs/features/006-html-templates/PLAN.md`.

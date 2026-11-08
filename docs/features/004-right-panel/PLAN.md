@@ -78,7 +78,7 @@ The choice (open or closed, and the tab) is remembered across launches, like the
 
 1. State and behaviour: `RightPanel`, one width, tab switch, shortcuts, persistence; panel view with the tab switch. Tests.
 2. Toolbar: share moves up, the magnifier goes, minimum width, footer cleaned up. Tests.
-3. Manual, README, and the design board in `plan/design.html` is not edited (it is a packed file); this folder's `design.html` is the reference.
+3. Manual, README, and the design board in `docs/design.html` is not edited (it is a packed file); this folder's `design.html` is the reference.
 
 Steps 1 and 2 can be separate commits.
 

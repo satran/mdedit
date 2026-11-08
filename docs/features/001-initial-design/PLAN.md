@@ -2,7 +2,7 @@
 
 A native macOS Markdown editor/viewer in SwiftUI. Two columns: a **binder** (folder tree, Scrivener style) and a **writing pane** with Write and View modes. Styling follows Things: flat, quiet, no glass/vibrancy.
 
-## 1. What the design (`plan/design.html`) specifies
+## 1. What the design (`docs/design.html`) specifies
 
 Six screens: Write, Write (dark), View, Binder, Distraction-free, Settings.
 

@@ -1,6 +1,5 @@
 # 008 · HTML, JSON and YAML files in the editor, with a preview for each
 
-*   **Author:** Satyajit Ranjeev
 *   **Status:** Built
 *   **Date:** 2026-11-06
 *   **Builds on:** plan 003 (HTML files), plan 005 (agent access), plan 006 (templates)

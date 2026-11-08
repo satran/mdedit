@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Flat, solid colours (no materials), light and dark. Values come from plan/design.html.
+/// Flat, solid colours (no materials), light and dark. Values come from docs/design.html.
 enum Palette {
     static func dyn(_ light: UInt32, _ dark: UInt32) -> NSColor {
         NSColor(name: nil) { appearance in
