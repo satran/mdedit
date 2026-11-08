@@ -11,6 +11,7 @@
 - Opens HTML, JSON and YAML files as code. Preview shows an HTML page, pretty-printed JSON, or YAML as a table. HTML files with template tags can build index pages from the notes in the folder (read-only).
 - Runs in the macOS sandbox, saves as you type, refuses to overwrite files changed on disk by something else, keeps a copy of unsaved work if saving fails.
 - Optional local agent server (off by default): an AI agent can read the open note and propose edits over MCP; each suggestion shows as a diff in a Review tab and nothing changes until the user accepts it.
+- Open source (MIT) and free to download.
 - No account, no sync service, no tracking; makes no network connections of its own.
 
 ## Facts
@@ -18,5 +19,7 @@
 - Platform: macOS 14 (Sonoma) or later. Mac only.
 - Download: https://github.com/satran/mdedit/releases/latest/download/MDEdit.dmg
 - All releases: https://github.com/satran/mdedit/releases/latest
+- Source code: https://github.com/satran/mdedit (MIT licence, free)
+- Report a problem: https://github.com/satran/mdedit/issues
 - Author: Satyajit Ranjeev
-- Home page: https://mdedit.ranjeev.in/
+- Home page: https://mdedit.satran.in/

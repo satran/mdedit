@@ -13,6 +13,6 @@ Taken from the sample folder `~/mdtest/Sample/Demo Notes` (its `Showcase Guide.m
 
 The `width` and `height` attributes in `index.html` match these sizes. If a retake has another size, change them on that `<img>`.
 
-`og.png` (1200 × 628) is still cut from the old hero shot. Recut it from `mdedit-light.png` when convenient.
+`og.png` (1200 × 628) is a crop of `mdedit-light.png` (window interior, no shadow).
 
 The PNGs are about 1 MB each (12 MB in all). Running them through `pngquant` or exporting as WebP would roughly halve that.
