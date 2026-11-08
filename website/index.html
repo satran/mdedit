@@ -61,7 +61,18 @@ h1 { font-size: clamp(2.1rem, 5.4vw, 3.4rem); line-height: 1.08; letter-spacing:
 .small { font-size: 0.9rem; color: var(--muted); margin: 0.9rem 0 0; }
 
 .shot { max-width: 64rem; margin: 3.5rem auto 0; padding: 0 1.25rem; }
-.shot img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 0 0 1px var(--line), 0 24px 60px -20px rgba(0, 0, 0, 0.35); }
+.shot img { display: block; width: 100%; height: auto; }
+
+.features { max-width: 64rem; margin: 6rem auto 0; padding: 0 1.5rem; display: grid; gap: 5.5rem; }
+.feature { display: grid; grid-template-columns: 1fr 1.5fr; gap: 3rem; align-items: center; }
+.feature:nth-child(even):not(.wide) { grid-template-columns: 1.5fr 1fr; }
+.feature:nth-child(even) .text { order: 2; }
+.feature h2 { font-size: clamp(1.4rem, 3vw, 1.8rem); letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 0.6rem; }
+.feature p { margin: 0; color: var(--muted); }
+.feature img { display: block; width: 100%; height: auto; }
+.feature .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.feature.wide { grid-template-columns: 1fr; gap: 2rem; }
+.feature.wide .text { max-width: 36rem; }
 
 .points { max-width: 64rem; margin: 5.5rem auto 0; padding: 0 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3.25rem 4.5rem; }
 .points h2 { font-size: 1.2rem; letter-spacing: -0.015em; margin: 0 0 0.45rem; line-height: 1.3; }
@@ -86,6 +97,10 @@ footer a { color: var(--muted); }
 @media (max-width: 44rem) {
   body { font-size: 16px; }
   .points { grid-template-columns: 1fr; gap: 2.25rem; margin-top: 4rem; }
+  .features { margin-top: 4rem; gap: 3.5rem; }
+  .feature, .feature:nth-child(even):not(.wide) { grid-template-columns: 1fr; gap: 1.25rem; }
+  .feature .pair { grid-template-columns: 1fr; }
+  .feature:nth-child(even) .text { order: 0; }
   .hero { padding-top: 1.5rem; }
   .shot { margin-top: 2.5rem; padding: 0 0.75rem; }
   .faq, .cta, footer { margin-top: 4.5rem; }
@@ -110,10 +125,41 @@ footer a { color: var(--muted); }
   <div class="shot">
     <picture>
       <source srcset="/img/mdedit-dark.png" media="(prefers-color-scheme: dark)">
-      <img src="/img/mdedit-light.png" width="1600" height="1065" fetchpriority="high"
+      <img src="/img/mdedit-light.png" width="2930" height="1946" fetchpriority="high"
            alt="MDEdit with a folder of notes on the left, a note being written in the middle, and its outline and linked notes on the right">
     </picture>
   </div>
+
+  <section class="features" aria-label="Features">
+    <article class="feature wide">
+      <div class="text">
+        <h2>Templates that read your notes</h2>
+        <p>Write an HTML page with a few template tags and MDEdit fills it in from the folder: an index of your notes, a task list, a summary of every note under its Summary heading. Preview builds the page. It only reads, and nothing is written back.</p>
+      </div>
+      <div class="pair"><picture><source srcset="/img/feature-templates-editor-dark.png" media="(prefers-color-scheme: dark)"><img src="/img/feature-templates-editor-light.png" width="2252" height="1946" loading="lazy" alt="An HTML template in the editor, with template tags for listing tasks"></picture><picture><source srcset="/img/feature-templates-preview-dark.png" media="(prefers-color-scheme: dark)"><img src="/img/feature-templates-preview-light.png" width="2252" height="1946" loading="lazy" alt="The page the template builds: open tasks from the notes, overdue ones in red"></picture></div>
+    </article>
+    <article class="feature">
+      <div class="text">
+        <h2>Agents suggest, you decide</h2>
+        <p>Turn on the local agent server and a tool such as Claude Code can propose edits to the note you have open. Each one arrives in the Review tab as a diff with the agent's reason. Nothing changes until you accept it.</p>
+      </div>
+      <picture><source srcset="/img/feature-agent-review-dark.png" media="(prefers-color-scheme: dark)"><img src="/img/feature-agent-review-light.png" width="2932" height="1946" loading="lazy" alt="A note with the Review tab open beside it, listing an agent's suggested fixes as removed and added lines with Reject and Accept buttons"></picture>
+    </article>
+    <article class="feature">
+      <div class="text">
+        <h2>Focus mode, with a typewriter</h2>
+        <p>Distraction free hides everything but the note. Typewriter mode keeps the line you are typing in the middle of the window, so you never write at the bottom edge of the screen.</p>
+      </div>
+      <picture><source srcset="/img/feature-focus-dark.png" media="(prefers-color-scheme: dark)"><img src="/img/feature-focus-light.png" width="2252" height="1946" loading="lazy" alt="A note in distraction free mode: the paragraph being typed is bright and the rest of the page fades away"></picture>
+    </article>
+    <article class="feature">
+      <div class="text">
+        <h2>Go to any file in a few keystrokes</h2>
+        <p>Press ⇧⌘O and type a few letters of a name or path, in order but not next to each other. <code>sou</code> finds <code>Sourdough Bread.md</code>. Return opens it.</p>
+      </div>
+      <picture><source srcset="/img/feature-fuzzy-find-dark.png" media="(prefers-color-scheme: dark)"><img src="/img/feature-fuzzy-find-light.png" width="2252" height="1946" loading="lazy" alt="The Go to File box open over a note, with files that match the letters typed"></picture>
+    </article>
+  </section>
 
   <section class="points" aria-label="What MDEdit does">
     <div>
@@ -190,7 +236,6 @@ footer a { color: var(--muted); }
 </main>
 
 <footer>
-  <span>MDEdit is made by Satyajit Ranjeev.</span>
   <span><a href="https://github.com/satran/mdedit/releases/latest">Releases</a> &middot; <a href="https://github.com/satran/mdedit">GitHub</a></span>
 </footer>
 </body>
