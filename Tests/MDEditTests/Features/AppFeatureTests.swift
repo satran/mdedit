@@ -174,7 +174,7 @@ final class AppFeatureTests: XCTestCase {
         // shortcuts the system or text editing already owns
         for taken in ["⌘C", "⌘V", "⌘X", "⌘Z", "⌘A", "⌘Q", "⌘W", "⌘H", "⌘M", "⌘S", "⌘,"] { XCTAssertFalse(keys.contains(taken), taken) }
         // the Format menu is part of the same list
-        for fmt in ["⌘B", "⌘I", "⌘K", "⌘E", "⇧⌘X", "⇧⌘H", "⌥⌘1", "⌥⌘6", "⌥⌘0", "⇧⌘8", "⇧⌘7", "⇧⌘T", "⇧⌘.", "⌥⌘K", "⌥⌘-"] { XCTAssertTrue(keys.contains(fmt), fmt) }
+        for fmt in ["⌘B", "⌘I", "⌘K", "⇧⌘C", "⇧⌘X", "⇧⌘H", "⌘1", "⌘6", "⌘0", "⇧⌘L", "⇧⌘N", "⇧⌘T", "⇧⌘.", "⌥⌘C", "⌥⌘-"] { XCTAssertTrue(keys.contains(fmt), fmt) }
     }
 
     @MainActor func testRecentFoldersAppearInThePalette() throws {
@@ -190,14 +190,14 @@ final class AppFeatureTests: XCTestCase {
         let ws = makeWorkspace()
         ws.binderVisible = false
         ws.focusSearch()
-        XCTAssertTrue(ws.binderVisible); XCTAssertTrue(ws.wantsSearchFocus); XCTAssertFalse(ws.wantsTreeFocus)
+        XCTAssertTrue(ws.binderVisible); XCTAssertTrue(ws.wantsSearchFocus)
     }
 
-    func testShowingTheBinderAsksForTheListToTakeFocus() {
+    func testTheBinderCanBeShownAndHidden() {
         let ws = makeWorkspace()
         ws.binderVisible = false
         ws.toggleBinder()
-        XCTAssertTrue(ws.binderVisible); XCTAssertTrue(ws.wantsTreeFocus)
+        XCTAssertTrue(ws.binderVisible)
         ws.toggleBinder()
         XCTAssertFalse(ws.binderVisible)
     }

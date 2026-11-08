@@ -32,8 +32,8 @@ final class FuzzTests: XCTestCase {
                 case 3: ws.newDocument(in: anyItem().map { ws.root?.find($0)?.isFolder == true ? $0 : $0.deletingLastPathComponent() } ?? s.url)
                 case 4: ws.newFolder(in: s.url)
                 case 5: if let u = anyItem(), u.lastPathComponent != "Top.md" { ws.trash(u) }
-                case 6: ws.moveSelection(Int.random(in: -2...2, using: &rng))
-                case 7: ws.expandSelection(); ws.collapseSelection()
+                case 6: if let u = anyItem() { ws.toggle(u) }
+                case 7: ws.collapseAll()
                 case 8: ws.document.text += "typed \(step)\n"
                 case 9: ws.search = ["", "o", "zzz", "TOP"].randomElement(using: &rng)!
                 case 10: if let a = anyItem() { _ = ws.linkText(forDropped: [a, sibling.path("precious.md")]) }

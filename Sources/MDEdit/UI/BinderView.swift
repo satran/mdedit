@@ -3,7 +3,6 @@ import SwiftUI
 struct BinderView: View {
     @EnvironmentObject var ws: Workspace
     @FocusState private var searchFocused: Bool
-    @FocusState private var treeFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,17 +30,13 @@ struct BinderView: View {
         .accessibilityLabel("Binder")
         .onAppear { takeFocus() }
         .onChange(of: ws.wantsSearchFocus) { _, _ in takeFocus() }
-        .onChange(of: ws.wantsTreeFocus) { _, _ in takeFocus() }
     }
 
-    /// Asked for by Search Binder (the search field) or by showing the binder (the list, for the arrow keys).
+    /// Asked for by Search Binder: the caret goes to the search field. The list itself takes no keys: it is used with the mouse.
     private func takeFocus() {
         if ws.wantsSearchFocus {
-            ws.wantsSearchFocus = false; ws.wantsTreeFocus = false
+            ws.wantsSearchFocus = false
             DispatchQueue.main.async { searchFocused = true }
-        } else if ws.wantsTreeFocus {
-            ws.wantsTreeFocus = false
-            DispatchQueue.main.async { treeFocused = true }
         }
     }
 
@@ -55,7 +50,6 @@ struct BinderView: View {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Color(Palette.muted))
             TextField("Search", text: $ws.search).textFieldStyle(.plain).font(.system(size: 13))
                 .focused($searchFocused)
-                .onKeyPress(.downArrow) { treeFocused = true; ws.moveSelection(1); return .handled }
                 .accessibilityLabel("Search binder")
             if !ws.search.isEmpty {
                 Button { ws.search = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12)) }
@@ -84,17 +78,7 @@ struct BinderView: View {
         .onChange(of: ws.selection) { _, sel in if let sel { proxy.scrollTo(sel) } }
         }
         .frame(maxHeight: .infinity)
-        // showing the binder puts the caret here, and the arrow keys walk it; Return or Tab goes on to the note
-        .focusable().focused($treeFocused).focusEffectDisabled()
-        .onChange(of: treeFocused) { _, now in ws.editor.keepFocusElsewhere = now }
-        .onKeyPress(.upArrow) { ws.moveSelection(-1); return .handled }
-        .onKeyPress(.downArrow) { ws.moveSelection(1); return .handled }
-        .onKeyPress(.rightArrow) { ws.expandSelection(); return .handled }
-        .onKeyPress(.leftArrow) { ws.collapseSelection(); return .handled }
-        .onKeyPress(.return) { ws.focusEditor(); return .handled }
-        .onKeyPress(.tab) { ws.focusEditor(); return .handled }
-        .onKeyPress(.space) { ws.toggleQuickLook(); return .handled }
-        .onKeyPress(.escape) { QuickView.shared.hide(); return .handled }
+        // no key handling here: the list is not focusable, so arrow keys never move the selection and renaming has the keyboard to itself
         .dropDestination(for: URL.self) { urls, _ in
             guard let root = ws.rootURL else { return false }
             ws.drop(urls, into: root)

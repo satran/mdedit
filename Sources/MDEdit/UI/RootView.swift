@@ -37,6 +37,14 @@ struct RootView: View {
                 }
             }
         }
+        .overlay {
+            if ws.finderVisible {
+                ZStack(alignment: .top) {
+                    Color.clear.contentShape(Rectangle()).onTapGesture { ws.finderVisible = false }
+                    FileFinderView().padding(.top, 70)
+                }
+            }
+        }
         .alert("Something went wrong", isPresented: Binding(get: { ws.message != nil }, set: { if !$0 { ws.message = nil } })) {
             Button("OK") { ws.message = nil }
         } message: { Text(ws.message ?? "") }

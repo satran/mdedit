@@ -18,7 +18,7 @@ Output is a short list of failures and the totals. The full log is `build/test.l
 | Folder | Question it answers | Examples |
 |---|---|---|
 | `Tests/MDEditTests/Features` | Does every feature do what it should? | recent folders, windows, preferences, palette, outline, search, backlinks, wiki links, viewer, template tags, trust, preview delivery |
-| top level (`SyntaxTests`, `BinderTests`, `WorkspaceTests`, `DropTests`, `KeyboardNavTests`, `FrontMatterTests`, `ViewerTests`, `CommandTests`, `SnapshotTests`) | The original per-area suites | Markdown styling, binder tree, rename/move, drag and drop, arrow keys, front matter |
+| top level (`SyntaxTests`, `BinderTests`, `WorkspaceTests`, `DropTests`, `FrontMatterTests`, `ViewerTests`, `CommandTests`, `SnapshotTests`) | The original per-area suites | Markdown styling, binder tree, rename/move, drag and drop, arrow keys, front matter |
 | `Safety` | Is a file ever changed when it should not be, or an edit lost? | encodings, BOM, symlinks, outside changes, closing mid-autosave, read-only folders, odd file names, folder loops, random action fuzzing, `SafePath`, template limits and fuzz |
 | `Security` | Can a malicious note or file do harm? | links (`javascript:`, `file:`, programs, `..`), exported HTML and print (script, handlers, CSP), entitlements, no URL scheme, hostile templates and the output guard |
 | `Safety/HostileInputTests` | Can text built to hang or crash the parsers do so? | 100,000 nested quotes, quadratic regexes, NUL bytes, 2 MB lines, random soup |

@@ -14,10 +14,10 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 ## The window
 
-- **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⌘/.
+- **Binder** (left): the folder tree, with a search box at the top. Show or hide it with the sidebar button at the top left, or ⇧⌘B.
 - **Editor or viewer** (centre): the open note. The path above it shows where the note is. The row at the bottom shows the word count and reading time, and holds the distraction-free and typewriter buttons. The toolbar at the top has the share button.
 - **Side panel** (right, optional): show or hide it with the button at the top right. Icons in the bottom row of the panel switch between its tabs: the **Outline**, which lists the headings of the note and the notes that link to it (⌥⌘O) and **Find and replace** (⌘F). With agent access on there is a third tab, **Review**. The panel keeps its place and width when you switch, and you can drag its left edge to make it wider or narrower.
-- The **status bar** at the bottom can be hidden with ⌥⌘B.
+- The **status bar** at the bottom can be hidden with ⌃⌘S.
 
 ## Working with notes and folders
 
@@ -31,9 +31,11 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 
 **Trash.** File ▸ Move to Trash moves the selected item to the Trash. It is not deleted for good, so you can still get it back from there.
 
-**Search.** Type in the search box (⇧⌘B jumps there). To search inside the notes, use Find and Replace below. The binder narrows to the files and folders whose name contains what you typed, with the folders that hold them. Clear the box to see the whole tree again.
+**Go to File.** ⇧⌘O opens a box over the note. Type a few letters of a file's name or path, in order but not next to each other (`mtg` finds `Notes/Meeting.md`), and press Return. Several words match in any order. Up and Down choose, Esc closes. With nothing typed it lists the notes you opened last.
 
-**Keyboard in the binder.** ↑ and ↓ move through the rows, and notes open as you pass them. → opens a folder, ← closes it or steps up to its parent. Space previews a file that MDEdit cannot edit, such as a picture or a PDF.
+**Search.** Type in the search box (⌥⌘S jumps there). To search inside the notes, use Find and Replace below. The binder narrows to the files and folders whose name contains what you typed, with the folders that hold them. Clear the box to see the whole tree again.
+
+**The binder is used with the mouse.** Click a note to open it, a folder to open or close it, and a file MDEdit cannot edit, such as a picture or a PDF, to preview it. The arrow keys do not move through the binder, so typing while you rename a file never changes the selection.
 
 **Changes outside MDEdit.** If you edit a note in another app, MDEdit notices and shows the new text. If a note was changed on disk while you also had unsaved changes, a bar appears with **Keep mine** and **Reload**.
 
@@ -59,12 +61,12 @@ Use the **Format** menu or the shortcuts. Each one toggles: use it again to take
 | Italic | `*text*` | ⌘I |
 | Strikethrough | `~~text~~` | ⇧⌘X |
 | Highlight | `==text==` | ⇧⌘H |
-| Inline code | `` `code` `` | ⌘E |
+| Inline code | `` `code` `` | ⇧⌘C |
 | Link | `[text](address)` | ⌘K |
-| Heading 1–6 | `# ` to `###### ` | ⌥⌘1 to ⌥⌘6 |
-| Body text | | ⌥⌘0 |
-| Bulleted list | `- item` | ⇧⌘8 |
-| Numbered list | `1. item` | ⇧⌘7 |
+| Heading 1–6 | `# ` to `###### ` | ⌘1 to ⌘6 |
+| Body text | | ⌘0 |
+| Bulleted list | `- item` | ⇧⌘L |
+| Numbered list | `1. item` | ⇧⌘N |
 | Task list | `- [ ] task` | ⇧⌘T |
 
 With text selected, a shortcut wraps the selection. With nothing selected, it applies to the word or line the caret is in. Pressing Return inside a list continues the list; pressing Return on an empty item ends it.
@@ -91,7 +93,7 @@ A block of `key: value` lines between `---` lines at the very top of a note is *
 ### Typewriter mode and distraction free
 
 - **Typewriter mode** (⌃⌘T, or the button in the bottom row) keeps the line you are typing in the middle of the window.
-- **Distraction free** (⌃⌘F) hides everything except the note. Settings decides whether it uses the full screen or just fills the window. Press Esc or the same shortcut to leave.
+- **Distraction free** (⇧⌘D) hides everything except the note. Settings decides whether it uses the full screen or just fills the window. Press Esc or the same shortcut to leave.
 
 ## Find and replace
 
@@ -128,7 +130,7 @@ An invalid pattern is shown in the field instead of searching. Very large result
 
 ## Viewing
 
-**View ▸ View** (⌘2) shows the note typeset like a printed page, in a sans face (Inter unless you pick another under **Settings ▸ Viewer ▸ Font**). **Write** (⌘1) returns to editing, and ⇧⌘E toggles between the two.
+**View ▸ View** (⌃⌘V) shows the note typeset like a printed page, in a sans face (Inter unless you pick another under **Settings ▸ Viewer ▸ Font**). **Write** (⌘1) returns to editing, and ⇧⌘E toggles between the two.
 
 The View uses curly quotes, proper dashes and ellipses, shows tables, task lists, quotes and code blocks, and sets local pictures centred. Links open as follows: another note opens in MDEdit, a web address opens in your browser, and a local file opens in its own app. Nothing runs from a note.
 
@@ -144,7 +146,7 @@ A picture or stylesheet on the web tells its server that you opened the note, so
 
 HTML files (`.html`, `.htm`), JSON files (`.json`) and YAML files (`.yaml`, `.yml`) in the folder appear in the binder and open in the editor, shown as code: a monospace font, colours for tags, keys and strings, and none of the Markdown behaviour (no lists, no wiki links, no spell checking). You can edit and save them like a note, search them with **Find**, and undo.
 
-Press the eye button (**Preview**, ⇧⌘E) to see the result:
+Press the eye button (**Preview**, ⌘E) to see the result:
 
 - **HTML** is shown as a page, as a browser would show it. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser. If the file has template tags, the preview renders it (see Templates below).
 - **JSON** is shown as pretty-printed JSON with the keys in order. A file that is not valid JSON says so and shows its text.
