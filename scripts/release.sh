@@ -39,5 +39,7 @@ if [ "$SIGN" != "-" ]; then
 fi
 
 hdiutil verify -quiet "$DMG"
-echo "Built $DMG"
+# the same file under a fixed name, so the website's link (releases/latest/download/MDEdit.dmg) always reaches the newest release
+cp "$DMG" build/MDEdit.dmg
+echo "Built $DMG (also build/MDEdit.dmg: attach this one to the GitHub release as well)"
 shasum -a 256 "$DMG"

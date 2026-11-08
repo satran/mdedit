@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MDEdit: a Markdown editor for Mac that works on plain folders</title>
+<meta name="description" content="MDEdit is a native Mac Markdown editor. Open a folder of .md files, link notes with [[wiki links]], search the whole folder, and keep every note as plain text.">
+<link rel="canonical" href="https://mdedit.ranjeev.in/">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" type="image/png" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MDEdit">
+<meta property="og:title" content="MDEdit: a Markdown editor for Mac that works on plain folders">
+<meta property="og:description" content="MDEdit is a native Mac Markdown editor. Open a folder of .md files, link notes with [[wiki links]], search the whole folder, and keep every note as plain text.">
+<meta property="og:url" content="https://mdedit.ranjeev.in/">
+<meta property="og:image" content="https://mdedit.ranjeev.in/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="628">
+<meta property="og:image:alt" content="MDEdit showing a folder of notes, a note being written and its outline">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" as="image" href="/img/mdedit-light.png" media="(prefers-color-scheme: light)" fetchpriority="high">
+<link rel="preload" as="image" href="/img/mdedit-dark.png" media="(prefers-color-scheme: dark)" fetchpriority="high">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "MDEdit", "description": "MDEdit is a native Mac Markdown editor. Open a folder of .md files, link notes with [[wiki links]], search the whole folder, and keep every note as plain text.", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS 14 or later", "url": "https://mdedit.ranjeev.in/", "downloadUrl": "https://github.com/satran/mdedit/releases/latest/download/MDEdit.dmg", "image": "https://mdedit.ranjeev.in/img/og.png", "author": {"@type": "Person", "name": "Satyajit Ranjeev"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is MDEdit?", "acceptedAnswer": {"@type": "Answer", "text": "MDEdit is a Markdown editor for the Mac. It opens a folder as a project and edits the .md and .txt files in it directly, with wiki links, backlinks, find and replace across the folder, and a typeset reading view."}}, {"@type": "Question", "name": "Where are my notes stored?", "acceptedAnswer": {"@type": "Answer", "text": "Where they already are. MDEdit works on the files in the folder you open. It doesn't keep a copy, a database or a library of its own."}}, {"@type": "Question", "name": "Does MDEdit need an account or an internet connection?", "acceptedAnswer": {"@type": "Answer", "text": "No to both. It makes no network connections of its own. Pictures and stylesheets from the web load in a note only if you switch that on in Settings."}}, {"@type": "Question", "name": "Which version of macOS does it need?", "acceptedAnswer": {"@type": "Answer", "text": "macOS 14 (Sonoma) or later. There is no Windows, iPhone or iPad version."}}, {"@type": "Question", "name": "Does it support wiki links and backlinks?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. [[Note]], [[Note|alias]], [[Note#Heading]] and [[folder/Note]] all work, with a list of notes as you type. The side panel shows the notes that link back to the one you have open."}}, {"@type": "Question", "name": "Can I open a folder from another notes app?", "acceptedAnswer": {"@type": "Answer", "text": "If its notes are Markdown or text files, yes. MDEdit reads and saves them where they are, so the folder still works in whatever else you use on it."}}, {"@type": "Question", "name": "Can an AI agent edit my notes?", "acceptedAnswer": {"@type": "Answer", "text": "Only if you let one. The local agent server is off until you turn it on in Settings. An agent can then read the note you have open and suggest changes, which appear in a Review tab as a diff. Nothing changes until you accept it."}}, {"@type": "Question", "name": "How do I install it?", "acceptedAnswer": {"@type": "Answer", "text": "Download the disk image, open it and drag MDEdit into Applications. The first time you open it, macOS may ask you to confirm: right-click the app and choose Open."}}]}</script>
+<style>
+:root {
+  --bg: #fff; --fg: #1d1d1f; --muted: #6e6e73; --accent: #2563eb; --accent-ink: #fff;
+  --line: #e5e5ea; --soft: #f5f5f7;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111113; --fg: #f5f5f7; --muted: #a1a1a6; --accent: #5b8def; --accent-ink: #0b0b0d; --line: #2c2c30; --soft: #1b1b1e; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, summary:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--soft); padding: 0.1em 0.35em; border-radius: 4px; }
+
+.top { max-width: 68rem; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+.top .name { font-weight: 600; color: var(--fg); text-decoration: none; letter-spacing: -0.01em; }
+.top a.get { font-size: 0.95rem; text-decoration: none; }
+
+.hero { text-align: center; padding: 3rem 1.5rem 0; }
+.hero img.icon { width: 96px; height: 96px; }
+h1 { font-size: clamp(2.1rem, 5.4vw, 3.4rem); line-height: 1.08; letter-spacing: -0.03em; font-weight: 650; margin: 1.5rem auto 1rem; max-width: 18ch; }
+.lead { font-size: clamp(1.1rem, 2.2vw, 1.3rem); color: var(--muted); max-width: 34rem; margin: 0 auto 2rem; line-height: 1.5; }
+.button {
+  display: inline-block; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+  font-weight: 600; padding: 0.8rem 1.6rem; border-radius: 12px;
+}
+.button:hover { filter: brightness(1.08); }
+.small { font-size: 0.9rem; color: var(--muted); margin: 0.9rem 0 0; }
+
+.shot { max-width: 64rem; margin: 3.5rem auto 0; padding: 0 1.25rem; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 0 0 1px var(--line), 0 24px 60px -20px rgba(0, 0, 0, 0.35); }
+
+.points { max-width: 64rem; margin: 5.5rem auto 0; padding: 0 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3.25rem 4.5rem; }
+.points h2 { font-size: 1.2rem; letter-spacing: -0.015em; margin: 0 0 0.45rem; line-height: 1.3; }
+.points p { margin: 0; color: var(--muted); }
+
+.faq { max-width: 40rem; margin: 6rem auto 0; padding: 0 1.5rem; }
+.faq h2 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 1.25rem; }
+details { border-top: 1px solid var(--line); }
+details:last-of-type { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; padding: 1rem 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 1.3rem; line-height: 1.2; }
+details[open] summary::after { content: "\2212"; }
+details p { margin: 0 0 1.1rem; color: var(--muted); }
+
+.cta { text-align: center; margin: 6rem auto 0; padding: 0 1.5rem; }
+.cta h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); letter-spacing: -0.02em; margin: 0 0 1.25rem; }
+
+footer { max-width: 68rem; margin: 6rem auto 0; padding: 1.5rem 1.5rem 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: space-between; }
+footer a { color: var(--muted); }
+
+@media (max-width: 44rem) {
+  body { font-size: 16px; }
+  .points { grid-template-columns: 1fr; gap: 2.25rem; margin-top: 4rem; }
+  .hero { padding-top: 1.5rem; }
+  .shot { margin-top: 2.5rem; padding: 0 0.75rem; }
+  .faq, .cta, footer { margin-top: 4.5rem; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="name" href="/">MDEdit</a>
+  <a class="get" href="https://github.com/satran/mdedit/releases/latest/download/MDEdit.dmg">Download</a>
+</header>
+
+<main>
+  <section class="hero">
+    <img class="icon" src="/img/icon.png" width="96" height="96" alt="">
+    <h1>A Markdown editor for the folder you already have.</h1>
+    <p class="lead">MDEdit opens a folder on your Mac and shows it as a binder of notes. Every note stays a plain text file, so nothing is locked in and nothing needs importing.</p>
+    <a class="button" href="https://github.com/satran/mdedit/releases/latest/download/MDEdit.dmg">Download for Mac</a>
+    <p class="small">Needs macOS 14 or later. No account. <a href="https://github.com/satran/mdedit/releases/latest">All releases</a></p>
+  </section>
+
+  <div class="shot">
+    <picture>
+      <source srcset="/img/mdedit-dark.png" media="(prefers-color-scheme: dark)">
+      <img src="/img/mdedit-light.png" width="1600" height="1065" fetchpriority="high"
+           alt="MDEdit with a folder of notes on the left, a note being written in the middle, and its outline and linked notes on the right">
+    </picture>
+  </div>
+
+  <section class="points" aria-label="What MDEdit does">
+    <div>
+      <h2>Open a folder, get a binder</h2>
+      <p>Point MDEdit at any folder. The subfolders and notes show up in a sidebar and open with a click. Rename, move, trash, or drag files in from Finder. When you quit, the folder is exactly as you left it.</p>
+    </div>
+    <div>
+      <h2>Write in Markdown, read it typeset</h2>
+      <p>In Write mode the Markdown stays on screen, lightly styled as you type. Switch to View and the same note is set in a serif or sans face made for reading, with proper quotes and dashes.</p>
+    </div>
+    <div>
+      <h2>Link notes to each other</h2>
+      <p>Type <code>[[</code> and pick a note. The side panel lists the headings of the note you're in and every note that links back to it. Front matter turns into a small table when you read.</p>
+    </div>
+    <div>
+      <h2>Search the whole folder</h2>
+      <p>Find and replace in one note or in all of them. You see a diff before anything changes, and a single undo puts every file back if none of them has been touched since.</p>
+    </div>
+    <div>
+      <h2>HTML, JSON and YAML too</h2>
+      <p>They open in the same editor, as code. Preview shows an HTML page, indented JSON, or YAML as a table. An HTML file with template tags can build an index of your notes, reading them and never changing them.</p>
+    </div>
+    <div>
+      <h2>Careful with your files</h2>
+      <p>MDEdit runs in the macOS sandbox and only touches the folder you open. It saves as you type and won't overwrite a file that changed behind its back. No account, no sync service, no tracking, and no network connections of its own.</p>
+    </div>
+    <div>
+      <h2>Let an agent suggest edits</h2>
+      <p>Turn on the local agent server in Settings and a tool such as Claude Code can read the note you have open and propose changes over MCP. They show up in a Review tab as diffs, and nothing changes until you accept. It's off until you switch it on.</p>
+    </div>
+  </section>
+
+  <section class="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">Questions</h2>
+      <details>
+        <summary>What is MDEdit?</summary>
+        <p>MDEdit is a Markdown editor for the Mac. It opens a folder as a project and edits the .md and .txt files in it directly, with wiki links, backlinks, find and replace across the folder, and a typeset reading view.</p>
+      </details>
+      <details>
+        <summary>Where are my notes stored?</summary>
+        <p>Where they already are. MDEdit works on the files in the folder you open. It doesn&#x27;t keep a copy, a database or a library of its own.</p>
+      </details>
+      <details>
+        <summary>Does MDEdit need an account or an internet connection?</summary>
+        <p>No to both. It makes no network connections of its own. Pictures and stylesheets from the web load in a note only if you switch that on in Settings.</p>
+      </details>
+      <details>
+        <summary>Which version of macOS does it need?</summary>
+        <p>macOS 14 (Sonoma) or later. There is no Windows, iPhone or iPad version.</p>
+      </details>
+      <details>
+        <summary>Does it support wiki links and backlinks?</summary>
+        <p>Yes. [[Note]], [[Note|alias]], [[Note#Heading]] and [[folder/Note]] all work, with a list of notes as you type. The side panel shows the notes that link back to the one you have open.</p>
+      </details>
+      <details>
+        <summary>Can I open a folder from another notes app?</summary>
+        <p>If its notes are Markdown or text files, yes. MDEdit reads and saves them where they are, so the folder still works in whatever else you use on it.</p>
+      </details>
+      <details>
+        <summary>Can an AI agent edit my notes?</summary>
+        <p>Only if you let one. The local agent server is off until you turn it on in Settings. An agent can then read the note you have open and suggest changes, which appear in a Review tab as a diff. Nothing changes until you accept it.</p>
+      </details>
+      <details>
+        <summary>How do I install it?</summary>
+        <p>Download the disk image, open it and drag MDEdit into Applications. The first time you open it, macOS may ask you to confirm: right-click the app and choose Open.</p>
+      </details>
+  </section>
+
+  <section class="cta">
+    <h2>Try it on a folder of your own.</h2>
+    <a class="button" href="https://github.com/satran/mdedit/releases/latest/download/MDEdit.dmg">Download for Mac</a>
+    <p class="small">Needs macOS 14 or later. <a href="https://github.com/satran/mdedit/releases/latest">All releases</a></p>
+  </section>
+</main>
+
+<footer>
+  <span>MDEdit is made by Satyajit Ranjeev.</span>
+  <span><a href="https://github.com/satran/mdedit/releases/latest">Releases</a> &middot; <a href="https://github.com/satran/mdedit">GitHub</a></span>
+</footer>
+</body>
+</html>
