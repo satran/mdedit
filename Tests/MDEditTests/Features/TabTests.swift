@@ -167,6 +167,24 @@ final class TabTests: XCTestCase {
         XCTAssertEqual(ws.tabFolder(s.path("Plan.md")), ".md")
     }
 
+    func testTwinsWithDifferentIconsNeedNoTag() throws {
+        try s.write("index.html", "<p>"); try s.write("index.json", "{}"); try s.write("index.md", "x"); ws.reload()
+        for f in ["index.html", "index.json", "index.md"] { ws.select(s.path(f)) }
+        XCTAssertNil(ws.tabFolder(s.path("index.html")))
+        XCTAssertNil(ws.tabFolder(s.path("index.json")))
+        XCTAssertNil(ws.tabFolder(s.path("index.md")))
+    }
+
+    func testFilesWithAnIconShowWithoutTheirExtension() throws {
+        try s.write("page.html", "<p>"); try s.write("data.json", "{}"); try s.write("cfg.yaml", "a: 1"); try s.write("pic.png", Data([1])); try s.write("report.pdf", Data([1])); ws.reload()
+        func label(_ f: String) -> String? { ws.root?.find(s.path(f))?.label }
+        XCTAssertEqual(label("A.md"), "A"); XCTAssertEqual(label("page.html"), "page")
+        XCTAssertEqual(label("data.json"), "data"); XCTAssertEqual(label("cfg.yaml"), "cfg")
+        XCTAssertEqual(label("pic.png"), "pic.png", "a plain page icon says nothing, so the extension stays")
+        XCTAssertEqual(label("report.pdf"), "report.pdf")
+        XCTAssertEqual(ws.root?.find(s.path("page.html"))?.name, "page.html", "the real name is unchanged, for rename and search")
+    }
+
     func testCloseTabHasACommandAndNoShortcutClashes() {
         let cmds = makeCommands(ws: ws, prefs: Preferences.shared, recents: RecentFolders.shared, newWindow: { _ in })
         XCTAssertEqual(cmds.first { $0.id == "close-tab" }?.shortcut, "⌘W")

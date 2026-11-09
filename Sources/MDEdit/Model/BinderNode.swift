@@ -15,6 +15,14 @@ final class BinderNode: Identifiable {
     var isCode: Bool { !isFolder && Self.codeExtensions.contains(url.pathExtension.lowercased()) }
     var opensInApp: Bool { isDocument || isCode }
     var name: String { isFolder || !isDocument ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent }
+    /// The SF Symbol that stands for the file: its own for notes, web pages, JSON and the other code files; a plain page for the rest.
+    var symbol: String {
+        isFolder ? "folder" : isDocument ? "doc.text" : isHTML ? "globe"
+            : Self.jsonExtensions.contains(url.pathExtension.lowercased()) ? "curlybraces" : isCode ? "list.bullet.rectangle" : "doc"
+    }
+    /// What the binder shows. A file whose icon already says what it is goes without its extension; one with the plain
+    /// page icon (and the files that only preview, never open in the editor) keeps it, since the extension is all that tells.
+    var label: String { isCode ? url.deletingPathExtension().lastPathComponent : name }
 
     init(url: URL, isFolder: Bool, children: [BinderNode] = []) {
         self.url = url; self.isFolder = isFolder; self.children = children

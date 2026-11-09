@@ -89,14 +89,16 @@ extension Workspace {
     }
 
     /// The name shown on a tab.
-    func tabTitle(_ url: URL) -> String { root?.find(url)?.name ?? url.deletingPathExtension().lastPathComponent }
+    func tabTitle(_ url: URL) -> String { root?.find(url)?.label ?? url.deletingPathExtension().lastPathComponent }
 
     /// A short tag for a tab whose title another tab shares: the least of its folder path that tells the two apart
-    /// ("X", or "A/Notes" against "B/Notes"), or the extension when they sit in the same folder (Plan.md and Plan.txt).
-    /// Nil when the title is unique.
+    /// ("X", or "A/Notes" against "B/Notes"), or the extension when they sit in the same folder and have the same icon
+    /// (Plan.md and Plan.txt). Nil when the title is unique or the icons already differ.
     func tabFolder(_ url: URL) -> String? {
         let title = tabTitle(url)
-        let twins = openTabs.filter { !Self.isSame($0, url) && tabTitle($0) == title }
+        // a twin with another icon (index.html and index.json) is told apart by the icon already
+        let icon = root?.find(url)?.symbol
+        let twins = openTabs.filter { !Self.isSame($0, url) && tabTitle($0) == title && root?.find($0)?.symbol == icon }
         guard !twins.isEmpty else { return nil }
         func parents(_ u: URL) -> [String] { u.deletingLastPathComponent().standardizedFileURL.pathComponents.filter { $0 != "/" } }
         let mine = parents(url)

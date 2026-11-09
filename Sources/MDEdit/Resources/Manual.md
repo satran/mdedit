@@ -10,7 +10,7 @@ MDEdit edits plain Markdown notes that live in an ordinary folder. There is no d
 
 MDEdit opens the folder you chose last time when you start it. **File ▸ Open Recent** lists the folders you used before. **New Window with This Folder** opens the same folder in a second window, and **New Window** (⌥⌘N) lets you pick another folder.
 
-Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folder appear in the binder too, so you can see and move them, but they are not edited.
+Notes are files ending in `.md`, `.markdown` or `.txt`. In the binder and the tabs, notes, web pages, JSON and YAML files show without their extension, since their icon says what they are. Files with the plain page icon, such as pictures and PDFs, keep it. Other files in the folder appear in the binder too, so you can see and move them, but they are not edited.
 
 ## The window
 
@@ -47,7 +47,7 @@ Every note you open becomes a tab in the **Open** section at the top of the bind
 - **Reorder** tabs by dragging them.
 - **Right-click** a tab for Close Others, Close Tabs Below and Reveal in Finder.
 - **Move between tabs** with ⇧⌘[ and ⇧⌘] (View menu). ⌥⌘T brings back the tab you closed last.
-- When two tabs have the same name, each gets a small grey tag after it: the folder, or just enough of the path to tell them apart (`A/Notes` and `B/Notes`). Two files with the same name in one folder are tagged with their extension.
+- When two tabs have the same name, each gets a small grey tag after it: the folder, or just enough of the path to tell them apart (`A/Notes` and `B/Notes`). Two files with the same name and icon in one folder (`Plan.md` and `Plan.txt`) are tagged with their extension.
 - An orange mark on a tab means the file changed on disk while it was open.
 
 Notes save as you type, so a tab has no unsaved state. The Open section shows up to eight tabs and then scrolls. The tabs are remembered per window and come back when you reopen it. They are kept up to date when you rename, move or delete a note.

@@ -54,7 +54,7 @@ struct OpenTabRow: View {
     var body: some View {
         let title = ws.tabTitle(url), folder = ws.tabFolder(url)
         HStack(spacing: 6) {
-            Image(systemName: ws.root?.find(url)?.isDocument == false ? "doc.plaintext" : "doc.text").font(.system(size: 12))
+            Image(systemName: ws.root?.find(url)?.symbol ?? "doc.text").font(.system(size: 12))
                 .foregroundStyle(Color(Palette.muted)).frame(width: 16)
             Text(title).font(.system(size: 13)).lineLimit(1).truncationMode(.tail).layoutPriority(1)
             if let folder { Text(folder).font(.system(size: 11)).foregroundStyle(Color(Palette.muted)).lineLimit(1).truncationMode(.head) }

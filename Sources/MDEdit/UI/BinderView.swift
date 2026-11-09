@@ -141,7 +141,7 @@ struct BinderRowView: View {
                 } else { Color.clear }
             }
             .frame(width: 12, height: 12).foregroundStyle(Color(Palette.muted))
-            Image(systemName: node.isFolder ? "folder" : node.isDocument ? "doc.text" : node.isHTML ? "globe" : BinderNode.jsonExtensions.contains(node.url.pathExtension.lowercased()) ? "curlybraces" : node.isCode ? "list.bullet.rectangle" : "doc").font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
+            Image(systemName: node.symbol).font(.system(size: 12)).foregroundStyle(Color(Palette.muted)).frame(width: 16)
             if ws.renaming == node.url {
                 TextField("Name", text: $draft)
                     .textFieldStyle(.plain).font(.system(size: 13))
@@ -154,7 +154,7 @@ struct BinderRowView: View {
                     }
                     .onChange(of: editing) { _, now in if !now, ws.renaming == node.url { ws.rename(node.url, to: draft) } }
             } else {
-                Text(node.name).font(.system(size: 13, weight: row.depth == 0 && node.isFolder ? .semibold : .regular))
+                Text(node.label).font(.system(size: 13, weight: row.depth == 0 && node.isFolder ? .semibold : .regular))
                     .lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 0)
@@ -193,7 +193,7 @@ struct BinderRowView: View {
             Button("Move to Trash") { ws.trash(node.url) }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(node.name)
+        .accessibilityLabel(node.label)
         .accessibilityValue(node.isFolder ? (row.isOpen ? "expanded" : "collapsed") : "")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction(named: "Rename") { ws.renaming = node.url }
