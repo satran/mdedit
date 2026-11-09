@@ -2,6 +2,10 @@
 # Signing: ad hoc by default so it builds anywhere; `make app SIGN=-` is the same, or pass your own identity.
 SIGN ?= -
 XC = xcodebuild -project MDEdit.xcodeproj -scheme MDEdit -derivedDataPath build/DerivedData CODE_SIGN_IDENTITY="$(SIGN)" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
+# Notarisation needs a secure timestamp on the app's signature; ad hoc signing cannot have one.
+ifneq ($(SIGN),-)
+XC += OTHER_CODE_SIGN_FLAGS="--timestamp"
+endif
 
 # The Xcode project is generated from project.yml (brew install xcodegen).
 project:
@@ -13,7 +17,10 @@ icon:
 
 # Builds build/MDEdit.app
 app: icon project
-	$(XC) -configuration Release build | grep -E "error:|warning: .*Sources|BUILD (SUCCEEDED|FAILED)" || true
+	@mkdir -p build
+	@$(XC) -configuration Release build > build/xcodebuild.log 2>&1; \
+	  grep -E "error:|warning: .*Sources|BUILD (SUCCEEDED|FAILED)" build/xcodebuild.log || true; \
+	  grep -q "BUILD SUCCEEDED" build/xcodebuild.log || { echo "Build failed; see build/xcodebuild.log" >&2; exit 1; }
 	rm -rf build/MDEdit.app && cp -R build/DerivedData/Build/Products/Release/MDEdit.app build/MDEdit.app
 	@echo "Built build/MDEdit.app"
 
