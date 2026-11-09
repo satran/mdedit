@@ -21,6 +21,7 @@ struct BinderView: View {
             }
             .frame(height: Metrics.headerHeight)
             searchField
+            if ws.root != nil { OpenTabsView(document: ws.document) }
             if ws.root == nil { emptyState } else { tree }
             footer
         }

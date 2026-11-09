@@ -11,6 +11,10 @@ final class Workspace: ObservableObject {
     @Published private(set) var root: BinderNode?
     @Published var expanded: Set<URL> = [] { didSet { saveExpanded() } }
     @Published var selection: URL?
+    /// The notes open as tabs, in the order the binder's Open section lists them. Changed through the methods in `Workspace+Tabs`.
+    @Published var openTabs: [URL] = [] { didSet { if oldValue != openTabs { saveTabs() } } }
+    /// Tabs closed lately, the last one first to come back (Reopen Closed Tab).
+    @Published var closedTabs: [URL] = []
     /// Notes opened before this one, oldest first; Back walks it from the end.
     @Published private(set) var visited: [URL] = []
     /// Notes Back stepped away from, nearest last; Forward walks it. Opening any other note empties it.
@@ -146,6 +150,10 @@ final class Workspace: ObservableObject {
 
     /// Suffix for the per-window defaults keys; nil is the original, single-window state.
     private let windowKey: String
+    var tabsKey: String { "openTabs" + windowKey }
+    func forgetLastFile() { defaults.removeObject(forKey: "lastFile" + windowKey) }
+    private func saveTabs() { defaults.set(openTabs.map(\.path), forKey: tabsKey) }
+    func savedTabs() -> [URL] { (defaults.stringArray(forKey: tabsKey) ?? []).map { URL(fileURLWithPath: $0) } }
     /// Set by the window so a second folder can open in a window of its own.
     var newWindow: ((UUID) -> Void)?
     private static var lastExternal: (url: URL, at: Date)?
@@ -292,6 +300,7 @@ final class Workspace: ObservableObject {
     }
 
     func open(_ url: URL, restoring: Bool = false) {
+        let restoredTabs = restoring ? savedTabs() : []
         document.saveNow()
         watcher?.stop(); watcher = nil
         scoped?.stopAccessingSecurityScopedResource()
@@ -303,9 +312,11 @@ final class Workspace: ObservableObject {
         document.open(nil)
         selection = nil
         visited = []; ahead = []
+        openTabs = []; closedTabs = []
         expanded = Set((defaults.stringArray(forKey: expandedKey(url)) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         reload()
         watcher = FolderWatcher(url: url) { [weak self] in self?.reload() }
+        if restoring { openTabs = restoredTabs.filter { root?.find($0)?.opensInApp == true } }
         if restoring, let last = defaults.string(forKey: "lastFile" + windowKey).map({ URL(fileURLWithPath: $0) }), root?.find(last) != nil { select(last) }
         else if let first = root?.files.first { select(first.url) }
     }
@@ -318,6 +329,7 @@ final class Workspace: ObservableObject {
         document.checkDisk()
         refreshBacklinks()
         if let s = selection, root?.find(s) == nil { selection = nil }
+        pruneTabs()
     }
 
     // MARK: selection
@@ -352,7 +364,7 @@ final class Workspace: ObservableObject {
         }
     }
 
-    private func select(_ url: URL, recording: Bool) {
+    func select(_ url: URL, recording: Bool) {
         selection = url
         guard let node = root?.find(url) else { return }
         if node.isFolder { toggle(url) }
@@ -365,6 +377,7 @@ final class Workspace: ObservableObject {
                 if visited.count > 100 { visited.removeFirst(visited.count - 100) }
             }
             document.open(url)
+            addTab(url)
             syncModeToFile()
             defaults.set(url.path, forKey: "lastFile" + windowKey)
             refreshBacklinks()
@@ -550,15 +563,22 @@ final class Workspace: ObservableObject {
         expanded = Set(expanded.map { remap($0) ?? $0 })
         if let s = selection, let r = remap(s) { selection = r }
         if let d = document.url, let r = remap(d) { document.relocate(to: r); defaults.set(r.path, forKey: "lastFile" + windowKey) }
+        openTabs = openTabs.map { remap($0) ?? $0 }
+        closedTabs = closedTabs.map { remap($0) ?? $0 }
         reload()
     }
 
     func trash(_ url: URL) {
         let p = url.standardizedFileURL.path
-        if let d = document.url?.standardizedFileURL.path, d == p || d.hasPrefix(p + "/") { document.open(nil) }
+        let activeGone = document.url.map { Self.isSame($0, orInside: p) } ?? false
+        let firstGone = openTabs.firstIndex { Self.isSame($0, orInside: p) }
+        if activeGone { document.open(nil) }
         do { try FileManager.default.trashItem(at: url, resultingItemURL: nil) } catch { message = error.localizedDescription; return }
         if let s = selection?.standardizedFileURL.path, s == p || s.hasPrefix(p + "/") { selection = nil }
+        openTabs.removeAll { Self.isSame($0, orInside: p) }
         reload()
+        // the open note went with it: another tab takes over, the one that was next to it
+        if activeGone, let i = firstGone, !openTabs.isEmpty { select(openTabs[min(i, openTabs.count - 1)], recording: false) }
     }
 
     // MARK: outline and backlinks

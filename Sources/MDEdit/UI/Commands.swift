@@ -2,7 +2,7 @@ import SwiftUI
 
 /// One thing the app can do. The menu bar and the command palette are both built from the same list.
 struct Cmd: Identifiable {
-    enum Place { case file, fileMore, view, find, format, paletteOnly }
+    enum Place { case file, fileMore, tabs, view, find, format, paletteOnly }
     let id: String
     let title: String
     var place: Place = .paletteOnly
@@ -53,6 +53,10 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
             if let ws { Exporter.shared.print(markdown: ws.document.text, name: docName(ws), prefs: prefs) }
         },
 
+        Cmd(id: "close-tab", title: "Close Tab", place: .tabs, key: "w") { if let ws { ws.closeTabOrWindow() } else { NSApp.keyWindow?.performClose(nil) } },
+        Cmd(id: "reopen-tab", title: "Reopen Closed Tab", place: .tabs, key: "t", modifiers: [.command, .option], enabled: ws?.closedTabs.isEmpty == false) { ws?.reopenClosedTab() },
+        Cmd(id: "next-tab", title: "Show Next Tab", place: .view, key: "]", modifiers: [.command, .shift], enabled: (ws?.openTabs.count ?? 0) > 1) { ws?.switchTab(by: 1) },
+        Cmd(id: "previous-tab", title: "Show Previous Tab", place: .view, key: "[", modifiers: [.command, .shift], enabled: (ws?.openTabs.count ?? 0) > 1) { ws?.switchTab(by: -1) },
         Cmd(id: "back", title: "Back to Previous Note", place: .view, key: "[", enabled: ws?.visited.isEmpty == false) { ws?.goBack() },
         Cmd(id: "forward", title: "Forward to Next Note", place: .view, key: "]", enabled: ws?.ahead.isEmpty == false) { ws?.goForward() },
         Cmd(id: "find", title: "Find…", place: .find, key: "f", enabled: hasDoc) { ws?.showFind(.file) },
@@ -98,6 +102,7 @@ struct AppCommands: Commands {
         let all = makeCommands(ws: ws, prefs: prefs, recents: recents, newWindow: { openWindow(id: "main", value: $0) })
         CommandGroup(replacing: .newItem) { items(all, .file) }
         CommandGroup(after: .newItem) { items(all, .fileMore) }
+        CommandGroup(replacing: .saveItem) { items(all, .tabs) }
         CommandGroup(after: .sidebar) { items(all, .view) }
         CommandMenu("Find") { items(all, .find) }
         CommandMenu("Format") { items(all, .format) }

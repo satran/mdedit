@@ -170,8 +170,9 @@ final class FileOperationTests: XCTestCase {
         ws.select(s.path("Top.md"))
         ws.trash(s.path("Top.md"))
         XCTAssertFalse(s.exists("Top.md"))
-        XCTAssertNil(ws.document.url)
-        XCTAssertNil(ws.selection)
+        XCTAssertNotEqual(ws.document.url?.lastPathComponent, "Top.md", "the tab next to it takes over")
+        XCTAssertNotEqual(ws.selection?.lastPathComponent, "Top.md")
+        XCTAssertFalse(ws.openTabs.contains { $0.lastPathComponent == "Top.md" })
     }
 
     func testTrashingAFolderClosesANoteInsideIt() {

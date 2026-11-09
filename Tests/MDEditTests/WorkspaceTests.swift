@@ -56,7 +56,7 @@ final class WorkspaceTests: XCTestCase {
     func testTrashClosesOpenDocument() throws {
         ws.select(url("Two.md"))
         ws.trash(url("Two.md"))
-        XCTAssertNil(ws.document.url)
+        XCTAssertNotEqual(ws.document.url?.lastPathComponent, "Two.md", "the tab next to it takes over")
         XCTAssertFalse(FileManager.default.fileExists(atPath: url("Two.md").path))
         XCTAssertNil(ws.root?.find(url("Two.md")))
     }

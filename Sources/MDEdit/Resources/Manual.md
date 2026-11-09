@@ -5,7 +5,7 @@
 MDEdit edits plain Markdown notes that live in an ordinary folder. There is no database and no import: open a folder and its notes are the files in it.
 
 1. Choose **File ▸ Open Folder…** (⌘O) and pick the folder that holds your notes.
-2. The **binder** on the left shows the folder as a tree. Click a note to open it.
+2. The **binder** on the left shows the folder as a tree. Click a note to open it in a tab.
 3. Start typing. Changes are saved automatically a moment after you stop typing, and when you switch notes, close the window or quit.
 
 MDEdit opens the folder you chose last time when you start it. **File ▸ Open Recent** lists the folders you used before. **New Window with This Folder** opens the same folder in a second window, and **New Window** (⌥⌘N) lets you pick another folder.
@@ -38,6 +38,19 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. Other files in the folde
 **The binder is used with the mouse.** Click a note to open it, a folder to open or close it, and a file MDEdit cannot edit, such as a picture or a PDF, to preview it. The arrow keys do not move through the binder, so typing while you rename a file never changes the selection.
 
 **Changes outside MDEdit.** If you edit a note in another app, MDEdit notices and shows the new text. If a note was changed on disk while you also had unsaved changes, a bar appears with **Keep mine** and **Reload**.
+
+## Tabs
+
+Every note you open becomes a tab in the **Open** section at the top of the binder, above the folder tree. Click a note in the tree to open it in a new tab, or click a tab to go back to it. Clicking a note that is already open just switches to it.
+
+- **Close** a tab with the × on its row, or press ⌘W. Closing a tab never touches the file. The note next to it opens in its place. On the last tab, ⌘W closes the window.
+- **Reorder** tabs by dragging them.
+- **Right-click** a tab for Close Others, Close Tabs Below and Reveal in Finder.
+- **Move between tabs** with ⇧⌘[ and ⇧⌘] (View menu). ⌥⌘T brings back the tab you closed last.
+- When two tabs have the same name, each gets a small grey tag after it: the folder, or just enough of the path to tell them apart (`A/Notes` and `B/Notes`). Two files with the same name in one folder are tagged with their extension.
+- An orange mark on a tab means the file changed on disk while it was open.
+
+Notes save as you type, so a tab has no unsaved state. The Open section shows up to eight tabs and then scrolls. The tabs are remembered per window and come back when you reopen it. They are kept up to date when you rename, move or delete a note.
 
 ## Back and Forward
 

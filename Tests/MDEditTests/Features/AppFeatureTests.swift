@@ -171,8 +171,8 @@ final class AppFeatureTests: XCTestCase {
         XCTAssertEqual(Set(cmds.map(\.id)).count, cmds.count)
         let keys = cmds.filter { $0.key != nil }.map(\.shortcut)
         XCTAssertEqual(Set(keys).count, keys.count, "two commands share a shortcut: \(keys.sorted())")
-        // shortcuts the system or text editing already owns
-        for taken in ["⌘C", "⌘V", "⌘X", "⌘Z", "⌘A", "⌘Q", "⌘W", "⌘H", "⌘M", "⌘S", "⌘,"] { XCTAssertFalse(keys.contains(taken), taken) }
+        // shortcuts the system or text editing already owns (⌘W is Close Tab, which closes the window on the last tab)
+        for taken in ["⌘C", "⌘V", "⌘X", "⌘Z", "⌘A", "⌘Q", "⌘H", "⌘M", "⌘S", "⌘,"] { XCTAssertFalse(keys.contains(taken), taken) }
         // the Format menu is part of the same list
         for fmt in ["⌘B", "⌘I", "⌘K", "⇧⌘C", "⇧⌘X", "⇧⌘H", "⌘1", "⌘6", "⌘0", "⇧⌘L", "⇧⌘N", "⇧⌘T", "⇧⌘.", "⌥⌘C", "⌥⌘-"] { XCTAssertTrue(keys.contains(fmt), fmt) }
     }
