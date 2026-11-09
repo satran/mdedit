@@ -4,10 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var prefs: Preferences
 
-    /// Fonts the preview can use: the two that ship in the app, and some that come with macOS.
-    static let viewerFonts = ["Inter", "Literata", "Helvetica Neue", "Avenir Next", "Georgia"]
-    static let editorFonts = ["IBM Plex Mono", "JetBrains Mono", "SF Mono", "Menlo", "Source Serif 4"]
-        static let presets: [(String, Int)] = [("Narrow", 64), ("Medium", 72), ("Wide", 80)]
+    static let presets: [(String, Int)] = [("Narrow", 64), ("Medium", 72), ("Wide", 80)]
     /// The viewer's middle is the specs' column, about 68 characters.
     static let viewerPresets: [(String, Int)] = [("Narrow", 58), ("Medium", ViewerStyle.specWidth), ("Wide", 80)]
 
@@ -25,13 +22,13 @@ struct SettingsView: View {
                     }
                 }
                 section("Editor") {
-                    row("Font") {
-                        fontPicker($prefs.editorFont, Self.editorFonts, label: "Editor font")
-                        stepper($prefs.editorSize, 11...28, label: "editor font size")
+                    row("Font", note: "Monospaced fonts installed on this Mac") {
+                        fontPicker($prefs.editorFont, Fonts.monospacedFamilies, label: "Editor font")
+                        stepper($prefs.editorSize, Preferences.editorSizeRange, label: "editor font size")
                     }
                     divider
                     row("Line width", note: "Characters per line") {
-                        widthControl($prefs.lineWidth, custom: $prefs.widthCustom, presets: Self.presets, range: 40...160, label: "editor")
+                        widthControl($prefs.lineWidth, custom: $prefs.widthCustom, presets: Self.presets, range: Preferences.editorWidthRange, label: "editor")
                     }
                     divider
                     row("Heading sizes", note: "Larger text for headings") {
@@ -45,16 +42,16 @@ struct SettingsView: View {
                     preview
                 }
                 section("Viewer") {
-                    row("Font", note: "Inter is the default. The custom stylesheet can override it") {
-                        fontPicker($prefs.viewerFont, Self.viewerFonts, label: "Viewer font")
+                    row("Font", note: "Sans and serif fonts installed on this Mac. Inter is the default. The custom stylesheet can override it") {
+                        fontPicker($prefs.viewerFont, Fonts.readingFamilies, label: "Viewer font")
                     }
                     divider
                     row("Text size", note: "Body size in points") {
-                        stepper($prefs.viewerSize, 12...28, label: "viewer text size")
+                        stepper($prefs.viewerSize, Preferences.viewerSizeRange, label: "viewer text size")
                     }
                     divider
                     row("Line width", note: "Characters per line") {
-                        widthControl($prefs.viewerWidth, custom: $prefs.viewerWidthCustom, presets: Self.viewerPresets, range: 40...120, label: "viewer")
+                        widthControl($prefs.viewerWidth, custom: $prefs.viewerWidthCustom, presets: Self.viewerPresets, range: Preferences.viewerWidthRange, label: "viewer")
                     }
                     divider
                     row("Remote pictures and styles", note: "A picture or stylesheet on the web tells its server you opened the note. Scripts never run") {
@@ -139,17 +136,17 @@ struct SettingsView: View {
         .padding(.leading, 16).padding(.trailing, 14).padding(.vertical, 8).frame(minHeight: 48)
     }
 
+    /// The fonts a picker offers: the installed ones, with the saved choice added in front when it is not among them.
+    static func choices(_ fonts: [String], keeping saved: String) -> [String] { fonts.contains(saved) ? fonts : [saved] + fonts }
+
     private func fontPicker(_ sel: Binding<String>, _ fonts: [String], label: String) -> some View {
-        Picker(label, selection: sel) {
-            ForEach(fonts, id: \.self) { f in
-                Text(Self.thirdParty.contains(f) && !Fonts.installed(f) ? "\(f) (not installed)" : f).tag(f)
-            }
+        // the saved font stays in the list even when it is not one of these (an old choice, or a font taken off the Mac)
+        let all = Self.choices(fonts, keeping: sel.wrappedValue)
+        return Picker(label, selection: sel) {
+            ForEach(all, id: \.self) { f in Text(Fonts.installed(f) ? f : "\(f) (not installed)").tag(f) }
         }
         .labelsHidden().frame(width: 250)
     }
-
-    /// Fonts that neither ship in the app nor come with macOS; the app falls back when one is missing.
-    static let thirdParty: Set<String> = ["JetBrains Mono", "Literata", "Inter"]
 
     private func stepper(_ v: Binding<Double>, _ range: ClosedRange<Double>, label: String) -> some View {
         HStack(spacing: 0) {

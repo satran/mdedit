@@ -52,6 +52,10 @@ Every note you open becomes a tab in the **Open** section at the top of the bind
 
 Notes save as you type, so a tab has no unsaved state. The Open section shows up to eight tabs and then scrolls. The tabs are remembered per window and come back when you reopen it. They are kept up to date when you rename, move or delete a note.
 
+## Text size and margins
+
+**View ▸ Increase Font Size** (⌘=, the + key) and **Decrease Font Size** (⌘-) change the text size by a point: in the editor while you write, in the viewer while you read. **Increase Margins** (⇧⌘-) and **Decrease Margins** (⇧⌘=) change the line width by 4 characters, so bigger margins mean a narrower column. These change the same settings as **Settings**, within the same limits, and the line width shows as Custom when it is not one of Narrow, Medium or Wide.
+
 ## Back and Forward
 
 MDEdit remembers the notes you opened, like a browser does. **View ▸ Back to Previous Note** (⌘[) returns to the note you were in before, and **Forward to Next Note** (⌘]) undoes a Back. The ‹ button at the top left of the note does the same as Back.
@@ -239,8 +243,8 @@ The command contains the token, so it also lands in your shell history. **Regene
 Open them with **MDEdit ▸ Settings…** (⌘,).
 
 - **Appearance:** light, dark, or follow the system.
-- **Editor:** the font and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
-- **Viewer:** the font, the text size, the line width, and whether remote pictures and stylesheets are loaded.
+- **Editor:** the font (any monospaced font installed on your Mac) and size, the line width in characters, larger heading sizes, and whether distraction free uses the full screen.
+- **Viewer:** the font (any sans or serif font installed on your Mac), the text size, the line width, and whether remote pictures and stylesheets are loaded.
 - **Agents:** the on/off switch, the port, and the token (Copy command, Regenerate). Off by default.
 
 ## The command palette

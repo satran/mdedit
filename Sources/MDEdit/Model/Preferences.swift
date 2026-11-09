@@ -36,6 +36,31 @@ final class Preferences: ObservableObject {
     /// The bearer token an agent must send. Made on first use; a new one signs every agent out.
     @Published private(set) var agentToken: String { didSet { d.set(agentToken, forKey: "agentToken") } }
 
+    /// What Settings and the size and margin shortcuts stay within.
+    static let editorSizeRange = 11.0...28.0
+    static let viewerSizeRange = 12.0...28.0
+    static let editorWidthRange = 40...160
+    static let viewerWidthRange = 40...120
+    static let marginStep = 4
+
+    /// ⌘= and ⌘-: a point bigger or smaller, for the viewer when `viewer`, else for the editor.
+    func changeTextSize(by step: Double, viewer: Bool) {
+        if viewer { viewerSize = min(Self.viewerSizeRange.upperBound, max(Self.viewerSizeRange.lowerBound, viewerSize + step)) }
+        else { editorSize = min(Self.editorSizeRange.upperBound, max(Self.editorSizeRange.lowerBound, editorSize + step)) }
+    }
+
+    /// ⇧⌘= and ⇧⌘-: wider margins (`direction` 1) are a narrower line, and the other way round.
+    func changeMargins(direction: Int, viewer: Bool) {
+        let delta = -direction * Self.marginStep
+        if viewer {
+            viewerWidth = min(Self.viewerWidthRange.upperBound, max(Self.viewerWidthRange.lowerBound, viewerWidth + delta))
+            viewerWidthCustom = !SettingsView.viewerPresets.contains { $0.1 == viewerWidth }
+        } else {
+            lineWidth = min(Self.editorWidthRange.upperBound, max(Self.editorWidthRange.lowerBound, lineWidth + delta))
+            widthCustom = !SettingsView.presets.contains { $0.1 == lineWidth }
+        }
+    }
+
     static let agentPortRange = 1024...65_535
     static let defaultAgentPort = 47_821
 
