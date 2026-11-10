@@ -164,7 +164,7 @@ A picture or stylesheet on the web tells its server that you opened the note, so
 
 HTML files (`.html`, `.htm`), JSON files (`.json`) and YAML files (`.yaml`, `.yml`) in the folder appear in the binder and open in the editor, shown as code: a monospace font, colours for tags, keys and strings, and none of the Markdown behaviour (no lists, no wiki links, no spell checking). You can edit and save them like a note, search them with **Find**, and undo.
 
-Press the eye button (**Preview**, ⌘E) to see the result:
+Press the play button (**Preview**, ⌘E) to see the result:
 
 - **HTML** is shown as a page, as a browser would show it. Pictures and stylesheets next to the file work; nothing outside the open folder can be read, and scripts never run. Links to other pages and notes in the folder open in MDEdit, and web addresses open in your browser. If the file has template tags, the preview renders it (see Templates below).
 - **JSON** is shown as pretty-printed JSON with the keys in order. A file that is not valid JSON says so and shows its text.
@@ -174,7 +174,7 @@ A file you have previewed opens in the preview next time, as long as its text ha
 
 ### Templates
 
-An HTML file that contains `{%` or `{{` is a template. It opens in the editor as code. Press **Preview** (the eye button) and the page is filled in from the notes in the open folder; press it again to go back to the source. The first time you preview a template in MDEdit it warns you once (below). A template is not rendered when a note changes. A template you have already previewed opens in the preview, rendered, as soon as you open it, as long as its text has not changed since; after you edit it, it opens in the editor again. While a page renders there is a bar with **Cancel**.
+An HTML file that contains `{%` or `{{` is a template. It opens in the editor as code. Press **Preview** (the play button) and the page is filled in from the notes in the open folder; press it again to go back to the source. The first time you preview a template in MDEdit it warns you once (below). A template is not rendered when a note changes. A template you have already previewed opens in the preview, rendered, as soon as you open it, as long as its text has not changed since; after you edit it, it opens in the editor again. While a page renders there is a bar with **Cancel**.
 
 The first time you preview a template in MDEdit, it warns you once: a rendered page can read every note in the folder and show it on screen. It cannot change anything, and it does not make a network request on its own, even if remote pictures are on in Settings. After that Preview just renders. A link to a web or mail address on a rendered page asks you first and shows the whole address, which can contain text from your notes, unless you listed that host with **Trusted Addresses for Templates…** in the command palette (one host per line, `example.com` or `*.example.com`, https only, for this folder). Hidden files are never read.
 

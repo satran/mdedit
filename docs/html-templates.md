@@ -1,12 +1,12 @@
 # HTML templates in MDEdit: a guide for agents
 
-MDEdit can fill an HTML file in from the notes in the folder it has open. You write an ordinary `.html` file with a few template tags; the person previews it (the eye button) and sees a page built from their notes (an index, a task list, a summary of every note, today's agenda). This file tells you how to write one that works the first time, and how to test it yourself.
+MDEdit can fill an HTML file in from the notes in the folder it has open. You write an ordinary `.html` file with a few template tags; the person previews it (the play button) and sees a page built from their notes (an index, a task list, a summary of every note, today's agenda). This file tells you how to write one that works the first time, and how to test it yourself.
 
 You write the template as a file on disk, in the person's opened folder, or suggest changes to an existing one with `propose_edit` (HTML, JSON and YAML files are text files to the agent tools, like notes; the person accepts in the Review tab). You can **test it yourself with the `render_template` tool** (see "Testing a template"); the person still previews it in the app.
 
 ## How it works
 
-- A file is a template when its extension is `.html` or `.htm` **and** its text contains `{%` or `{{`. MDEdit opens it in the editor, as code. The person presses **Preview** (the eye button) to render it, and presses it again to go back to the source. Once a file has been previewed, opening it again shows the preview by itself, as long as its text is exactly what it was then (the app keeps a SHA-256 of it, per folder and path, in its settings). After any edit it opens in the editor again. Nothing renders when a note changes.
+- A file is a template when its extension is `.html` or `.htm` **and** its text contains `{%` or `{{`. MDEdit opens it in the editor, as code. The person presses **Preview** (the play button) to render it, and presses it again to go back to the source. Once a file has been previewed, opening it again shows the preview by itself, as long as its text is exactly what it was then (the app keeps a SHA-256 of it, per folder and path, in its settings). After any edit it opens in the editor again. Nothing renders when a note changes.
 - The first time anyone previews a template in the app, a sheet warns once that a rendered page can read every note in the folder. After that it just renders.
 - Rendering only **reads**. A template cannot write, rename or delete anything, run a program, run JavaScript or make a network request.
 - Everything is read from the opened folder, as saved on disk (unsaved edits in the editor are not seen).

@@ -43,7 +43,7 @@ struct DetailView: View {
             HStack(spacing: 4) {
                 IconButton(symbol: "plus", label: "New document") { ws.newDocument() }
                     .foregroundStyle(Color(Palette.muted)).opacity(ws.root == nil ? 0.35 : 1).disabled(ws.root == nil)
-                IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
+                IconButton(symbol: "play.fill", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
                     .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
                     .opacity(document.url == nil ? 0.35 : 1).disabled(document.url == nil)
                     .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
