@@ -9,6 +9,8 @@ struct MDEditApp: App {
         NSWindow.allowsAutomaticWindowTabbing = false
         // agent access: listens only while the switch in Settings is on
         AgentServerController.shared.start()
+        // a newer release: once a day, only if Settings allows, and silent unless there is one
+        DispatchQueue.main.async { Updater.shared.checkInBackground(prefs: Preferences.shared) }
     }
 
     var body: some Scene {

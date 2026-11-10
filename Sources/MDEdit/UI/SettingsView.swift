@@ -64,6 +64,7 @@ struct SettingsView: View {
                     divider
                     viewerPreview
                 }
+                updatesSection
                 agentsSection
             }
             .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 24)
@@ -71,6 +72,16 @@ struct SettingsView: View {
         .frame(width: 680, height: 560)
         .background(Color(Palette.binderBg))
         .foregroundStyle(Color(Palette.binderText))
+    }
+
+    // MARK: updates
+
+    private var updatesSection: some View {
+        section("Updates") {
+            row("Check for updates", note: "Once a day MDEdit asks github.com for the latest release and tells you if there is a newer one. Nothing about you or your notes is sent. MDEdit ▸ Check for Updates does it now") {
+                Toggle("Check for updates", isOn: $prefs.checkForUpdates).labelsHidden().toggleStyle(.switch)
+            }
+        }
     }
 
     // MARK: agent access

@@ -19,6 +19,8 @@ final class ProjectPolicyTests: XCTestCase {
         // The one network privilege beyond the client: agent access (plan 005) listens on the loopback address only.
         // `scripts/audit.sh` checks that only Agents/MCPServer.swift opens a listener and that it binds to loopback.
         XCTAssertEqual(entitlement("com.apple.security.network.server") as? Bool, true)
+        // printing: without it the sandbox answers the print panel with "This application does not support printing"
+        XCTAssertEqual(entitlement("com.apple.security.print") as? Bool, true)
         let forbidden = [
             "com.apple.security.files.all", "com.apple.security.files.user-selected.executable",
             "com.apple.security.files.downloads.read-write", "com.apple.security.assets.pictures.read-write", "com.apple.security.assets.music.read-write",

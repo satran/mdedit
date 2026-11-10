@@ -30,11 +30,14 @@ targets:
         com.apple.security.files.bookmarks.app-scope: true
         com.apple.security.network.client: true
         com.apple.security.network.server: true
+        com.apple.security.print: true
     info:
       path: Sources/MDEdit/Info.plist
       properties:
         CFBundleName: MDEdit
         CFBundleDisplayName: MDEdit
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSMinimumSystemVersion: "14.0"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: ""

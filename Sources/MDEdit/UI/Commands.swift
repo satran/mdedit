@@ -110,6 +110,10 @@ struct AppCommands: Commands {
         CommandGroup(after: .sidebar) { items(all, .view) }
         CommandMenu("Find") { items(all, .find) }
         CommandMenu("Format") { items(all, .format) }
+        CommandGroup(replacing: .appInfo) {
+            Button("About MDEdit") { Updater.showAbout() }
+            Button("Check for Updates…") { Updater.shared.checkNow() }
+        }
         CommandGroup(replacing: .help) {
             Button("MDEdit Help") { openWindow(id: "help") }.keyboardShortcut("?", modifiers: .command)
         }

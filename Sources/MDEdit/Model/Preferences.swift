@@ -29,6 +29,9 @@ final class Preferences: ObservableObject {
     /// The viewer's body size in points (18 by default, as in the type specs).
     @Published var viewerSize: Double { didSet { d.set(viewerSize, forKey: "viewerTextSize") } }
 
+    /// Look for a new release at launch (once a day). The only request the app makes on its own.
+    @Published var checkForUpdates: Bool { didSet { d.set(checkForUpdates, forKey: "checkForUpdates") } }
+
     /// Agent access: a local server that lets an agent read the editor's context and propose edits. Off until turned on here.
     @Published var agentsEnabled: Bool { didSet { d.set(agentsEnabled, forKey: "agentsEnabled") } }
     /// The loopback port the server listens on.
@@ -91,6 +94,7 @@ final class Preferences: ObservableObject {
         viewerWidthCustom = d.bool(forKey: "viewerWidthCustom")
         viewerFont = Self.cleanFamily(d.string(forKey: "viewerFont")) ?? ViewerStyle.defaultFamily
         viewerSize = min(32, max(12, d.object(forKey: "viewerTextSize") as? Double ?? Double(ViewerStyle.specBody)))
+        checkForUpdates = d.object(forKey: "checkForUpdates") as? Bool ?? true
         agentsEnabled = d.bool(forKey: "agentsEnabled")
         agentPort = min(Self.agentPortRange.upperBound, max(Self.agentPortRange.lowerBound, d.object(forKey: "agentPort") as? Int ?? Self.defaultAgentPort))
         // a stored token that is not what we make (short, odd characters) is replaced, never trusted

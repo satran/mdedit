@@ -12,7 +12,7 @@
 - Runs in the macOS sandbox, saves as you type, refuses to overwrite files changed on disk by something else, keeps a copy of unsaved work if saving fails.
 - Optional local agent server (off by default): an AI agent can read the open note and propose edits over MCP; each suggestion shows as a diff in a Review tab and nothing changes until the user accepts it.
 - Open source (MIT) and free to download.
-- No account, no sync service, no tracking; makes no network connections of its own.
+- No account, no sync service, no tracking; its only network request is an optional once-a-day check of GitHub for a newer release, which can be switched off in Settings.
 
 ## Facts
 

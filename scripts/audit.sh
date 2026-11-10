@@ -6,13 +6,13 @@ bad() { echo "AUDIT FAIL: $1"; fail=1; }
 ok()  { echo "ok: $1"; }
 
 # 1. Entitlements are exactly the ones the app needs.
-ALLOWED="com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write com.apple.security.network.client com.apple.security.network.server"
+ALLOWED="com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write com.apple.security.network.client com.apple.security.network.server com.apple.security.print"
 found=$(/usr/libexec/PlistBuddy -c "Print" MDEdit.entitlements | grep -E "^\s+com\.apple" | awk '{print $1}')
 for e in $found; do
   case " $ALLOWED " in *" $e "*) ;; *) bad "unexpected entitlement $e";; esac
 done
 for e in $ALLOWED; do echo "$found" | grep -q "^$e$" || bad "missing entitlement $e"; done
-[ $fail -eq 0 ] && ok "entitlements are the expected five (sandbox, user-selected files, bookmarks, network client, network server for agent access)"
+[ $fail -eq 0 ] && ok "entitlements are the expected six (sandbox, user-selected files, bookmarks, network client, network server for agent access, printing)"
 
 # 2. The built app really is sandboxed.
 if [ -d build/MDEdit.app ]; then
@@ -36,7 +36,7 @@ grep -rnE "NSAppleScript|Process\(\)|NSTask|popen\(|execv|fork\(\)|posix_spawn|(
 grep -rn "loadFileURL\|allowFileAccessFromFileURLs\|NSWorkspace.shared.open(.*launch" Sources && bad "web view file access or launching"
 grep -rn "WKWebView(" Sources | grep -v "configuration" && bad "WKWebView created without a configuration (JavaScript would be on)"
 # every call that opens something must be one of the vetted ones below (links go through LinkPolicy first)
-grep -rn "NSWorkspace.shared.open(" Sources | grep -v "case \.openWeb\|case \.openFile\|LinkPolicy.isProgram(node.url)\|else { NSWorkspace.shared.open(node.url) }\|LinkPolicy.webSchemes\|var openAddress: (URL) -> Void = { NSWorkspace.shared.open(\$0) }" | while read -r l; do echo "REVIEW: $l"; done
+grep -rn "NSWorkspace.shared.open(" Sources | grep -v "case \.openWeb\|case \.openFile\|LinkPolicy.isProgram(node.url)\|else { NSWorkspace.shared.open(node.url) }\|LinkPolicy.webSchemes\|Updater.releasesPage\|var openAddress: (URL) -> Void = { NSWorkspace.shared.open(\$0) }" | while read -r l; do echo "REVIEW: $l"; done
 [ $fail -eq 0 ] && ok "no unsafe API patterns"
 
 # 3b. The one listening socket: only MCPServer may open one, only on loopback, and the app has no URL scheme.

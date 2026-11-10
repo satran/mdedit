@@ -255,7 +255,7 @@ Open them with **MDEdit ▸ Settings…** (⌘,).
 
 - Notes are saved as ordinary files, in the folder you chose. Nothing else is stored in that folder except `.mdedit`, which holds `preview.css` if you make one. Older versions kept saved scripts and command history in `.mdedit/scripts` and `.mdedit/history`; they are no longer used and you can delete them.
 - MDEdit works inside the macOS App Sandbox. It can only open the folders you pick, and it keeps access to them with a bookmark so you do not have to choose them again.
-- Nothing is sent anywhere. The only network use is a picture on the web, and only if you allow it in Settings. When agent access is switched on (off by default), the app also accepts connections from programs on your own Mac, and from nowhere else.
+- Nothing of yours is sent anywhere. The network is used for two things: a picture on the web, only if you allow it in Settings, and a once-a-day check of github.com for a newer version of MDEdit (Settings ▸ Check for updates). That request carries no note, no folder name and no identifier. When agent access is switched on (off by default), the app also accepts connections from programs on your own Mac, and from nowhere else.
 - If a note was changed elsewhere while you had unsaved edits, MDEdit saves your edits to a copy beside it rather than losing them.
 
 ## Troubleshooting

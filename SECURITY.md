@@ -1,6 +1,6 @@
 # Security
 
-MDEdit opens a folder you choose and works only inside it. It runs in the macOS sandbox, makes no network connections of its own, and the optional local agent server (Settings ▸ Agents) is off until you turn it on, listens on the loopback address only, and needs a bearer token.
+MDEdit opens a folder you choose and works only inside it. It runs in the macOS sandbox, makes one network request of its own (a once-a-day look at GitHub for a newer release, which Settings can switch off), and the optional local agent server (Settings ▸ Agents) is off until you turn it on, listens on the loopback address only, and needs a bearer token.
 
 ## Reporting a problem
 
