@@ -41,11 +41,12 @@ Notes are files ending in `.md`, `.markdown` or `.txt`. In the binder and the ta
 
 ## Tabs
 
-Every note you open becomes a tab in the **Open** section at the top of the binder, above the folder tree. Click a note in the tree to open it in a new tab, or click a tab to go back to it. Clicking a note that is already open just switches to it.
+Every note you open becomes a tab in the header bar, between Back and Preview. The tabs share the width and shrink as more open; past that the strip scrolls. The + beside them makes a new note. Export, Copy as Markdown and Print are in the File menu. Click a note in the tree to open it in a new tab, or click a tab to go back to it. Clicking a note that is already open just switches to it.
 
-- **Close** a tab with the × on its row, or press ⌘W. Closing a tab never touches the file. The note next to it opens in its place. On the last tab, ⌘W closes the window.
+- **Close** a tab with the × on the tab, or press ⌘W. Closing a tab never touches the file. The note next to it opens in its place. On the last tab, ⌘W closes the window.
 - **Reorder** tabs by dragging them.
-- **Right-click** a tab for Close Others, Close Tabs Below and Reveal in Finder.
+- **Switch** with ⇧⌘[ and ⇧⌘], or ⌘1 to ⌘9 for the first to ninth tab (shown at the right of each tab).
+- **Right-click** a tab for Close Others, Close Tabs to the Right and Reveal in Finder.
 - **Move between tabs** with ⇧⌘[ and ⇧⌘] (View menu). ⌥⌘T brings back the tab you closed last.
 - When two tabs have the same name, each gets a small grey tag after it: the folder, or just enough of the path to tell them apart (`A/Notes` and `B/Notes`). Two files with the same name and icon in one folder (`Plan.md` and `Plan.txt`) are tagged with their extension.
 - An orange mark on a tab means the file changed on disk while it was open.
@@ -80,7 +81,7 @@ Use the **Format** menu or the shortcuts. Each one toggles: use it again to take
 | Highlight | `==text==` | ⇧⌘H |
 | Inline code | `` `code` `` | ⇧⌘C |
 | Link | `[text](address)` | ⌘K |
-| Heading 1–6 | `# ` to `###### ` | ⌘1 to ⌘6 |
+| Heading 1–6 | `# ` to `###### ` | ⌃1 to ⌃6 |
 | Body text | | ⌘0 |
 | Bulleted list | `- item` | ⇧⌘L |
 | Numbered list | `1. item` | ⇧⌘N |
@@ -147,7 +148,7 @@ An invalid pattern is shown in the field instead of searching. Very large result
 
 ## Viewing
 
-**View ▸ View** (⌃⌘V) shows the note typeset like a printed page, in a sans face (Inter unless you pick another under **Settings ▸ Viewer ▸ Font**). **Write** (⌘1) returns to editing, and ⇧⌘E toggles between the two.
+**View ▸ View** (⌃⌘V) shows the note typeset like a printed page, in a sans face (Inter unless you pick another under **Settings ▸ Viewer ▸ Font**). **Write** (⌃⌘W) returns to editing, and ⇧⌘E toggles between the two.
 
 The View uses curly quotes, proper dashes and ellipses, shows tables, task lists, quotes and code blocks, and sets local pictures centred. Links open as follows: another note opens in MDEdit, a web address opens in your browser, and a local file opens in its own app. Nothing runs from a note.
 

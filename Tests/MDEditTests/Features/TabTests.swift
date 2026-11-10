@@ -22,6 +22,39 @@ final class TabTests: XCTestCase {
         XCTAssertEqual(open, "C.md")
     }
 
+    func testShowTabByNumber() {
+        ws.select(s.path("B.md")); ws.select(s.path("C.md"))
+        ws.showTab(2); XCTAssertEqual(open, "B.md")
+        ws.showTab(1); XCTAssertEqual(open, "A.md")
+        ws.showTab(9); XCTAssertEqual(open, "A.md", "no ninth tab: nothing happens")
+        ws.showTab(0); XCTAssertEqual(open, "A.md")
+        let cmds = makeCommands(ws: ws, prefs: Preferences(defaults: UserDefaults(suiteName: "tabnum-\(UUID().uuidString)")!), recents: RecentFolders.shared, newWindow: { _ in })
+        XCTAssertTrue(cmds.first { $0.id == "tab-3" }?.enabled == true)
+        XCTAssertTrue(cmds.first { $0.id == "tab-4" }?.enabled == false)
+        XCTAssertEqual(cmds.first { $0.id == "tab-2" }?.shortcut, "⌘2")
+    }
+
+    func testTabNumbersAndWhenTheBarShows() throws {
+        XCTAssertFalse(ws.showsTabs, "one note: the breadcrumb, no tab bar")
+        XCTAssertEqual(ws.tabNumber(s.path("A.md")), 1)
+        ws.select(s.path("B.md"))
+        XCTAssertTrue(ws.showsTabs)
+        XCTAssertEqual(ws.tabNumber(s.path("B.md")), 2)
+        XCTAssertNil(ws.tabNumber(s.path("D.md")), "not a tab")
+        for i in 0..<10 { try s.write("N\(i).md", "n"); ws.reload(); ws.select(s.path("N\(i).md")) }
+        XCTAssertEqual(ws.tabNumber(ws.openTabs[8]), 9)
+        XCTAssertNil(ws.tabNumber(ws.openTabs[9]), "only the first nine have a number")
+    }
+
+    func testShowFocusesTheNoteAndTheNumberCommandsExistForEveryNumber() {
+        ws.select(s.path("B.md"))
+        ws.show(s.path("A.md"))
+        XCTAssertEqual(open, "A.md")
+        let ids = makeCommands(ws: ws, prefs: Preferences(defaults: UserDefaults(suiteName: "tabids-\(UUID().uuidString)")!), recents: RecentFolders.shared, newWindow: { _ in }).map(\.id)
+        for n in 1...9 { XCTAssertTrue(ids.contains("tab-\(n)")) }
+        XCTAssertLessThan(ids.firstIndex(of: "tab-9")!, ids.firstIndex(of: "next-tab")!, "listed before Show Next Tab")
+    }
+
     func testOpeningANoteThatIsAlreadyOpenSwitchesToItWithoutAnotherTab() {
         ws.select(s.path("B.md")); ws.select(s.path("A.md"))
         XCTAssertEqual(names, ["A", "B"])

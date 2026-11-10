@@ -373,7 +373,7 @@ final class FormattingTests: XCTestCase {
         let shortcuts = Dictionary(uniqueKeysWithValues: format.map { ($0.title, $0.shortcut) })
         XCTAssertEqual(shortcuts["Bold"], "⌘B"); XCTAssertEqual(shortcuts["Italic"], "⌘I"); XCTAssertEqual(shortcuts["Link"], "⌘K")
         XCTAssertEqual(shortcuts["Inline Code"], "⇧⌘C"); XCTAssertEqual(shortcuts["Strikethrough"], "⇧⌘X"); XCTAssertEqual(shortcuts["Highlight"], "⇧⌘H")
-        XCTAssertEqual(shortcuts["Heading 1"], "⌘1"); XCTAssertEqual(shortcuts["Heading 6"], "⌘6"); XCTAssertEqual(shortcuts["Body Text"], "⌘0")
+        XCTAssertEqual(shortcuts["Heading 1"], "⌃1"); XCTAssertEqual(shortcuts["Heading 6"], "⌃6"); XCTAssertEqual(shortcuts["Body Text"], "⌘0")
         XCTAssertEqual(shortcuts["Bulleted List"], "⇧⌘L"); XCTAssertEqual(shortcuts["Numbered List"], "⇧⌘N"); XCTAssertEqual(shortcuts["Task List"], "⇧⌘T")
         XCTAssertEqual(shortcuts["Quote"], "⇧⌘."); XCTAssertEqual(shortcuts["Code Block"], "⌥⌘C"); XCTAssertEqual(shortcuts["Horizontal Rule"], "⌥⌘-")
         let found = PaletteView.filter(cmds, "heading").map(\.title)

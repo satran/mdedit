@@ -30,32 +30,27 @@ struct DetailView: View {
 
     // MARK: header
 
-    private var headerDivider: some View { Rectangle().fill(Color(Palette.binderBorder)).frame(width: 1, height: 18) }
-
     private var header: some View {
-        let name = document.url?.deletingPathExtension().lastPathComponent ?? ""
-        // a web page is only shown: nothing here works on Markdown, so the buttons stay, dimmed
-        let canExport = document.url != nil && !ws.isCodeFile
-        return HStack(spacing: 12) {
-            IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
-                .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
-            headerDivider
-            IconButton(symbol: "chevron.left", label: "Back to previous note") { ws.goBack() }
-                .foregroundStyle(Color(Palette.muted)).opacity(ws.visited.isEmpty ? 0.35 : 1).disabled(ws.visited.isEmpty)
-            breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
+        // every icon button is the same distance from the next one: 4 pt between their 30 pt boxes, on both sides of the tabs
+        HStack(spacing: 12) {
             HStack(spacing: 4) {
+                IconButton(symbol: "sidebar.left", label: ws.binderVisible ? "Hide binder" : "Show binder") { ws.toggleBinder() }
+                    .foregroundStyle(Color(ws.binderVisible ? Palette.link : Palette.muted))
+                IconButton(symbol: "chevron.left", label: "Back to previous note") { ws.goBack() }
+                    .foregroundStyle(Color(Palette.muted)).opacity(ws.visited.isEmpty ? 0.35 : 1).disabled(ws.visited.isEmpty)
+            }
+            tabStrip
+            HStack(spacing: 4) {
+                IconButton(symbol: "plus", label: "New document") { ws.newDocument() }
+                    .foregroundStyle(Color(Palette.muted)).opacity(ws.root == nil ? 0.35 : 1).disabled(ws.root == nil)
                 IconButton(symbol: "eye", label: ws.mode == .view ? "Back to writing" : "Preview") { ws.mode = ws.mode == .view ? .write : .view }
                     .foregroundStyle(Color(ws.mode == .view ? Palette.link : Palette.muted))
                     .opacity(document.url == nil ? 0.35 : 1).disabled(document.url == nil)
                     .accessibilityAddTraits(ws.mode == .view ? .isSelected : [])
-                shareMenu(name: name).opacity(canExport ? 1 : 0.35).disabled(!canExport)
-                IconButton(symbol: "square.on.square", label: "New window with this folder") { ws.openInNewWindow() }
-                    .foregroundStyle(Color(Palette.muted)).disabled(ws.root == nil)
+                IconButton(symbol: "sidebar.right", label: ws.panel == nil ? "Show side panel" : "Hide side panel") { ws.togglePanel() }
+                    .foregroundStyle(Color(ws.panel != nil ? Palette.link : Palette.muted))
+                    .accessibilityAddTraits(ws.panel != nil ? .isSelected : [])
             }
-            headerDivider
-            IconButton(symbol: "sidebar.right", label: ws.panel == nil ? "Show side panel" : "Hide side panel") { ws.togglePanel() }
-                .foregroundStyle(Color(ws.panel != nil ? Palette.link : Palette.muted))
-                .accessibilityAddTraits(ws.panel != nil ? .isSelected : [])
         }
         .padding(.leading, ws.binderVisible ? 16 : 100).padding(.trailing, 16)
         .animation(.easeInOut(duration: 0.25), value: ws.binderVisible)
@@ -63,18 +58,13 @@ struct DetailView: View {
         .background(WindowDragArea())
     }
 
-    private func shareMenu(name: String) -> some View {
-        Menu {
-            Button("Export as HTML…") { Exporter.shared.saveHTML(markdown: document.text, name: name, prefs: prefs) }
-            Button("Copy as Markdown") { Exporter.shared.copyMarkdown(document.text) }
-            Divider()
-            Button("Print… (PDF in the print panel)") { Exporter.shared.print(markdown: document.text, name: name, prefs: prefs) }
-        } label: {
-            Image(systemName: "square.and.arrow.up").font(.system(size: 13)).frame(width: 30, height: 30).contentShape(Rectangle())
+    /// The open notes as tabs filling the header; with one note or none, where it is.
+    @ViewBuilder private var tabStrip: some View {
+        if !ws.showsTabs {
+            breadcrumb.frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HeaderTabs(document: document)
         }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 30)
-        .foregroundStyle(Color(Palette.muted))
-        .accessibilityLabel("Share").help("Share")
     }
 
     private var breadcrumb: some View {

@@ -1,13 +1,26 @@
 import AppKit
 
-/// Open notes as tabs. A window has one open document; a tab is a note kept in the binder's Open section, so switching
-/// is just opening that note. Every note that opens in the app becomes a tab, and closing a tab never touches the file.
+/// Open notes as tabs. A window has one open document; a tab is just a note that stays on the list, so switching is
+/// opening that note. Every note that opens in the app becomes a tab, and closing a tab never touches the file.
+/// The views only draw this: which tabs exist, which is active, what each is called and numbered, and what to do on
+/// a click or a key all live here.
 extension Workspace {
     static func isSame(_ a: URL, _ b: URL) -> Bool { a.standardizedFileURL.path == b.standardizedFileURL.path }
     /// `url` is the folder or file at `path`, or inside it.
     static func isSame(_ url: URL, orInside path: String) -> Bool {
         let p = url.standardizedFileURL.path
         return p == path || p.hasPrefix(path + "/")
+    }
+
+    /// ⌘1 … ⌘9 reach the first nine tabs.
+    static let numberedTabs = 9
+
+    /// A tab bar for one note is clutter: the breadcrumb says where it is.
+    var showsTabs: Bool { openTabs.count > 1 }
+
+    /// The number a tab answers to (⌘1 … ⌘9), nil past the ninth.
+    func tabNumber(_ url: URL) -> Int? {
+        openTabs.firstIndex { Self.isSame($0, url) }.map { $0 + 1 }.flatMap { $0 <= Self.numberedTabs ? $0 : nil }
     }
 
     var activeTab: URL? { document.url.flatMap { u in openTabs.first { Self.isSame($0, u) } } }
@@ -60,21 +73,31 @@ extension Workspace {
         else { (hostWindow ?? NSApp.keyWindow)?.performClose(nil) }
     }
 
+    /// Makes `url`'s tab the open note and puts the caret in it. The one way a click, a key or a reopen shows a tab.
+    func show(_ url: URL) {
+        reveal(url); select(url)
+        editor.keepFocusElsewhere = false
+        DispatchQueue.main.async { self.focusEditor() }
+    }
+
     /// ⇧⌘[ and ⇧⌘]: the tab before or after the open one, wrapping around.
     func switchTab(by step: Int) {
         guard openTabs.count > 1 else { return }
         let i = activeTab.flatMap { a in openTabs.firstIndex { Self.isSame($0, a) } } ?? (step > 0 ? -1 : 0)
-        let next = openTabs[((i + step) % openTabs.count + openTabs.count) % openTabs.count]
-        reveal(next); select(next)
-        focusEditor()
+        show(openTabs[((i + step) % openTabs.count + openTabs.count) % openTabs.count])
+    }
+
+    /// ⌘1 … ⌘9: the nth tab (the headings are ⌃1–⌃6).
+    func showTab(_ n: Int) {
+        guard openTabs.indices.contains(n - 1) else { return }
+        show(openTabs[n - 1])
     }
 
     /// ⌥⌘T: brings back the tab closed last, skipping notes that are gone.
     func reopenClosedTab() {
         while let u = closedTabs.popLast() {
             guard root?.find(u)?.opensInApp == true else { continue }
-            reveal(u); select(u)
-            focusEditor()
+            show(u)
             return
         }
     }

@@ -87,6 +87,11 @@ func makeCommands(ws: Workspace?, prefs: Preferences, recents: RecentFolders, ne
         Cmd(id: "settings", title: "Open Settings…") { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) },
     ]
     c += formatCommands(ws: ws)
+    // ⌘1 … ⌘9 show the first nine tabs, listed just before Show Next Tab
+    let numbered = (1...Workspace.numberedTabs).map { n in
+        Cmd(id: "tab-\(n)", title: "Show Tab \(n)", place: .view, key: KeyEquivalent(Character("\(n)")), enabled: (ws?.openTabs.count ?? 0) >= n) { ws?.showTab(n) }
+    }
+    c.insert(contentsOf: numbered, at: c.firstIndex { $0.id == "next-tab" } ?? c.endIndex)
     for item in recents.items {
         c.append(Cmd(id: "recent-" + item.path, title: "Open Recent: " + item.name) {
             if let ws { ws.openRecent(item) }
